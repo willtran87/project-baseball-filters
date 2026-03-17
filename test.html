@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minor League Major Filtration — Test Harness</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0e0e1a;
+      font-family: monospace;
+      color: #c0c0d0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+    }
+    h1 { font-size: 16px; margin-bottom: 8px; color: #8888cc; }
+    #game-container {
+      position: relative;
+      image-rendering: pixelated;
+      border: 2px solid #333;
+      margin-bottom: 12px;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    #ui-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+    }
+    #ui-overlay > * { pointer-events: auto; }
+
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-width: 960px;
+      margin-bottom: 12px;
+    }
+    #controls button {
+      background: #2a2a4a;
+      color: #c0c0d0;
+      border: 1px solid #4a4a6a;
+      padding: 6px 12px;
+      font-family: monospace;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    #controls button:hover { background: #3a3a6a; }
+    #controls button:active { background: #5a5aaa; }
+
+    #state-panel {
+      background: #1a1a2a;
+      border: 1px solid #333;
+      padding: 10px 14px;
+      max-width: 960px;
+      width: 100%;
+      font-size: 12px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    #event-log {
+      background: #12121e;
+      border: 1px solid #333;
+      padding: 10px 14px;
+      max-width: 960px;
+      width: 100%;
+      font-size: 11px;
+      line-height: 1.5;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 8px;
+    }
+    .log-entry { color: #888; }
+    .log-entry.filter { color: #6a6; }
+    .log-entry.economy { color: #aa6; }
+    .log-entry.event { color: #a6a; }
+    .log-entry.progression { color: #6aa; }
+  </style>
+</head>
+<body>
+  <h1>Minor League Major Filtration — Test Harness</h1>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    <div id="ui-overlay"></div>
+  </div>
+  <div id="controls"></div>
+  <div id="state-panel">Loading...</div>
+  <div id="event-log"></div>
+
+  <script type="module">
+    import { GameLoop } from './src/engine/GameLoop.js';
+    import { StateManager } from './src/engine/StateManager.js';
+    import { EventBus } from './src/engine/EventBus.js';
+    import { CanvasRenderer } from './src/rendering/CanvasRenderer.js';
+    import { SpriteSystem } from './src/rendering/SpriteSystem.js';
+    import { TileMap } from './src/rendering/TileMap.js';
+    import { FiltrationSystem } from './src/systems/FiltrationSystem.js';
+    import { EconomySystem } from './src/systems/EconomySystem.js';
+    import { EventSystem } from './src/systems/EventSystem.js';
+    import { ProgressionSystem } from './src/systems/ProgressionSystem.js';
+    import { HUD } from './src/ui/HUD.js';
+    import { PanelManager } from './src/ui/PanelManager.js';
+    import { TooltipManager } from './src/ui/TooltipManager.js';
+    import { GAME_CONFIG } from './src/data/gameConfig.js';
+
+    const CANVAS_WIDTH = 480;
+    const CANVAS_HEIGHT = 320;
+    const PIXEL_SCALE = 2;
+
+    const statePanel = document.getElementById('state-panel');
+    const eventLogEl = document.getElementById('event-log');
+    const controlsEl = document.getElementById('controls');
+
+    const eventLog = [];
+
+    function logEvent(category, msg) {
+      const entry = `[${category}] ${msg}`;
+      eventLog.push({ category, msg: entry });
+      if (eventLog.length > 100) eventLog.shift();
+      renderEventLog();
+    }
+
+    function renderEventLog() {
+      eventLogEl.innerHTML = eventLog.map(e =>
+        `<div class="log-entry ${e.category}">${e.msg}</div>`
+      ).join('');
+      eventLogEl.scrollTop = eventLogEl.scrollHeight;
+    }
+
+    function init() {
+      const canvas = document.getElementById('game-canvas');
+      const uiOverlay = document.getElementById('ui-overlay');
+
+      canvas.width = CANVAS_WIDTH;
+      canvas.height = CANVAS_HEIGHT;
+      canvas.style.width = `${CANVAS_WIDTH * PIXEL_SCALE}px`;
+      canvas.style.height = `${CANVAS_HEIGHT * PIXEL_SCALE}px`;
+
+      const eventBus = new EventBus();
+      const state = new StateManager(eventBus, GAME_CONFIG);
+      const renderer = new CanvasRenderer(canvas);
+      const sprites = new SpriteSystem();
+      const tileMap = new TileMap();
+
+      // Load a simple test tilemap (30 cols x 20 rows)
+      const map = [];
+      for (let r = 0; r < 20; r++) {
+        const row = [];
+        for (let c = 0; c < 30; c++) {
+          if (r === 0 || r === 19 || c === 0 || c === 29) {
+            row.push(2); // wall
+          } else if (r >= 8 && r <= 11 && c >= 4 && c <= 25) {
+            row.push(3); // pipe corridor
+          } else if (r === 12 && c % 4 === 0 && c >= 4 && c <= 24) {
+            row.push(4); // vent slots
+          } else {
+            row.push(1); // floor
+          }
+        }
+        map.push(row);
+      }
+      tileMap.load(map);
+
+      const filtration = new FiltrationSystem(state, eventBus);
+      const economy = new EconomySystem(state, eventBus);
+      const events = new EventSystem(state, eventBus);
+      const progression = new ProgressionSystem(state, eventBus);
+
+      const hud = new HUD(uiOverlay, state, eventBus);
+      const panels = new PanelManager(uiOverlay, state, eventBus);
+      const tooltips = new TooltipManager(uiOverlay);
+
+      const systems = [filtration, economy, events, progression];
+
+      // Wire up event logging
+      eventBus.on('filter:added', (f) => logEvent('filter', `Filter added: ${f.type} at (${f.x},${f.y}) id=${f.id}`));
+      eventBus.on('filter:removed', (f) => logEvent('filter', `Filter removed: ${f.type} id=${f.id}`));
+      eventBus.on('filter:broken', (f) => logEvent('filter', `FILTER BROKEN: ${f.type} id=${f.id}`));
+      eventBus.on('filter:repaired', (f) => logEvent('filter', `Filter repaired: ${f.type} id=${f.id}`));
+      eventBus.on('economy:inningEnd', (d) => logEvent('economy', `Inning end — income: $${d.income}, expenses: $${d.expenses}, balance: $${d.balance}`));
+      eventBus.on('event:started', (e) => logEvent('event', `EVENT STARTED: ${e.name} — ${e.description}`));
+      eventBus.on('event:ended', (e) => logEvent('event', `Event ended: ${e?.name}`));
+      eventBus.on('game:newDay', (d) => logEvent('event', `=== NEW DAY ${d.day} ===`));
+      eventBus.on('progression:achievement', (m) => logEvent('progression', `ACHIEVEMENT: ${m.name} — ${m.description}`));
+      eventBus.on('progression:unlock', (u) => logEvent('progression', `UNLOCKED: ${u.filterType}`));
+      eventBus.on('filtration:quality', (d) => {
+        // only log occasionally, not every tick
+      });
+      eventBus.on('ui:message', (d) => logEvent('event', `UI Message: ${d.text}`));
+
+      // Game loop
+      function update(dt) {
+        for (const system of systems) {
+          system.update(dt);
+        }
+        hud.update(dt);
+        panels.update(dt);
+      }
+
+      function render(interpolation) {
+        renderer.clear();
+        tileMap.render(renderer, state);
+
+        // Draw filters as colored rectangles with condition bars
+        for (const filter of state.filters) {
+          const colors = {
+            basic: '#55aa55',
+            carbon: '#aa8833',
+            hepa: '#5577dd',
+            electrostatic: '#aa55cc',
+          };
+          const color = colors[filter.type] || '#888';
+          renderer.drawRect(filter.x, filter.y, 14, 14, color);
+
+          // Condition bar
+          const ratio = filter.condition / filter.maxCondition;
+          const barColor = ratio > 0.5 ? '#4a4' : ratio > 0.2 ? '#aa4' : '#a44';
+          renderer.drawRect(filter.x, filter.y + 14, Math.floor(14 * ratio), 2, barColor);
+        }
+
+        // Draw active event banner
+        if (state.activeEvent) {
+          renderer.save();
+          renderer.setAlpha(0.7);
+          renderer.drawRect(0, CANVAS_HEIGHT - 20, CANVAS_WIDTH, 20, '#442244');
+          renderer.restore();
+          renderer.drawText(state.activeEvent.name, CANVAS_WIDTH / 2, CANVAS_HEIGHT - 16, { align: 'center', size: 10, color: '#ffaaff' });
+        }
+
+        sprites.render(renderer, state);
+        hud.render();
+      }
+
+      const loop = new GameLoop(update, render);
+
+      // ── Test Controls ──────────────────────────────────────
+
+      function addButton(label, fn) {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.addEventListener('click', fn);
+        controlsEl.appendChild(btn);
+      }
+
+      addButton('Install Basic Filter', () => {
+        const slot = 4 + state.filters.length * 4;
+        eventBus.emit('filter:install', { type: 'basic', x: slot * 16, y: 12 * 16 });
+      });
+
+      addButton('Install Carbon Filter', () => {
+        const slot = 4 + state.filters.length * 4;
+        eventBus.emit('filter:install', { type: 'carbon', x: slot * 16, y: 12 * 16 });
+      });
+
+      addButton('Install HEPA Filter', () => {
+        const slot = 4 + state.filters.length * 4;
+        eventBus.emit('filter:install', { type: 'hepa', x: slot * 16, y: 12 * 16 });
+      });
+
+      addButton('Repair First Filter', () => {
+        if (state.filters.length > 0) {
+          eventBus.emit('filter:repair', { id: state.filters[0].id });
+        }
+      });
+
+      addButton('Remove Last Filter', () => {
+        if (state.filters.length > 0) {
+          const last = state.filters[state.filters.length - 1];
+          eventBus.emit('filter:remove', { id: last.id });
+        }
+      });
+
+      addButton('Add $1000', () => {
+        state.set('money', state.money + 1000);
+      });
+
+      addButton('Trigger Random Event', () => {
+        const evts = GAME_CONFIG.gameEvents;
+        const evt = evts[Math.floor(Math.random() * evts.length)];
+        state.set('activeEvent', {
+          name: evt.name,
+          description: evt.description,
+          degradeMultiplier: evt.degradeMultiplier,
+          revenueMultiplier: evt.revenueMultiplier,
+        });
+        logEvent('event', `FORCED EVENT: ${evt.name}`);
+      });
+
+      addButton('Set Reputation 90', () => {
+        state.set('reputation', 90);
+      });
+
+      addButton('Speed 1x', () => loop.setSpeed(1));
+      addButton('Speed 2x', () => loop.setSpeed(2));
+      addButton('Speed 3x', () => loop.setSpeed(3));
+
+      addButton('Pause', () => loop.pause());
+      addButton('Resume', () => loop.resume());
+
+      addButton('Save Game', () => {
+        const data = state.serialize();
+        localStorage.setItem('stadium_filters_save', JSON.stringify(data));
+        logEvent('event', 'Game saved to localStorage');
+      });
+
+      addButton('Load Game', () => {
+        const raw = localStorage.getItem('stadium_filters_save');
+        if (raw) {
+          state.deserialize(JSON.parse(raw));
+          logEvent('event', 'Game loaded from localStorage');
+        } else {
+          logEvent('event', 'No save found');
+        }
+      });
+
+      // State display refresh
+      setInterval(() => {
+        const filters = state.filters.map(f =>
+          `  [${f.id}] ${f.type} cond=${f.condition.toFixed(1)}/${f.maxCondition} eff=${(f.efficiency * 100).toFixed(0)}%`
+        ).join('\n');
+        statePanel.textContent = [
+          `Money: $${state.money}  |  Day: ${state.gameDay}  |  Inning: ${state.inning}  |  Rep: ${state.reputation}%`,
+          `Speed: ${loop.speed}x  |  Paused: ${loop.paused}  |  Running: ${loop.running}`,
+          `Active Event: ${state.activeEvent?.name ?? 'none'}`,
+          `Unlocked Types: ${state.unlockedFilterTypes.join(', ')}`,
+          `Achievements: ${state.achievements.join(', ') || 'none'}`,
+          `Income: $${state.income}  |  Expenses: $${state.expenses}`,
+          `Filters (${state.filters.length}):`,
+          filters || '  (none)',
+        ].join('\n');
+      }, 250);
+
+      eventBus.emit('game:init', { config: GAME_CONFIG });
+      loop.start();
+      logEvent('event', 'Test harness initialized. Click buttons above to test systems.');
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

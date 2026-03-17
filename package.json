@@ -1,0 +1,11 @@
+{
+  "name": "stadium-filters",
+  "version": "0.1.0",
+  "description": "Pixel-art economy/business simulation game about managing filtration systems in a baseball stadium",
+  "type": "module",
+  "scripts": {
+    "dev": "npx serve . -l 3000 --cors"
+  },
+  "keywords": ["game", "pixel-art", "simulation"],
+  "license": "MIT"
+}

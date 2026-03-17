@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minor League Major Filtration</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0d1117;
+      background-image:
+        radial-gradient(ellipse at 50% 30%, #1a2a3a 0%, transparent 70%),
+        linear-gradient(180deg, #0d1117 0%, #121a24 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Press Start 2P', monospace;
+      color: #e0e0e0;
+    }
+    #game-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      user-select: none;
+    }
+    #game-header .team-name {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 14px;
+      color: #ff004d;
+      letter-spacing: 2px;
+      text-shadow: 2px 2px 0 #1a1a2e, 0 0 8px rgba(255,0,77,0.3);
+    }
+    #game-header .subtitle {
+      font-family: monospace;
+      font-size: 9px;
+      color: #83769c;
+      letter-spacing: 1px;
+    }
+    /* Baseball stitching border */
+    #game-container {
+      position: relative;
+      image-rendering: pixelated;
+      border: 3px solid #8b4513;
+      border-radius: 4px;
+      box-shadow:
+        0 0 0 1px #5a3010,
+        0 0 20px rgba(139, 69, 19, 0.3),
+        inset 0 0 20px rgba(0,0,0,0.5);
+    }
+    #game-container::before,
+    #game-container::after {
+      content: '';
+      position: absolute;
+      z-index: 100;
+      pointer-events: none;
+    }
+    /* Baseball stitch marks on left */
+    #game-container::before {
+      left: -8px; top: 10%;
+      width: 6px; height: 80%;
+      background: repeating-linear-gradient(
+        180deg,
+        transparent 0px, transparent 6px,
+        #cc2200 6px, #cc2200 8px,
+        transparent 8px, transparent 14px
+      );
+      opacity: 0.5;
+    }
+    /* Baseball stitch marks on right */
+    #game-container::after {
+      right: -8px; top: 10%;
+      width: 6px; height: 80%;
+      background: repeating-linear-gradient(
+        180deg,
+        transparent 0px, transparent 6px,
+        #cc2200 6px, #cc2200 8px,
+        transparent 8px, transparent 14px
+      );
+      opacity: 0.5;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    /* ── Global UI hover states ── */
+    #ui-overlay button {
+      transition: filter 0.12s ease, transform 0.08s ease;
+    }
+    #ui-overlay button:hover:not(:disabled) {
+      filter: brightness(1.3);
+      transform: translateY(-1px);
+    }
+    #ui-overlay button:active:not(:disabled) {
+      filter: brightness(0.9);
+      transform: translateY(0);
+    }
+    #ui-overlay button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    /* HUD and bottom bar interactive spans */
+    #hud [data-speed],
+    #hud [data-pause],
+    #hud [data-shop],
+    #hud [data-panel],
+    #hud-bottom [data-panel] {
+      transition: filter 0.12s ease;
+    }
+    #hud [data-speed]:hover,
+    #hud [data-pause]:hover,
+    #hud [data-shop]:hover,
+    #hud [data-panel]:hover,
+    #hud-bottom [data-panel]:hover {
+      filter: brightness(1.4);
+    }
+    /* Panel tab hover */
+    [data-tab] {
+      transition: background 0.12s ease, color 0.12s ease;
+    }
+    [data-tab]:hover {
+      background: rgba(255,255,255,0.08) !important;
+    }
+    /* Close button hover */
+    [data-action*="close"]:hover,
+    [data-action="close-shop"]:hover,
+    [data-action="close-staff"]:hover,
+    [data-action="close-tech"]:hover,
+    [data-action="close-newspaper"]:hover,
+    [data-action="close-contracts"]:hover,
+    [data-action="close-journal"]:hover,
+    [data-action="close-systems"]:hover {
+      color: #ff004d !important;
+    }
+    /* Flow animation for systems panel dashed borders */
+    @keyframes flow {
+      0% { border-dash-offset: 0; }
+      100% { border-dash-offset: 12px; }
+    }
+    /* Toast notification entrance */
+    @keyframes slideIn {
+      from { transform: translateX(30px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    #notifications > div {
+      animation: slideIn 0.25s ease-out;
+    }
+    /* Pulse animation for event badges */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    /* Tutorial hint animation */
+    @keyframes tutorialGlow {
+      0%, 100% { box-shadow: 0 0 4px rgba(255,236,39,0.3); }
+      50% { box-shadow: 0 0 12px rgba(255,236,39,0.6); }
+    }
+    #ui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    #ui-overlay > * {
+      pointer-events: auto;
+    }
+    #game-footer {
+      margin-top: 6px;
+      font-family: monospace;
+      font-size: 8px;
+      color: #3a3a5a;
+      letter-spacing: 1px;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-header">
+    <span class="team-name">RIDGEMONT RAPTORS</span>
+    <span class="subtitle">Minor League Major Filtration</span>
+  </div>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    <div id="ui-overlay"></div>
+  </div>
+  <div id="game-footer">S &mdash; SHOP &nbsp;&bull;&nbsp; F &mdash; CREW &nbsp;&bull;&nbsp; J &mdash; JOURNAL &nbsp;&bull;&nbsp; N &mdash; NEWS &nbsp;&bull;&nbsp; C &mdash; DEALS &nbsp;&bull;&nbsp; G &mdash; SYSTEMS &nbsp;&bull;&nbsp; SPACE &mdash; PAUSE &nbsp;&bull;&nbsp; ESC &mdash; MENU &nbsp;&bull;&nbsp; M &mdash; MUTE &nbsp;&bull;&nbsp; 1-3 &mdash; SPEED</div>
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

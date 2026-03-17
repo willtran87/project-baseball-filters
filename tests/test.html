@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Minor League Major Filtration — Test Runner</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Courier New', monospace;
+      background: #1a1a2e;
+      color: #d0d0e0;
+      padding: 20px;
+    }
+    h1 { color: #7eb8da; margin-bottom: 12px; }
+    #results {
+      background: #0a0a1a;
+      border: 1px solid #3a3a5a;
+      border-radius: 4px;
+      padding: 16px;
+      white-space: pre-wrap;
+      font-size: 13px;
+      line-height: 1.5;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .pass { color: #00e436; }
+    .fail { color: #ff004d; }
+    .summary { color: #ffec27; font-weight: bold; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Minor League Major Filtration Test Runner</h1>
+  <div id="results">Running tests...</div>
+
+  <script type="module">
+    // Capture console output for display
+    const output = [];
+    const origLog = console.log;
+    const origError = console.error;
+
+    console.log = (...args) => {
+      origLog(...args);
+      output.push({ type: 'log', text: args.join(' ') });
+    };
+    console.error = (...args) => {
+      origError(...args);
+      output.push({ type: 'error', text: args.join(' ') });
+    };
+
+    try {
+      await import('./runAll.js');
+    } catch (e) {
+      output.push({ type: 'error', text: `Import error: ${e.message}\n${e.stack}` });
+    }
+
+    // Render results
+    const el = document.getElementById('results');
+    el.innerHTML = '';
+    for (const entry of output) {
+      const span = document.createElement('span');
+      if (entry.text.includes('PASS')) {
+        span.className = 'pass';
+      } else if (entry.text.includes('FAIL') || entry.type === 'error') {
+        span.className = 'fail';
+      } else if (entry.text.startsWith('Suites:') || entry.text.startsWith('===')) {
+        span.className = 'summary';
+      }
+      span.textContent = entry.text + '\n';
+      el.appendChild(span);
+    }
+  </script>
+</body>
+</html>
