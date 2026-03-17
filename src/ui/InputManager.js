@@ -311,12 +311,19 @@ export class InputManager {
     const tileId = this.tileMap.getTile(col, row);
     const ventSlot = tileId === TILES.VENT_SLOT ? this.tileMap.getVentSlotAt(col, row) : null;
 
-    // NPC hover: show name tooltip and pointer cursor
+    // Entity hover: show tooltip for any hovered entity (NPCs, fans, players, etc.)
     if (!this._placementMode && this.crowd) {
-      const hoverNpc = this.crowd.getNpcAtPixel(x, y);
-      if (hoverNpc) {
-        this.tooltips.showForNpc(overlayX, overlayY, hoverNpc);
-        this.canvas.style.cursor = 'pointer';
+      const entity = this.crowd.getEntityAtPixel(x, y);
+      if (entity) {
+        if (entity.type === 'npc') {
+          // Existing NPC tooltip + pointer cursor (clickable for chat)
+          this.tooltips.showForNpc(overlayX, overlayY, entity.npcId);
+          this.canvas.style.cursor = 'pointer';
+        } else if (entity.identity) {
+          // Identity tooltip for non-NPC crowd entities
+          this.tooltips.showForEntity(overlayX, overlayY, entity);
+          this.canvas.style.cursor = 'default';
+        }
         return;
       }
     }

@@ -1576,7 +1576,7 @@ export class AudioManager {
       }
     });
     this.eventBus.on('filter:repaired', () => this.playRepairComplete());
-    this.eventBus.on('filter:upgraded', () => this.playRepairComplete());
+    this.eventBus.on('filter:upgraded', () => this._playFilterUpgrade());
     this.eventBus.on('filter:removed', () => this.playClick());
     this.eventBus.on('filter:broken', () => this.playFailure());
 
@@ -1703,6 +1703,15 @@ export class AudioManager {
     // Contract breach audio
     this.eventBus.on('contract:breachWarning', () => this.playAlert());
 
+    // Sabotage alert
+    this.eventBus.on('rival:sabotageRevealed', () => this._playSabotageAlert());
+
+    // Market shift chime
+    this.eventBus.on('economy:marketShift', () => this._playMarketShift());
+
+    // Championship fanfare
+    this.eventBus.on('game:championshipStart', () => this._playChampionshipFanfare());
+
     // Loan repaid
     this.eventBus.on('loan:repaid', () => this.playCoinSound());
 
@@ -1795,6 +1804,112 @@ export class AudioManager {
     // Default: if it's a weather event but no match, use wind as generic
     if (data.category === 'weather') return 'wind';
     return null;
+  }
+
+  /** Ascending 3-note arpeggio — filter upgrade sparkle (C5-E5-G5, triangle). */
+  _playFilterUpgrade() {
+    if (!this._ctx) return;
+    const t = this._ctx.currentTime;
+    const notes = [
+      { freq: 523, offset: 0,    dur: 0.10 }, // C5
+      { freq: 659, offset: 0.10, dur: 0.10 }, // E5
+      { freq: 784, offset: 0.20, dur: 0.14 }, // G5
+    ];
+    for (const { freq, offset, dur } of notes) {
+      const osc = this._ctx.createOscillator();
+      const gain = this._ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t + offset);
+      gain.gain.setValueAtTime(0.22, t + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + offset + dur + 0.08);
+      osc.connect(gain);
+      gain.connect(this._sfxGain);
+      osc.start(t + offset);
+      osc.stop(t + offset + dur + 0.10);
+    }
+  }
+
+  /** Low rumble + sharp staccato — sabotage alert. */
+  _playSabotageAlert() {
+    if (!this._ctx) return;
+    const t = this._ctx.currentTime;
+
+    // Low rumble: 80Hz sine, 500ms
+    const rumble = this._ctx.createOscillator();
+    const rumbleGain = this._ctx.createGain();
+    rumble.type = 'sine';
+    rumble.frequency.setValueAtTime(80, t);
+    rumbleGain.gain.setValueAtTime(0.18, t);
+    rumbleGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    rumble.connect(rumbleGain);
+    rumbleGain.connect(this._sfxGain);
+    rumble.start(t);
+    rumble.stop(t + 0.52);
+
+    // Sharp staccato: 440Hz square, 50ms x 3
+    for (let i = 0; i < 3; i++) {
+      const osc = this._ctx.createOscillator();
+      const gain = this._ctx.createGain();
+      const offset = 0.15 + i * 0.10;
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(440, t + offset);
+      gain.gain.setValueAtTime(0.20, t + offset);
+      gain.gain.setValueAtTime(0, t + offset + 0.05);
+      osc.connect(gain);
+      gain.connect(this._sfxGain);
+      osc.start(t + offset);
+      osc.stop(t + offset + 0.06);
+    }
+  }
+
+  /** Soft chime — market shift notification (A4-D5, sine with decay). */
+  _playMarketShift() {
+    if (!this._ctx) return;
+    const t = this._ctx.currentTime;
+    const notes = [
+      { freq: 440, offset: 0,    dur: 0.20 }, // A4
+      { freq: 587, offset: 0.12, dur: 0.20 }, // D5
+    ];
+    for (const { freq, offset, dur } of notes) {
+      const osc = this._ctx.createOscillator();
+      const gain = this._ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t + offset);
+      gain.gain.setValueAtTime(0.15, t + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + offset + dur);
+      osc.connect(gain);
+      gain.connect(this._sfxGain);
+      osc.start(t + offset);
+      osc.stop(t + offset + dur + 0.02);
+    }
+  }
+
+  /** 5-note brass fanfare — championship start (C4-E4-G4-C5-E5, sawtooth). */
+  _playChampionshipFanfare() {
+    if (!this._ctx) return;
+    const t = this._ctx.currentTime;
+    const notes = [
+      { freq: 262, offset: 0,    dur: 0.15 }, // C4
+      { freq: 330, offset: 0.15, dur: 0.15 }, // E4
+      { freq: 392, offset: 0.30, dur: 0.15 }, // G4
+      { freq: 523, offset: 0.45, dur: 0.15 }, // C5
+      { freq: 659, offset: 0.60, dur: 0.25 }, // E5 (held)
+    ];
+    for (const { freq, offset, dur } of notes) {
+      const osc = this._ctx.createOscillator();
+      const gain = this._ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, t + offset);
+      // Gain envelope: quick attack, sustain, then fade
+      gain.gain.setValueAtTime(0, t + offset);
+      gain.gain.linearRampToValueAtTime(0.18, t + offset + 0.02);
+      gain.gain.setValueAtTime(0.18, t + offset + dur - 0.03);
+      gain.gain.linearRampToValueAtTime(0, t + offset + dur);
+      osc.connect(gain);
+      gain.connect(this._sfxGain);
+      osc.start(t + offset);
+      osc.stop(t + offset + dur + 0.02);
+    }
   }
 
   /** Access the music gain node (used by MusicGenerator). */

@@ -15,6 +15,30 @@ export class PanelManager {
     this._panels = new Map();
     this._activePanel = null;
     this._activePanelName = null;
+    this._closing = false;
+
+    // Inject panel transition keyframes once
+    if (!document.getElementById('panel-transition-styles')) {
+      const style = document.createElement('style');
+      style.id = 'panel-transition-styles';
+      style.textContent = `
+        @keyframes panelOpen {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes panelClose {
+          from { opacity: 1; }
+          to   { opacity: 0; }
+        }
+        .panel-opening {
+          animation: panelOpen 200ms ease-out forwards;
+        }
+        .panel-closing {
+          animation: panelClose 150ms ease-in forwards;
+        }
+      `;
+      document.head.appendChild(style);
+    }
 
     // Register built-in panels
     this._registerBuiltinPanels();
@@ -41,12 +65,12 @@ export class PanelManager {
    */
   open(name, data) {
     this.eventBus.emit('ui:closeAllPanels');
-    this.close();
+    this._removePanel();
     const renderFn = this._panels.get(name);
     if (!renderFn) return;
 
     this._activePanel = document.createElement('div');
-    this._activePanel.className = 'game-panel';
+    this._activePanel.className = 'game-panel panel-opening';
     this._activePanel.style.cssText = `
       position: absolute; bottom: 22px; left: 0; right: 0;
       max-height: 45%; overflow-y: auto;
@@ -60,6 +84,13 @@ export class PanelManager {
     renderFn(this._activePanel, this.state, this.eventBus, data);
     this.container.appendChild(this._activePanel);
 
+    // Remove opening class after animation completes
+    this._activePanel.addEventListener('animationend', () => {
+      if (this._activePanel) {
+        this._activePanel.classList.remove('panel-opening');
+      }
+    }, { once: true });
+
     // Accessibility: make panel focusable for keyboard users
     if (!this._activePanel.hasAttribute('tabindex')) {
       this._activePanel.setAttribute('tabindex', '0');
@@ -68,13 +99,41 @@ export class PanelManager {
   }
 
   /**
-   * Close the active panel.
+   * Close the active panel with a fade-out animation.
    */
   close() {
+    if (!this._activePanel || this._closing) return;
+    this._closing = true;
+    const panel = this._activePanel;
+    this._activePanel = null;
+    this._activePanelName = null;
+
+    panel.classList.remove('panel-opening');
+    panel.classList.add('panel-closing');
+    panel.addEventListener('animationend', () => {
+      panel.remove();
+      this._closing = false;
+    }, { once: true });
+
+    // Safety fallback: remove after 200ms if animationend never fires
+    setTimeout(() => {
+      if (panel.parentNode) {
+        panel.remove();
+      }
+      this._closing = false;
+    }, 200);
+  }
+
+  /**
+   * Immediately remove the active panel (no animation). Used internally
+   * when opening a new panel to avoid overlapping animations.
+   */
+  _removePanel() {
     if (this._activePanel) {
       this._activePanel.remove();
       this._activePanel = null;
       this._activePanelName = null;
+      this._closing = false;
     }
   }
 

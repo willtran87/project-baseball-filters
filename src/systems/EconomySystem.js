@@ -50,6 +50,11 @@ export class EconomySystem {
       this.requestLoan();
     });
 
+    // Update market conditions each new day
+    this.eventBus.on('game:newDay', () => {
+      this._updateMarketConditions();
+    });
+
     // Recalculate capacity display when an expansion is purchased
     this.eventBus.on('expansion:purchased', () => {
       const total = this._getTotalCapacity();
@@ -127,10 +132,18 @@ export class EconomySystem {
     // Maintenance still applies
     const maintenance = this._calculateMaintenance();
 
-    const totalExpenses = Math.floor((maintenance + totalDailyWages + energyCost) * difficultyExpenseMult * (1 - expansionCostReduction) * hankCostMult);
-    const netIncome = -totalExpenses;
+    // Market condition cost multiplier (recession = 1.1x costs)
+    const marketCostMult = (this.state.marketCondition === 'recession') ? 1.1 : 1.0;
 
-    this.state.set('income', 0);
+    // Off-season revenue: Stadium Tours + Maintenance Contracts
+    const tourIncome = Math.floor((this.state.reputation ?? 0) * 8);
+    const maintContractIncome = (this.state.staffList ?? []).length * 25;
+    const offSeasonRevenue = tourIncome + maintContractIncome;
+
+    const totalExpenses = Math.floor((maintenance + totalDailyWages + energyCost) * difficultyExpenseMult * (1 - expansionCostReduction) * hankCostMult * marketCostMult);
+    const netIncome = offSeasonRevenue - totalExpenses;
+
+    this.state.set('income', offSeasonRevenue);
     this.state.set('expenses', totalExpenses);
     this.state.set('money', this.state.money + netIncome);
     this.state.set('attendance', 0);
@@ -143,13 +156,15 @@ export class EconomySystem {
     this.eventBus.emit('game:newDay', { day: nextDay });
 
     this.eventBus.emit('economy:inningEnd', {
-      income: 0,
+      income: offSeasonRevenue,
       expenses: totalExpenses,
       staffCost: totalDailyWages,
       energyCost,
       maintenance,
       attendance: 0,
       balance: this.state.money,
+      offSeasonTourIncome: tourIncome,
+      offSeasonMaintContractIncome: maintContractIncome,
     });
   }
 
@@ -173,7 +188,26 @@ export class EconomySystem {
     const inningVariance = 0.95 + Math.random() * 0.10;
     // Diego relationship bonus: +5% base attendance
     const diegoAttBoost = this.state.storyFlags?.attendanceBoost ?? 1.0;
-    const attendance = Math.floor(baseCapacity * attendanceRatio * teamPerfMod * consequenceAttMod * inningVariance * diegoAttBoost);
+
+    // Seasonal attendance & concessions modifiers
+    const gameDay = this.state.gameDay ?? 1;
+    const totalGameDays = config.seasonLength ?? 81;
+    let seasonalAttMult = 1.0;
+    let seasonalConcessionMult = 1.0;
+    let seasonalLabel = null;
+    if (gameDay === 1) {
+      seasonalAttMult = 1.3;
+      seasonalLabel = 'Opening Day';
+    } else if (gameDay % 14 === 0) {
+      seasonalAttMult = 1.15;
+      seasonalLabel = 'Rivalry Week';
+    } else if (gameDay > totalGameDays - 10) {
+      seasonalAttMult = 1.1;
+      seasonalConcessionMult = 1.2;
+      seasonalLabel = 'Championship Push';
+    }
+
+    const attendance = Math.floor(baseCapacity * attendanceRatio * teamPerfMod * consequenceAttMod * inningVariance * diegoAttBoost * seasonalAttMult);
 
     // Store attendance data for HUD and other systems
     const attendancePercent = Math.min(100, Math.max(0, Math.round((attendance / baseCapacity) * 100)));
@@ -189,7 +223,7 @@ export class EconomySystem {
     // Staff efficiency bonus: specialists with high morale grant +5% per domain (up to +20%)
     const staffEfficiencyBonus = this.state._staffEfficiencyBonus ?? 0;
     const satisfactionMod = this._lastQuality * (econ.concessionSatisfactionWeight ?? 0.5) + 0.5;
-    const concessionIncome = Math.floor(attendance * (econ.concessionPerFan ?? 12) * satisfactionMod * (1 + staffEfficiencyBonus));
+    const concessionIncome = Math.floor(attendance * (econ.concessionPerFan ?? 12) * satisfactionMod * (1 + staffEfficiencyBonus) * seasonalConcessionMult);
 
     // Revenue source 3: Sponsorships (flat per-game from active sponsors)
     const sponsorIncome = this._calculateSponsorIncome(econ);
@@ -221,8 +255,11 @@ export class EconomySystem {
     // Revenue boost from purchased stadium expansions
     const expansionRevBoost = this._getExpansionRevenueBoost();
 
+    // Market condition multiplier (boom/normal/recession)
+    const marketRevMult = this.state.marketMultiplier ?? 1.0;
+
     // Per-inning share of total game revenue
-    const gameIncome = (ticketIncome + concessionIncome + sponsorIncome) * revenueMultiplier * consequenceRevMod * earlyBoost * difficultyIncomeMult * (1 + expansionRevBoost);
+    const gameIncome = (ticketIncome + concessionIncome + sponsorIncome) * revenueMultiplier * consequenceRevMod * earlyBoost * difficultyIncomeMult * (1 + expansionRevBoost) * marketRevMult;
     const inningIncome = Math.floor(gameIncome / innings);
 
     // Operating cost reduction from purchased expansions (e.g., Underground Hub)
@@ -237,7 +274,9 @@ export class EconomySystem {
     // Hank's cost reduction blueprint: reduces all operating costs
     const hankCostReduction = this.state.storyFlags?.costReduction_all ?? 0;
     const hankCostMult = hankCostReduction > 0 ? (1 - hankCostReduction / 100) : 1;
-    const totalExpenses = Math.floor((maintenance + staffCost + energyCost) * difficultyExpenseMult * (1 - expansionCostReduction) * hankCostMult);
+    // Market condition cost multiplier (recession = 1.1x costs)
+    const marketCostMult = (this.state.marketCondition === 'recession') ? 1.1 : 1.0;
+    const totalExpenses = Math.floor((maintenance + staffCost + energyCost) * difficultyExpenseMult * (1 - expansionCostReduction) * hankCostMult * marketCostMult);
 
     const netIncome = inningIncome - totalExpenses;
 
@@ -286,8 +325,11 @@ export class EconomySystem {
       attendance,
       balance: this.state.money,
       // Detailed breakdown for floating income display
-      ticketIncome: Math.floor(ticketIncome * revenueMultiplier * consequenceRevMod * earlyBoost * difficultyIncomeMult * (1 + expansionRevBoost) / innings),
-      concessionIncome: Math.floor(concessionIncome * revenueMultiplier * consequenceRevMod * earlyBoost * difficultyIncomeMult * (1 + expansionRevBoost) / innings),
+      ticketIncome: Math.floor(ticketIncome * revenueMultiplier * consequenceRevMod * earlyBoost * difficultyIncomeMult * (1 + expansionRevBoost) * marketRevMult / innings),
+      concessionIncome: Math.floor(concessionIncome * revenueMultiplier * consequenceRevMod * earlyBoost * difficultyIncomeMult * (1 + expansionRevBoost) * marketRevMult / innings),
+      seasonalLabel,
+      seasonalAttMult,
+      seasonalConcessionMult,
     });
   }
 
@@ -516,6 +558,45 @@ export class EconomySystem {
       type: 'info',
     });
     return loan;
+  }
+
+  // ── Market Conditions ────────────────────────────────────────────
+
+  /**
+   * Update market conditions each day.
+   * 3 states: boom (1.15x revenue), normal (1.0x), recession (0.85x rev / 1.1x costs).
+   * Each day 15% chance to shift one step toward a random target state.
+   */
+  _updateMarketConditions() {
+    const states = ['recession', 'normal', 'boom'];
+    const multipliers = { recession: 0.85, normal: 1.0, boom: 1.15 };
+    const current = this.state.marketCondition ?? 'normal';
+    const currentIdx = states.indexOf(current);
+
+    // 15% chance to shift
+    if (Math.random() < 0.15) {
+      // Pick a random target state
+      const targetIdx = Math.floor(Math.random() * states.length);
+      let newIdx = currentIdx;
+      if (targetIdx > currentIdx) newIdx = currentIdx + 1;
+      else if (targetIdx < currentIdx) newIdx = currentIdx - 1;
+
+      const newState = states[newIdx];
+      if (newState !== current) {
+        this.state.set('marketCondition', newState);
+        this.state.set('marketMultiplier', multipliers[newState]);
+        this.eventBus.emit('economy:marketShift', {
+          from: current,
+          to: newState,
+          multiplier: multipliers[newState],
+        });
+        const labels = { boom: 'Boom', normal: 'Normal', recession: 'Recession' };
+        this.eventBus.emit('ui:message', {
+          text: `Market shift: ${labels[newState]}! Revenue modifier: x${multipliers[newState].toFixed(2)}`,
+          type: newState === 'boom' ? 'success' : newState === 'recession' ? 'warning' : 'info',
+        });
+      }
+    }
   }
 
   /**

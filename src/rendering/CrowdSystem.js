@@ -4,6 +4,13 @@
  */
 
 import { CROWD_SPRITE_SETS, NPC_CROWD_SPRITES, AWAY_COLOR_SCHEMES, generateAwaySprite } from './crowdSprites.js';
+import {
+  CROWD_FIRST_NAMES, CROWD_LAST_NAMES,
+  FAN_PERSONALITIES, WORKER_JOB_TITLES, WORKER_BIOS,
+  VIP_TITLES, VIP_COMPANIES,
+  RAPTORS_POSITIONS, PLAYER_FIRST_NAMES, PLAYER_LAST_NAMES,
+  AWAY_TEAM_NAMES, MASCOT_IDENTITY,
+} from '../data/crowdIdentityData.js';
 
 // Per-zone crowd definitions
 const ZONE_CROWDS = {
@@ -95,6 +102,12 @@ export class CrowdSystem {
     this._currentZone = null;
     this._lastAwaySchemeIndex = -1;
 
+    // Identity / roster state
+    this._raptorsRoster = null;
+    this._awayRoster = null;
+    this._raptorsRosterIndex = 0;
+    this._awayRosterIndex = 0;
+
     // Crowd reaction state tracking
     this._reactionTimer = 0;    // seconds remaining for active reaction
     this._reactionType = null;  // 'wave' | 'rush' | 'confetti'
@@ -112,6 +125,10 @@ export class CrowdSystem {
     this._randomizeAwayColors();
     eventBus.on('game:newDay', () => {
       this._randomizeAwayColors();
+      // Reset roster indices and regenerate away roster for new day
+      this._raptorsRosterIndex = 0;
+      this._awayRosterIndex = 0;
+      this._generateAwayRoster();
       // Respawn current zone to show new uniforms
       this._spawnForZone(this._currentZone ?? state.currentZone ?? 'field');
     });
@@ -331,6 +348,7 @@ export class CrowdSystem {
       facing: 1,
       type: entry.type,
       npcId: npcId,
+      identity: this._generateIdentity(entry.type),
       frameIndex: 0,
       frameTimer: 0,
       paused: false,
@@ -340,6 +358,179 @@ export class CrowdSystem {
       xMin,
       xMax,
     });
+  }
+
+  // ── Identity Generation ────────────────────────────────────────────
+
+  _generateIdentity(type) {
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    if (type.startsWith('fan_')) {
+      const personality = pick(FAN_PERSONALITIES);
+      return {
+        kind: 'fan',
+        name: `${pick(CROWD_FIRST_NAMES)} ${pick(CROWD_LAST_NAMES)}`,
+        personality: personality.label,
+        quote: personality.quote,
+        attendanceStreak: 1 + Math.floor(Math.random() * 80),
+      };
+    }
+
+    if (type === 'worker') {
+      return {
+        kind: 'worker',
+        name: `${pick(CROWD_FIRST_NAMES)} ${pick(CROWD_LAST_NAMES)}`,
+        jobTitle: pick(WORKER_JOB_TITLES),
+        yearsWorked: 1 + Math.floor(Math.random() * 15),
+        bio: pick(WORKER_BIOS),
+      };
+    }
+
+    if (type === 'vip') {
+      return {
+        kind: 'vip',
+        name: `${pick(CROWD_FIRST_NAMES)} ${pick(CROWD_LAST_NAMES)}`,
+        title: pick(VIP_TITLES),
+        company: pick(VIP_COMPANIES),
+      };
+    }
+
+    if (type === 'player') {
+      return this._pickRaptorPlayer();
+    }
+
+    if (type === 'player_away') {
+      return this._pickAwayPlayer();
+    }
+
+    if (type === 'mascot') {
+      return {
+        kind: 'mascot',
+        name: MASCOT_IDENTITY.name,
+        title: MASCOT_IDENTITY.title,
+        quote: MASCOT_IDENTITY.quote,
+        funFact: MASCOT_IDENTITY.funFact,
+      };
+    }
+
+    // NPCs and unknown types — identity handled elsewhere
+    return null;
+  }
+
+  // ── Raptors Roster ──────────────────────────────────────────────────
+
+  _ensureRaptorsRoster() {
+    if (this._raptorsRoster) return;
+
+    // Restore from state if available
+    if (this._state.raptorsRoster && this._state.raptorsRoster.length > 0) {
+      this._raptorsRoster = this._state.raptorsRoster;
+      return;
+    }
+
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const usedNumbers = new Set();
+    const roster = [];
+
+    for (const slot of RAPTORS_POSITIONS) {
+      let jersey;
+      do { jersey = 1 + Math.floor(Math.random() * 30); } while (usedNumbers.has(jersey));
+      usedNumbers.add(jersey);
+
+      const isPitcher = ['P', 'RP', 'SU', 'CL'].includes(slot.pos);
+      const player = {
+        name: `${pick(PLAYER_FIRST_NAMES)} ${pick(PLAYER_LAST_NAMES)}`,
+        jersey,
+        position: slot.pos,
+        positionLabel: slot.label,
+        avg: +(0.220 + Math.random() * 0.120).toFixed(3),
+        hr: Math.floor(Math.random() * 31),
+        rbi: 10 + Math.floor(Math.random() * 81),
+      };
+      if (isPitcher) {
+        player.era = +(2.50 + Math.random() * 3.50).toFixed(2);
+      }
+      roster.push(player);
+    }
+
+    this._raptorsRoster = roster;
+    this._state.raptorsRoster = roster;
+  }
+
+  _pickRaptorPlayer() {
+    this._ensureRaptorsRoster();
+    const player = this._raptorsRoster[this._raptorsRosterIndex % this._raptorsRoster.length];
+    this._raptorsRosterIndex++;
+    return { kind: 'player_home', team: 'Raptors', ...player };
+  }
+
+  // ── Away Roster ─────────────────────────────────────────────────────
+
+  _generateAwayRoster() {
+    const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const teamName = AWAY_TEAM_NAMES[this._lastAwaySchemeIndex] ??
+      AWAY_TEAM_NAMES[Math.floor(Math.random() * AWAY_TEAM_NAMES.length)];
+    const usedNumbers = new Set();
+    const roster = [];
+
+    for (const slot of RAPTORS_POSITIONS) {
+      let jersey;
+      do { jersey = 1 + Math.floor(Math.random() * 30); } while (usedNumbers.has(jersey));
+      usedNumbers.add(jersey);
+
+      const isPitcher = ['P', 'RP', 'SU', 'CL'].includes(slot.pos);
+      const player = {
+        name: `${pick(PLAYER_FIRST_NAMES)} ${pick(PLAYER_LAST_NAMES)}`,
+        jersey,
+        position: slot.pos,
+        positionLabel: slot.label,
+        avg: +(0.220 + Math.random() * 0.120).toFixed(3),
+        hr: Math.floor(Math.random() * 31),
+        rbi: 10 + Math.floor(Math.random() * 81),
+        team: teamName,
+      };
+      if (isPitcher) {
+        player.era = +(2.50 + Math.random() * 3.50).toFixed(2);
+      }
+      roster.push(player);
+    }
+
+    this._awayRoster = roster;
+    this._awayRosterIndex = 0;
+  }
+
+  _pickAwayPlayer() {
+    if (!this._awayRoster) this._generateAwayRoster();
+    const player = this._awayRoster[this._awayRosterIndex % this._awayRoster.length];
+    this._awayRosterIndex++;
+    return { kind: 'player_away', ...player };
+  }
+
+  // ── Entity Lookup ───────────────────────────────────────────────────
+
+  /**
+   * Get the crowd entity at a given pixel position (for click/hover detection).
+   * Checks NPCs first (higher priority), then all other entities.
+   * Returns the full entity object or null.
+   */
+  getEntityAtPixel(pixelX, pixelY) {
+    // NPCs first (priority)
+    for (const entity of this._entities) {
+      if (entity.type !== 'npc') continue;
+      if (pixelX >= entity.x && pixelX < entity.x + 8 &&
+          pixelY >= entity.y && pixelY < entity.y + 12) {
+        return entity;
+      }
+    }
+    // Then all other entities
+    for (const entity of this._entities) {
+      if (entity.type === 'npc') continue;
+      if (pixelX >= entity.x && pixelX < entity.x + 8 &&
+          pixelY >= entity.y && pixelY < entity.y + 12) {
+        return entity;
+      }
+    }
+    return null;
   }
 
   update(dt) {

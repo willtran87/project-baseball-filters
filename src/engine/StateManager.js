@@ -66,6 +66,9 @@ export class StateManager {
     // Staff RPG state
     this.staffList = [];
 
+    // Raptors roster (persisted for crowd identity)
+    this.raptorsRoster = [];
+
     // Research / tech tree state
     this.researchProgress = {};
 
@@ -170,6 +173,19 @@ export class StateManager {
     // Multi-day event chain state
     // { chainId, currentDay, flags: {}, startedOnGameDay }
     this.activeEventChain = null;
+
+    // Market conditions (EconomySystem — Stream 1)
+    this.marketCondition = 'normal';   // 'boom' | 'normal' | 'recession'
+    this.marketMultiplier = 1.0;
+
+    // Domain health history for HUD trend display (Stream 2)
+    this.domainHealthHistory = {};
+
+    // Rival momentum tracking (Stream 2)
+    this.rivalMomentum = 0;
+
+    // Media headline streak (Stream 3)
+    this.headlineStreak = 0;
 
     // Lifetime + seasonal statistics (tracked by StatsTracker)
     this.stats = {
@@ -314,6 +330,8 @@ export class StateManager {
       storyEventsCompleted: [...this.storyEventsCompleted],
       // Staff RPG
       staffList: this.staffList.map(s => ({ ...s })),
+      // Raptors roster
+      raptorsRoster: (this.raptorsRoster ?? []).map(p => ({ ...p })),
       // Research
       researchProgress: {
         completedNodes: [...(this.researchProgress.completedNodes ?? [])],
@@ -392,6 +410,15 @@ export class StateManager {
         activeEvent: this.market?.activeEvent ? { ...this.market.activeEvent } : null,
         trend: { ...(this.market?.trend ?? {}) },
       },
+      // Market conditions (Stream 1)
+      marketCondition: this.marketCondition,
+      marketMultiplier: this.marketMultiplier,
+      // Domain health history (Stream 2)
+      domainHealthHistory: this.domainHealthHistory ? { ...this.domainHealthHistory } : {},
+      // Rival momentum (Stream 2)
+      rivalMomentum: this.rivalMomentum,
+      // Media headline streak (Stream 3)
+      headlineStreak: this.headlineStreak,
     };
   }
 
@@ -433,6 +460,8 @@ export class StateManager {
     this.storyEventsCompleted = Array.isArray(data.storyEventsCompleted) ? data.storyEventsCompleted : [];
     // Staff RPG
     this.staffList = Array.isArray(data.staffList) ? data.staffList : [];
+    // Raptors roster
+    this.raptorsRoster = Array.isArray(data.raptorsRoster) ? data.raptorsRoster : [];
     // Research (ensure nested structure is restored)
     const rp = data.researchProgress ?? {};
     this.researchProgress = {
@@ -521,6 +550,16 @@ export class StateManager {
       activeEvent: dm.activeEvent ? { ...dm.activeEvent } : null,
       trend: dm.trend ?? { air: 0, water: 0, hvac: 0, drainage: 0 },
     };
+    // Market conditions (Stream 1)
+    this.marketCondition = data.marketCondition ?? 'normal';
+    this.marketMultiplier = data.marketMultiplier ?? 1.0;
+    // Domain health history (Stream 2)
+    this.domainHealthHistory = data.domainHealthHistory ?? {};
+    // Rival momentum (Stream 2)
+    this.rivalMomentum = data.rivalMomentum ?? 0;
+    // Media headline streak (Stream 3)
+    this.headlineStreak = data.headlineStreak ?? 0;
+
     // Reset transient per-day state that isn't serialized
     this._repChangesToday = { positive: 0, negative: 0 };
 

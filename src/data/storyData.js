@@ -881,6 +881,145 @@ export const STORY_EVENTS = [
     ],
   },
 
+  {
+    id: 'ch4_diego_slump',
+    trigger: { type: 'day', value: 12, chapter: 4, requireFlags: ['chapter4Started'] },
+    delivery: 'dialogue',
+    pauseGame: true,
+    dialogue: [
+      { speaker: 'diego', portrait: 'disappointed', text: 'Pipes... I don\'t know what\'s going on out there. We\'ve dropped four straight. The guys are pressing, the crowd\'s getting thin.', emotion: 'disappointed' },
+      { speaker: 'diego', portrait: 'disappointed', text: 'Coach says it\'s mental. Easy for him to say — he\'s not the one striking out with runners on base.', emotion: 'disappointed' },
+      { speaker: null, portrait: null, text: '(Diego stares at his bat like it betrayed him.)', emotion: null },
+    ],
+    choices: [
+      {
+        text: '"You\'re Clutch Ramirez. One slump doesn\'t define you. Get back out there."',
+        effects: [
+          { type: 'relationship', npc: 'diego', delta: 2 },
+        ],
+      },
+      {
+        text: '"What if I upgrade the clubhouse systems? Better air, better rest, better play."',
+        effects: [
+          { type: 'relationship', npc: 'diego', delta: 1 },
+          { type: 'reputation', delta: 2 },
+        ],
+      },
+      {
+        text: '"Maybe stop worrying about the scoreboard and focus on the fundamentals."',
+        effects: [
+          { type: 'relationship', npc: 'diego', delta: -1 },
+        ],
+      },
+    ],
+    onComplete: [
+      { type: 'flag', id: 'diegoSlumpTalk', value: true },
+    ],
+  },
+
+  {
+    id: 'ch4_maggie_confession',
+    trigger: { type: 'day', value: 15, chapter: 4, requireFlags: ['chapter4Started'], requireRelationship: { npc: 'maggie', min: 30 } },
+    delivery: 'dialogue',
+    pauseGame: true,
+    dialogue: [
+      { speaker: null, portrait: null, text: '(Maggie is alone in her office. The lights are low. She doesn\'t hear you knock.)', emotion: null },
+      { speaker: 'maggie', portrait: 'worried', text: 'Oh — Casey. Come in. Close the door.', emotion: 'worried' },
+      { speaker: 'maggie', portrait: 'worried', text: 'I need to tell you something I\'ve never told anyone here.', emotion: 'worried' },
+      { speaker: 'maggie', portrait: 'worried', text: 'Before you showed up, I had a letter drafted. To Victor. Accepting his offer. Signed and everything.', emotion: 'worried' },
+      { speaker: 'maggie', portrait: 'neutral', text: 'I was going to sell Ridgemont. Walk away. Let someone else carry the weight.', emotion: 'neutral' },
+      { speaker: 'maggie', portrait: 'happy', text: 'Then some kid from an HVAC van showed up and started fixing things. And I put the letter in the shredder.', emotion: 'happy' },
+    ],
+    choices: [
+      {
+        text: '"You made the right call, Maggie. We\'re not done yet."',
+        effects: [
+          { type: 'relationship', npc: 'maggie', delta: 3 },
+        ],
+      },
+      {
+        text: '"What made you almost give up?"',
+        effects: [
+          { type: 'relationship', npc: 'maggie', delta: 1 },
+          { type: 'flag', id: 'maggieBackstory', value: true },
+        ],
+      },
+    ],
+    onComplete: [
+      { type: 'flag', id: 'maggieConfessionHeard', value: true },
+    ],
+  },
+
+  {
+    id: 'ch4_bea_surprise_inspection',
+    trigger: { type: 'day', value: 18, chapter: 4, requireFlags: ['chapter4Started'] },
+    delivery: 'dialogue',
+    pauseGame: true,
+    dialogue: [
+      { speaker: 'bea', portrait: 'stern', text: 'Peralta. Don\'t bother looking for the appointment — there isn\'t one.', emotion: 'stern' },
+      { speaker: 'bea', portrait: 'stern', text: 'This is an unannounced spot-check. My department received a complaint and I am required to investigate within 48 hours.', emotion: 'stern' },
+      { speaker: 'bea', portrait: 'noting', text: 'I trust you can guess who filed it.', emotion: 'noting' },
+      { speaker: null, portrait: null, text: '(Bea clicks her pen and glances at her clipboard. She\'s already started.)', emotion: null },
+    ],
+    choices: [
+      {
+        text: '"Welcome, Inspector. We\'re an open book. Start wherever you like."',
+        effects: [
+          { type: 'relationship', npc: 'bea', delta: 2 },
+        ],
+      },
+      {
+        text: '"Can we have until tomorrow morning? We\'re in the middle of repairs."',
+        effects: [
+          { type: 'relationship', npc: 'bea', delta: -2 },
+          { type: 'flag', id: 'stalledBeaInspection', value: true },
+        ],
+      },
+    ],
+    onComplete: [
+      { type: 'flag', id: 'surpriseInspectionTriggered', value: true },
+      { type: 'triggerInspection', delay: 0 },
+    ],
+  },
+
+  {
+    id: 'ch4_fiona_rival_deal',
+    trigger: { type: 'day', value: 25, chapter: 4, requireFlags: ['chapter4Started'] },
+    delivery: 'dialogue',
+    pauseGame: true,
+    dialogue: [
+      { speaker: 'fiona', portrait: 'frustrated', text: 'Casey, we have a problem. Victor just offered CloudBrew — our second-biggest sponsor — a deal they can\'t refuse. Luxury box access, premium placement, the whole package.', emotion: 'frustrated' },
+      { speaker: 'fiona', portrait: 'calculating', text: 'If we lose CloudBrew, that\'s $3,000 a month off the books. And the other sponsors will start wondering if they\'re next.', emotion: 'calculating' },
+      { speaker: 'fiona', portrait: 'neutral', text: 'We have options, but none of them are free.', emotion: 'neutral' },
+    ],
+    choices: [
+      {
+        text: '"Match the offer. Whatever it costs, we keep CloudBrew." [-$3000]',
+        effects: [
+          { type: 'money', delta: -3000 },
+          { type: 'flag', id: 'keptCloudBrew', value: true },
+        ],
+      },
+      {
+        text: '"Let them go. We\'ll find new sponsors." [-1 rep]',
+        effects: [
+          { type: 'reputation', delta: -1 },
+          { type: 'flag', id: 'lostCloudBrew', value: true },
+        ],
+      },
+      {
+        text: '"Ask Priya to dig into Victor\'s sponsor poaching. Make it public."',
+        effects: [
+          { type: 'relationship', npc: 'priya', delta: 1 },
+          { type: 'flag', id: 'priyaInvestigatesPoaching', value: true },
+        ],
+      },
+    ],
+    onComplete: [
+      { type: 'flag', id: 'fionaRivalDealHandled', value: true },
+    ],
+  },
+
   // ── CHAPTER 5 ─────────────────────────────────────────────────────────
 
   {
@@ -999,6 +1138,92 @@ export const STORY_EVENTS = [
     ],
     onComplete: [
       { type: 'flag', id: 'sabotageDiscovered', value: true },
+    ],
+  },
+
+  {
+    id: 'ch5_rusty_legacy',
+    trigger: { type: 'day', value: 7, chapter: 5, requireFlags: ['chapter5Started'] },
+    delivery: 'dialogue',
+    pauseGame: true,
+    dialogue: [
+      { speaker: null, portrait: null, text: '(Rusty is sitting on an overturned bucket in the mechanical room, polishing a wrench he\'s had for thirty years.)', emotion: null },
+      { speaker: 'rusty', portrait: 'neutral', text: 'Kid, can I talk to you? Not about pipes for once.', emotion: 'neutral' },
+      { speaker: 'rusty', portrait: 'neutral', text: 'I\'ve been thinking about what comes next. For me, I mean. These knees aren\'t getting younger. Neither\'s the rest of me.', emotion: 'neutral' },
+      { speaker: 'rusty', portrait: 'happy', text: 'Thirty-five years I\'ve walked these tunnels. I know every rattle, every drip, every groan this building makes. I can tell you which pipe is about to blow just by listening.', emotion: 'happy' },
+      { speaker: 'rusty', portrait: 'neutral', text: 'But a building doesn\'t remember. When I\'m gone, all that knowledge walks out the door with me. Unless...', emotion: 'neutral' },
+      { speaker: 'rusty', portrait: 'neutral', text: 'Unless someone carries it forward. Like you did with Hank\'s notes.', emotion: 'neutral' },
+    ],
+    choices: [
+      {
+        text: '"Rusty, when the championship is over, we\'re naming the mechanical room after you. The Kowalski Engine Room."',
+        effects: [
+          { type: 'relationship', npc: 'rusty', delta: 3 },
+          { type: 'flag', id: 'rustyHonored', value: true },
+        ],
+      },
+      {
+        text: '"You\'ve got plenty of years left, old man."',
+        effects: [],
+      },
+    ],
+    onComplete: [
+      { type: 'flag', id: 'rustyLegacyTalk', value: true },
+    ],
+  },
+
+  {
+    id: 'ch5_victor_last_stand',
+    trigger: { type: 'day', value: 8, chapter: 5, requireFlags: ['sabotageDiscovered'] },
+    delivery: 'dialogue',
+    pauseGame: true,
+    dialogue: [
+      { speaker: 'priya', portrait: 'excited', text: 'Casey — drop everything. My source at city hall just called. Victor bribed Councilman Torres to reopen the rezoning vote. The paperwork is already filed.', emotion: 'excited' },
+      { speaker: 'priya', portrait: 'neutral', text: 'If this goes through, it doesn\'t matter if you win the championship. The lot gets rezoned and Ridgemont\'s lease becomes worthless.', emotion: 'neutral' },
+      { speaker: 'priya', portrait: 'excited', text: 'I have the proof. Bank records, emails, the whole paper trail. This is Victor\'s last card — and it\'s a dirty one.', emotion: 'excited' },
+    ],
+    choices: [
+      {
+        text: '"Publish everything. Front page. Let the public see who Victor really is."',
+        effects: [
+          { type: 'relationship', npc: 'victor', delta: -5 },
+          { type: 'reputation', delta: 3 },
+          { type: 'flag', id: 'victorExposedPublicly', value: true },
+        ],
+      },
+      {
+        text: '"Send the evidence to the DA privately. Keep it clean."',
+        effects: [
+          { type: 'relationship', npc: 'victor', delta: -2 },
+          { type: 'reputation', delta: 1 },
+          { type: 'flag', id: 'victorQuiet', value: true },
+        ],
+      },
+    ],
+    onComplete: [
+      { type: 'flag', id: 'victorLastStandResolved', value: true },
+    ],
+  },
+
+  {
+    id: 'ch5_celebration_prep',
+    trigger: { type: 'day', value: 9, chapter: 5, requireFlags: ['championshipAwarded'] },
+    delivery: 'cutscene',
+    pauseGame: false,
+    dialogue: [
+      { speaker: null, portrait: null, text: 'CHAMPIONSHIP EVE — RIDGEMONT STADIUM', emotion: null },
+      { speaker: null, portrait: null, text: 'The concourse is draped in Raptors blue. Every surface gleams. The air smells like fresh popcorn and possibility.', emotion: null },
+      { speaker: 'maggie', portrait: 'happy', text: 'I found this in my father\'s desk. A photo from opening day, 1984. He\'s standing right where you\'re standing now.', emotion: 'happy' },
+      { speaker: 'rusty', portrait: 'happy', text: 'I hung the championship banner in the rafters this morning. Had to climb a ladder that\'s older than Diego. Worth it.', emotion: 'happy' },
+      { speaker: 'diego', portrait: 'pumped', text: 'The whole team signed a ball for you, Pipes. Win or lose tomorrow, you\'re our MVP. The guys who keep the lights on never get enough credit.', emotion: 'pumped' },
+      { speaker: 'priya', portrait: 'excited', text: 'My photographer wants a group shot for the front page. Everyone in the mechanical room. "The Heart of Ridgemont." My editor is going to love it.', emotion: 'excited' },
+      { speaker: 'fiona', portrait: 'pleased', text: 'Every sponsor seat is sold. Every banner is in place. I never thought I\'d say this about a minor league stadium, but... I\'m proud to have my name on this.', emotion: 'pleased' },
+      { speaker: 'bea', portrait: 'rare-smile', text: 'I\'m not here in any official capacity tonight. I\'m here because my father would have wanted to see this. And so do I.', emotion: 'rare-smile' },
+      { speaker: null, portrait: null, text: '(For one quiet moment, everyone stands together in the mechanical room — the beating heart of Ridgemont Stadium. Tomorrow, the game begins.)', emotion: null },
+    ],
+    choices: [],
+    onComplete: [
+      { type: 'flag', id: 'celebrationPrepComplete', value: true },
     ],
   },
 

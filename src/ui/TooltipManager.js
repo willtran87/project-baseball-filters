@@ -192,6 +192,79 @@ export class TooltipManager {
   }
 
   /**
+   * Show a tooltip for a crowd entity with identity data.
+   */
+  showForEntity(x, y, entity) {
+    const id = entity.identity;
+    if (!id) { this.hide(); return; }
+
+    switch (id.kind) {
+      case 'fan': {
+        const streakColor = id.attendanceStreak > 30 ? '#ffec27' : '#888';
+        this.show(x, y, `
+          <div style="color:#29adff"><strong>${id.name}</strong></div>
+          <div style="color:#888;font-size:9px">${id.personality}</div>
+          <div style="color:${streakColor};font-size:8px">Attendance streak: ${id.attendanceStreak} games</div>
+          <div style="color:#666;font-size:8px;font-style:italic">"${id.quote}"</div>
+        `);
+        break;
+      }
+      case 'worker': {
+        this.show(x, y, `
+          <div style="color:#ff8844"><strong>${id.name}</strong></div>
+          <div style="color:#888;font-size:9px">${id.jobTitle}</div>
+          <div style="color:#888;font-size:8px">${id.yearsWorked} year${id.yearsWorked !== 1 ? 's' : ''} at Ridgemont</div>
+          <div style="color:#666;font-size:8px;font-style:italic">"${id.bio}"</div>
+        `);
+        break;
+      }
+      case 'vip': {
+        this.show(x, y, `
+          <div style="color:#ffec27"><strong>${id.name}</strong></div>
+          <div style="color:#888;font-size:9px">${id.title}</div>
+          <div style="color:#888;font-size:8px">${id.company}</div>
+        `);
+        break;
+      }
+      case 'player_home': {
+        const avg = String(id.avg).replace(/^0/, '');
+        const statLine = id.era
+          ? `${avg} AVG | ${id.era} ERA`
+          : `${avg} AVG | ${id.hr} HR | ${id.rbi} RBI`;
+        this.show(x, y, `
+          <div style="color:#cc2244"><strong>${id.name} #${id.jersey}</strong></div>
+          <div style="color:#888;font-size:9px">Raptors — ${id.positionLabel}</div>
+          <div style="color:#e0e0e0;font-size:9px">${statLine}</div>
+        `);
+        break;
+      }
+      case 'player_away': {
+        const avg = String(id.avg).replace(/^0/, '');
+        const statLine = id.era
+          ? `${avg} AVG | ${id.era} ERA`
+          : `${avg} AVG | ${id.hr} HR | ${id.rbi} RBI`;
+        this.show(x, y, `
+          <div style="color:#29adff"><strong>${id.name} #${id.jersey}</strong></div>
+          <div style="color:#888;font-size:9px">${id.team ?? 'Visitors'} — ${id.positionLabel}</div>
+          <div style="color:#e0e0e0;font-size:9px">${statLine}</div>
+        `);
+        break;
+      }
+      case 'mascot': {
+        this.show(x, y, `
+          <div style="color:#cc2244"><strong>${id.name}</strong></div>
+          <div style="color:#888;font-size:9px">${id.title}</div>
+          <div style="color:#666;font-size:8px;font-style:italic">"${id.quote}"</div>
+          <div style="color:#555;font-size:8px">${id.funFact}</div>
+        `);
+        break;
+      }
+      default:
+        this.hide();
+    }
+  }
+
+  /**
    * Show a tooltip for an interactive environment object.
    */
   showForObject(x, y, obj) {

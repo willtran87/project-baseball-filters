@@ -31,6 +31,7 @@ export class EconomyPanel {
     const innings = config.inningsPerGame ?? 9;
 
     // --- Revenue calculations (mirror EconomySystem logic) ---
+    const day = s.gameDay ?? 1;
     const gameDayType = s.currentGameDayType ?? 'weekdayRegular';
     const gameDayDef = config.gameDayTypes?.[gameDayType] ?? {};
 
@@ -41,7 +42,30 @@ export class EconomyPanel {
     const baseCapacity = this._getTotalCapacity();
     const teamPerfMod = s.teamPerformanceModifier ?? 1;
     const consequenceAttMod = s.consequenceAttendanceModifier ?? 1.0;
-    const estAttendance = Math.floor(baseCapacity * attendanceRatio * teamPerfMod * consequenceAttMod);
+
+    // Seasonal attendance & concessions modifiers (mirror EconomySystem)
+    const totalGameDays = config.seasonLength ?? 81;
+    let seasonalAttMult = 1.0;
+    let seasonalConcessionMult = 1.0;
+    let seasonalLabel = null;
+    if (day === 1) {
+      seasonalAttMult = 1.3;
+      seasonalLabel = 'Opening Day';
+    } else if (day % 14 === 0) {
+      seasonalAttMult = 1.15;
+      seasonalLabel = 'Rivalry Week';
+    } else if (day > totalGameDays - 10) {
+      seasonalAttMult = 1.1;
+      seasonalConcessionMult = 1.2;
+      seasonalLabel = 'Championship Push';
+    }
+
+    const estAttendance = Math.floor(baseCapacity * attendanceRatio * teamPerfMod * consequenceAttMod * seasonalAttMult);
+
+    // Market condition
+    const marketCondition = s.marketCondition ?? 'normal';
+    const marketRevMult = s.marketMultiplier ?? 1.0;
+    const marketCostMult = marketCondition === 'recession' ? 1.1 : 1.0;
 
     // Ticket revenue
     const ticketPrice = econ.ticketBasePrice ?? 25;
@@ -51,7 +75,7 @@ export class EconomyPanel {
     const avgQuality = this._getAvgFilterQuality();
     const satisfactionMod = avgQuality * (econ.concessionSatisfactionWeight ?? 0.5) + 0.5;
     const staffEfficiencyBonus = s._staffEfficiencyBonus ?? 0;
-    const concessionRevenue = Math.floor(estAttendance * (econ.concessionPerFan ?? 12) * satisfactionMod * (1 + staffEfficiencyBonus));
+    const concessionRevenue = Math.floor(estAttendance * (econ.concessionPerFan ?? 12) * satisfactionMod * (1 + staffEfficiencyBonus) * seasonalConcessionMult);
 
     // Sponsor income (paid by ContractPanel, not EconomySystem — show contract totals)
     const activeContracts = s.activeContracts ?? [];
@@ -66,7 +90,6 @@ export class EconomyPanel {
     const consequenceRevMod = s.consequenceRevenueModifier ?? 1.0;
 
     // Early game boost
-    const day = s.gameDay ?? 1;
     let earlyBoost = 1.0;
     const earlyFullEnd = 7;
     const earlyTaperEnd = 12;
@@ -90,7 +113,7 @@ export class EconomyPanel {
     const expansionCostReduction = this._getExpansionCostReduction();
 
     const rawGameRevenue = ticketRevenue + concessionRevenue;
-    const adjustedGameRevenue = Math.floor(rawGameRevenue * revenueMultiplier * consequenceRevMod * earlyBoost * difficultyIncomeMult * (1 + expansionRevBoost));
+    const adjustedGameRevenue = Math.floor(rawGameRevenue * revenueMultiplier * consequenceRevMod * earlyBoost * difficultyIncomeMult * (1 + expansionRevBoost) * marketRevMult);
     const perInningRevenue = Math.floor(adjustedGameRevenue / innings);
 
     // --- Expense calculations ---
@@ -126,7 +149,7 @@ export class EconomyPanel {
     const staffWages = this._calculateStaffWages(econ);
 
     const rawExpenses = maintenanceCost + staffWages + totalEnergyCost;
-    const adjustedExpenses = Math.floor(rawExpenses * difficultyExpenseMult * (1 - expansionCostReduction));
+    const adjustedExpenses = Math.floor(rawExpenses * difficultyExpenseMult * (1 - expansionCostReduction) * marketCostMult);
     const perInningExpenses = Math.floor(adjustedExpenses / innings);
 
     // Net
@@ -167,6 +190,48 @@ export class EconomyPanel {
 
     // Two-column layout: Revenue | Expenses
     html += `<div style="flex:1;overflow-y:auto;padding:8px 12px;">`;
+
+    // Market condition badge
+    const marketColors = { boom: '#00e436', normal: '#888', recession: '#ff004d' };
+    const marketLabels = { boom: 'Boom', normal: 'Normal', recession: 'Recession' };
+    const mColor = marketColors[marketCondition] ?? '#888';
+    html += `
+      <div style="margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+        <span style="color:#aaa;font-size:9px;">Market:</span>
+        <span style="color:${mColor};font-size:10px;font-weight:bold;border:1px solid ${mColor}44;padding:1px 6px;border-radius:2px;">${marketLabels[marketCondition] ?? 'Normal'}</span>
+        ${marketRevMult !== 1.0 ? `<span style="color:${mColor};font-size:8px;">Revenue x${marketRevMult.toFixed(2)}</span>` : ''}
+        ${marketCostMult !== 1.0 ? `<span style="color:#ff004d;font-size:8px;">Costs x${marketCostMult.toFixed(2)}</span>` : ''}
+      </div>
+    `;
+
+    // Off-season revenue display
+    if (s.offSeason) {
+      const tourIncome = Math.floor((s.reputation ?? 0) * 8);
+      const maintContractIncome = (s.staffList ?? []).length * 25;
+      html += `
+        <div style="margin-bottom:8px;padding:6px;border:1px solid #29adff44;border-radius:3px;background:#29adff08;">
+          <div style="color:#29adff;font-weight:bold;font-size:9px;margin-bottom:4px;">OFF-SEASON REVENUE</div>
+          ${this._row('Stadium Tours', `+$${tourIncome.toLocaleString()}`, '#29adff', `Rep ${s.reputation}% x $8`)}
+          ${this._row('Maint. Contracts', `+$${maintContractIncome.toLocaleString()}`, '#29adff', `${(s.staffList ?? []).length} staff x $25`)}
+          ${this._row('Total off-season income', `+$${(tourIncome + maintContractIncome).toLocaleString()}`, '#00e436')}
+        </div>
+      `;
+    }
+
+    // Seasonal modifier banner
+    if (seasonalLabel && !s.offSeason) {
+      const sAttPct = Math.round((seasonalAttMult - 1) * 100);
+      const sConcPct = Math.round((seasonalConcessionMult - 1) * 100);
+      let sDesc = `Attendance +${sAttPct}%`;
+      if (sConcPct > 0) sDesc += `, Concessions +${sConcPct}%`;
+      html += `
+        <div style="margin-bottom:6px;padding:3px 8px;border:1px solid #ffec2744;border-radius:2px;background:#ffec2708;display:flex;align-items:center;gap:8px;">
+          <span style="color:#ffec27;font-size:10px;font-weight:bold;">${seasonalLabel}</span>
+          <span style="color:#aaa;font-size:8px;">${sDesc}</span>
+        </div>
+      `;
+    }
+
     html += `<div style="display:flex;gap:16px;">`;
 
     // --- Revenue column ---
@@ -180,11 +245,12 @@ export class EconomyPanel {
       html += this._row('Staff Quality Bonus', `+$${staffBonusDollar.toLocaleString()}`, '#00e436', `+${Math.round(staffEfficiencyBonus * 100)}% concessions`);
     }
 
-    if (revenueMultiplier !== 1.0 || earlyBoost !== 1.0 || expansionRevBoost > 0) {
+    if (revenueMultiplier !== 1.0 || earlyBoost !== 1.0 || expansionRevBoost > 0 || marketRevMult !== 1.0) {
       html += `<div style="margin-top:4px;padding-top:4px;border-top:1px solid #222;color:#888;font-size:9px;">Multipliers applied:</div>`;
       if (revenueMultiplier !== 1.0) html += this._row('Game day bonus', `x${revenueMultiplier.toFixed(2)}`, '#ffec27');
       if (earlyBoost !== 1.0) html += this._row('Early season boost', `x${earlyBoost.toFixed(2)}`, '#29adff');
       if (expansionRevBoost > 0) html += this._row('Expansion bonus', `+${Math.round(expansionRevBoost * 100)}%`, '#ffa300');
+      if (marketRevMult !== 1.0) html += this._row('Market condition', `x${marketRevMult.toFixed(2)}`, mColor);
       if (consequenceRevMod !== 1.0) html += this._row('Consequence penalty', `x${consequenceRevMod.toFixed(2)}`, '#ff004d');
       if (difficultyIncomeMult !== 1.0) html += this._row('Difficulty modifier', `x${difficultyIncomeMult.toFixed(2)}`, '#888');
     }
@@ -205,9 +271,10 @@ export class EconomyPanel {
     html += this._row('Maintenance', `$${maintenanceCost.toLocaleString()}`, '#aaa');
     html += this._row('Staff wages', `$${staffWages.toLocaleString()}`, '#aaa', `${(s.staffList ?? []).length} staff`);
 
-    if (expansionCostReduction > 0 || difficultyExpenseMult !== 1.0) {
+    if (expansionCostReduction > 0 || difficultyExpenseMult !== 1.0 || marketCostMult !== 1.0) {
       html += `<div style="margin-top:4px;padding-top:4px;border-top:1px solid #222;color:#888;font-size:9px;">Modifiers applied:</div>`;
       if (expansionCostReduction > 0) html += this._row('Expansion savings', `-${Math.round(expansionCostReduction * 100)}%`, '#29adff');
+      if (marketCostMult !== 1.0) html += this._row('Recession cost increase', `x${marketCostMult.toFixed(2)}`, '#ff004d');
       if (difficultyExpenseMult !== 1.0) html += this._row('Difficulty modifier', `x${difficultyExpenseMult.toFixed(2)}`, '#888');
     }
 
@@ -240,6 +307,8 @@ export class EconomyPanel {
 
     // --- Active modifiers section ---
     const modifiers = [];
+    if (marketCondition !== 'normal') modifiers.push({ label: `Market: ${marketLabels[marketCondition]}`, color: mColor });
+    if (seasonalLabel) modifiers.push({ label: seasonalLabel, color: '#ffec27' });
     if (attPct >= 85) modifiers.push({ label: `Attendance stress: ${attPct >= 95 ? 'SELLOUT' : 'HIGH'}`, color: '#ffa300' });
     if (difficultyKey !== 'veteran') modifiers.push({ label: `Difficulty: ${difficultyKey}`, color: '#888' });
     if (earlyBoost > 1.0) modifiers.push({ label: `Early season boost: x${earlyBoost.toFixed(2)}`, color: '#29adff' });

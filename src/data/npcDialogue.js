@@ -304,6 +304,58 @@ export const NPC_CASUAL_DIALOGUE = {
         { speaker: 'maggie', portrait: 'neutral', text: "Just... don't give her any ammunition, okay?" },
       ],
     },
+
+    // --- Tier 3 (50+) ---
+    {
+      id: 'maggie_daughter_visit',
+      minRelationship: 50,
+      context: 'normal',
+      portrait: 'happy',
+      lines: [
+        { speaker: null, text: "(Maggie is looking at her phone, smiling in a way you've never seen.)" },
+        { speaker: 'maggie', portrait: 'happy', text: "My daughter's coming to the game this weekend." },
+        { speaker: 'maggie', portrait: 'happy', text: "She's twelve. Hasn't been here since she was little." },
+        { speaker: 'maggie', portrait: 'happy', text: "I want her to see what we've built. Not what it was — what it is now." },
+        { speaker: 'maggie', portrait: 'neutral', text: "Make sure section 3, row F has the best air quality in the house. That's where she'll sit." },
+      ],
+      choices: [
+        { text: '"I\'ll make sure everything is perfect for her."', effects: [{ type: 'relationship', npc: 'maggie', delta: 2 }] },
+        { text: '"Section 3, row F. Your old seat?"', effects: [{ type: 'relationship', npc: 'maggie', delta: 1 }] },
+      ],
+    },
+    {
+      id: 'maggie_next_season_plans',
+      minRelationship: 50,
+      context: 'normal',
+      portrait: 'happy',
+      lines: [
+        { speaker: null, text: "(Maggie spreads blueprints across her desk.)" },
+        { speaker: 'maggie', portrait: 'happy', text: "I've been working on something. Next season plans." },
+        { speaker: 'maggie', portrait: 'happy', text: "A youth baseball clinic. Free admission for local schools. Maybe a community garden out past left field." },
+        { speaker: 'maggie', portrait: 'neutral', text: "My father always said a stadium should give back to the neighborhood that feeds it." },
+        { speaker: 'maggie', portrait: 'happy', text: "For the first time in years, I can actually plan for next season instead of just surviving this one." },
+      ],
+      choices: [
+        { text: '"That sounds like the Ridgemont your father dreamed of."', effects: [{ type: 'relationship', npc: 'maggie', delta: 2 }] },
+        { text: '"I\'ll make sure the facilities are ready for it."', effects: [{ type: 'relationship', npc: 'maggie', delta: 1 }] },
+      ],
+    },
+
+    // --- Context-aware: crisis ---
+    {
+      id: 'maggie_crisis_rally',
+      minRelationship: 20,
+      context: 'crisis',
+      portrait: 'angry',
+      lines: [
+        { speaker: null, text: "(Maggie slams her phone down and stands up.)" },
+        { speaker: 'maggie', portrait: 'angry', text: "Alright. Enough." },
+        { speaker: 'maggie', portrait: 'angry', text: "I didn't save this stadium from Victor Salazar to lose it to a busted pipe." },
+        { speaker: 'maggie', portrait: 'neutral', text: "Every hand on deck. I'm calling the board to authorize emergency funds." },
+        { speaker: 'maggie', portrait: 'neutral', text: "You handle the systems. I'll handle the money. We've been through worse." },
+        { speaker: 'maggie', portrait: 'angry', text: "Ridgemont does not go down. Not today." },
+      ],
+    },
   ],
 
   // ===========================================================================
@@ -597,6 +649,43 @@ export const NPC_CASUAL_DIALOGUE = {
         { speaker: 'rusty', portrait: 'happy', text: "Apple didn't fall far from the tree." },
       ],
     },
+
+    // --- Tier 3 (45+) ---
+    {
+      id: 'rusty_old_traditions',
+      minRelationship: 45,
+      context: 'normal',
+      portrait: 'happy',
+      lines: [
+        { speaker: null, text: "(Rusty pulls out a dented thermos and pours two cups.)" },
+        { speaker: 'rusty', portrait: 'happy', text: "Sit down a minute, kid. I want to show you something." },
+        { speaker: 'rusty', portrait: 'neutral', text: "See that mark on the boiler? Hank scratched the score of every playoff game into the metal. Started in '92." },
+        { speaker: 'rusty', portrait: 'happy', text: "Opening day, we'd bang the boiler three times with a wrench for luck. Every maintenance crew since '84 did it." },
+        { speaker: 'rusty', portrait: 'neutral', text: "Traditions don't show up in the budget. But they're the reason people like me never leave." },
+      ],
+      choices: [
+        { text: '"Show me the wrench. I want to keep the tradition going."', effects: [{ type: 'relationship', npc: 'rusty', delta: 2 }] },
+        { text: '"Every score? That\'s decades of history on one boiler."', effects: [{ type: 'relationship', npc: 'rusty', delta: 1 }] },
+      ],
+    },
+    {
+      id: 'rusty_retirement_confide',
+      minRelationship: 45,
+      context: 'normal',
+      portrait: 'sad',
+      lines: [
+        { speaker: null, text: "(Rusty is unusually quiet. He's staring at his hands.)" },
+        { speaker: 'rusty', portrait: 'sad', text: "My doctor says my back isn't going to hold up much longer." },
+        { speaker: 'rusty', portrait: 'sad', text: "Two more years, tops, if I keep crawling through tunnels." },
+        { speaker: 'rusty', portrait: 'neutral', text: "I always figured I'd die in this mechanical room. Romantic, right? In a plumbing sort of way." },
+        { speaker: 'rusty', portrait: 'neutral', text: "But I've been thinking... maybe I train up a real crew. Write down everything I know. Leave this place in better hands." },
+        { speaker: 'rusty', portrait: 'happy', text: "Your hands, kid." },
+      ],
+      choices: [
+        { text: '"I\'d be honored to carry on what you built here, Rusty."', effects: [{ type: 'relationship', npc: 'rusty', delta: 3 }] },
+        { text: '"Two years is a long time. Let\'s not count you out yet."', effects: [{ type: 'relationship', npc: 'rusty', delta: 1 }] },
+      ],
+    },
   ],
 
   // ===========================================================================
@@ -869,6 +958,54 @@ export const NPC_CASUAL_DIALOGUE = {
         { speaker: 'priya', portrait: 'excited', text: "Classic Thornton. My editor loved it, actually." },
       ],
     },
+
+    // --- Tier 2 additions (30+) ---
+    {
+      id: 'priya_victor_finances',
+      minRelationship: 30,
+      context: 'normal',
+      portrait: 'sympathetic',
+      lines: [
+        { speaker: null, text: "(Priya leans in close, voice barely above a whisper.)" },
+        { speaker: 'priya', portrait: 'sympathetic', text: "Okay, this is completely off the record." },
+        { speaker: 'priya', portrait: 'sympathetic', text: "Victor's Glendale project is hemorrhaging money. His investors are getting nervous." },
+        { speaker: 'priya', portrait: 'curious', text: "He's leveraged to the hilt. One more bad quarter and the banks start circling." },
+        { speaker: 'priya', portrait: 'sympathetic', text: "That's why he's getting desperate with the sponsor poaching. He needs the revenue." },
+      ],
+    },
+    {
+      id: 'priya_first_gig_story',
+      minRelationship: 30,
+      context: 'normal',
+      portrait: 'excited',
+      lines: [
+        { speaker: null, text: "(Priya puts her notebook away — a rare sight.)" },
+        { speaker: 'priya', portrait: 'excited', text: "You know how I got into reporting?" },
+        { speaker: 'priya', portrait: 'excited', text: "My first gig was covering Little League games for the community paper. Five bucks a story." },
+        { speaker: 'priya', portrait: 'sympathetic', text: "I was terrible. Misspelled the coach's name. Got the score wrong. Wrote 'touchdowns' instead of 'home runs.'" },
+        { speaker: 'priya', portrait: 'excited', text: "But I loved it. The crowd, the stories, the humanity of it." },
+        { speaker: 'priya', portrait: 'curious', text: "Covering Ridgemont reminds me of that. Before it became about deadlines and clicks." },
+      ],
+      choices: [
+        { text: '"This place has a way of bringing people back to what matters."', effects: [{ type: 'relationship', npc: 'priya', delta: 2 }] },
+        { text: '"Five bucks a story? You were overpaid."', effects: [{ type: 'relationship', npc: 'priya', delta: 1 }] },
+      ],
+    },
+
+    // --- Context-aware: gameday ---
+    {
+      id: 'priya_gameday_color',
+      minRelationship: 20,
+      context: 'gameday',
+      portrait: 'excited',
+      lines: [
+        { speaker: null, text: "(Priya is scribbling furiously, eyes on the crowd.)" },
+        { speaker: 'priya', portrait: 'excited', text: "Listen to that crowd. You can feel it in the concrete." },
+        { speaker: 'priya', portrait: 'excited', text: "Section 12 is doing the wave. The hot dog vendor is singing. There's a kid with a foam finger taller than she is." },
+        { speaker: 'priya', portrait: 'curious', text: "This is what I write about. Not stats and standings — the atmosphere." },
+        { speaker: 'priya', portrait: 'excited', text: "And the atmosphere starts with the air, doesn't it? That's your department." },
+      ],
+    },
   ],
 
   // ===========================================================================
@@ -1120,6 +1257,39 @@ export const NPC_CASUAL_DIALOGUE = {
         { speaker: 'bea', portrait: 'stern', text: "That ballplayer -- Ramirez -- asked me about water quality standards." },
         { speaker: 'bea', portrait: 'noting', text: "Polite. Genuinely curious. I gave him a pamphlet." },
         { speaker: 'bea', portrait: 'stern', text: "If only the rest of this facility showed that level of interest." },
+      ],
+    },
+
+    // --- Tier 2 additions (30+) ---
+    {
+      id: 'bea_private_advocacy',
+      minRelationship: 30,
+      context: 'normal',
+      portrait: 'noting',
+      lines: [
+        { speaker: null, text: "(Bea checks that the hallway is empty before speaking.)" },
+        { speaker: 'bea', portrait: 'noting', text: "I need to tell you something. It stays in this room." },
+        { speaker: 'bea', portrait: 'noting', text: "When the county board discussed revoking Ridgemont's operating permit last year, I spoke at the hearing." },
+        { speaker: 'bea', portrait: 'stern', text: "I told them the facility had a credible plan for improvement and that shutting it down would be premature." },
+        { speaker: 'bea', portrait: 'noting', text: "The vote was 4-3 to keep you open. My testimony was cited." },
+        { speaker: 'bea', portrait: 'stern', text: "Do not make me regret that." },
+      ],
+      choices: [
+        { text: '"I had no idea. Thank you, Bea."', effects: [{ type: 'relationship', npc: 'bea', delta: 2 }] },
+        { text: '"You won\'t regret it. I promise."', effects: [{ type: 'relationship', npc: 'bea', delta: 1 }] },
+      ],
+    },
+    {
+      id: 'bea_inspection_insider',
+      minRelationship: 30,
+      context: 'normal',
+      portrait: 'noting',
+      lines: [
+        { speaker: 'bea', portrait: 'noting', text: "I'm going to share something that is not in any public guideline." },
+        { speaker: 'bea', portrait: 'noting', text: "Inspectors have discretion on borderline readings. We look at trends, not just snapshots." },
+        { speaker: 'bea', portrait: 'noting', text: "If your numbers dip on inspection day but your 7-day average is strong, a reasonable inspector will note the trend." },
+        { speaker: 'bea', portrait: 'stern', text: "I am a reasonable inspector. Most of my colleagues are not." },
+        { speaker: 'bea', portrait: 'stern', text: "So keep your averages clean. That's the real test." },
       ],
     },
   ],
@@ -1381,6 +1551,51 @@ export const NPC_CASUAL_DIALOGUE = {
       choices: [
         { text: '"She\'ll write a great piece."', effects: [{ type: 'relationship', npc: 'diego', delta: 1 }] },
         { text: '"Just be careful what you say on the record."', effects: [] },
+      ],
+    },
+
+    // --- Tier 2 additions (25+) ---
+    {
+      id: 'diego_batting_practice_invite',
+      minRelationship: 25,
+      context: 'normal',
+      portrait: 'pumped',
+      lines: [
+        { speaker: 'diego', portrait: 'pumped', text: "Hey Pipes! You ever swing a bat?" },
+        { speaker: 'diego', portrait: 'pumped', text: "Not like fixing pipes. Like, actually hitting a baseball." },
+        { speaker: 'diego', portrait: 'happy', text: "Come to batting practice tomorrow. I'll throw you some softballs — literally." },
+        { speaker: 'diego', portrait: 'pumped', text: "The guys want to see if the filter wizard has any pop in the bat." },
+      ],
+      choices: [
+        { text: '"I\'ll be there. Prepare to be disappointed."', effects: [{ type: 'relationship', npc: 'diego', delta: 2 }] },
+        { text: '"I\'ll stick to what I\'m good at."', effects: [{ type: 'relationship', npc: 'diego', delta: 1 }] },
+      ],
+    },
+    {
+      id: 'diego_favorite_play',
+      minRelationship: 25,
+      context: 'normal',
+      portrait: 'happy',
+      lines: [
+        { speaker: null, text: "(Diego pulls up a video on his phone.)" },
+        { speaker: 'diego', portrait: 'happy', text: "Look at this. Game 3 last year. Bottom of the eighth, two outs, bases loaded." },
+        { speaker: 'diego', portrait: 'pumped', text: "I fouled off seven pitches. SEVEN. The crowd was going nuts." },
+        { speaker: 'diego', portrait: 'happy', text: "Then I lined one into the gap. Three runs scored. You can hear the stadium shaking on the replay." },
+        { speaker: 'diego', portrait: 'happy', text: "That's my favorite moment at Ridgemont. This place makes magic, man." },
+      ],
+    },
+
+    // --- Context-aware: winning ---
+    {
+      id: 'diego_winning_streak_energy',
+      minRelationship: 15,
+      context: 'winning',
+      portrait: 'pumped',
+      lines: [
+        { speaker: 'diego', portrait: 'pumped', text: "PIPES! Have you SEEN the standings?!" },
+        { speaker: 'diego', portrait: 'pumped', text: "We're on a tear! The boys are locked in!" },
+        { speaker: 'diego', portrait: 'happy', text: "Jennings said the clubhouse feels different this year. Cleaner, sharper, like the whole building is pulling for us." },
+        { speaker: 'diego', portrait: 'pumped', text: "That's not a coincidence. That's YOU keeping this place alive!" },
       ],
     },
   ],
@@ -1864,6 +2079,38 @@ export const NPC_CASUAL_DIALOGUE = {
       choices: [
         { text: '"That\'s... actually decent of you."', effects: [{ type: 'relationship', npc: 'victor', delta: 2 }] },
         { text: '"No strings attached?"', effects: [{ type: 'relationship', npc: 'victor', delta: 1 }] },
+      ],
+    },
+
+    // --- Tier 2 additions (35+) ---
+    {
+      id: 'victor_rare_respect',
+      minRelationship: 35,
+      context: 'normal',
+      portrait: 'neutral',
+      lines: [
+        { speaker: null, text: "(Victor is standing at the railing, watching the grounds crew work. He doesn't seem to notice you approach.)" },
+        { speaker: 'victor', portrait: 'neutral', text: "You know what the difference is between your stadium and mine?" },
+        { speaker: 'victor', portrait: 'neutral', text: "Mine was built with money. Yours was built with..." },
+        { speaker: null, text: "(He searches for the word.)" },
+        { speaker: 'victor', portrait: 'neutral', text: "Conviction. I can't buy that. Believe me, I've tried." },
+      ],
+      choices: [
+        { text: '"Coming from you, that means something."', effects: [{ type: 'relationship', npc: 'victor', delta: 2 }] },
+        { text: '"Careful, Victor. That almost sounded sincere."', effects: [{ type: 'relationship', npc: 'victor', delta: 1 }] },
+      ],
+    },
+    {
+      id: 'victor_grudging_quality',
+      minRelationship: 35,
+      context: 'winning',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'victor', portrait: 'neutral', text: "I had my engineers tour your mechanical room. Don't ask how." },
+        { speaker: 'victor', portrait: 'neutral', text: "They said your filtration setup is... the word they used was 'elegant.'" },
+        { speaker: null, text: "(He looks like he's chewing glass.)" },
+        { speaker: 'victor', portrait: 'neutral', text: "I spent ten million on Glendale's systems and your duct-tape operation outperforms it." },
+        { speaker: 'victor', portrait: 'smug', text: "Don't let it go to your head. I'm already redesigning." },
       ],
     },
   ],

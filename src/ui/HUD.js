@@ -130,6 +130,30 @@ export class HUD {
       this._gameDayType = dayType;
     });
 
+    // Domain health trend: push current health into 5-day rolling history on each new day
+    this.eventBus.on('game:newDay', () => {
+      const health = this.state.domainHealth;
+      if (!health) return;
+      if (!this.state.domainHealthHistory) {
+        this.state.domainHealthHistory = { air: [], water: [], hvac: [], drainage: [] };
+      }
+      const hist = this.state.domainHealthHistory;
+      for (const key of ['air', 'water', 'hvac', 'drainage']) {
+        hist[key].push(health[key] ?? 100);
+        if (hist[key].length > 5) hist[key].shift();
+      }
+    });
+
+    // Counter-intel toast: show a 5-second toast when sabotage is revealed
+    this.eventBus.on('rival:sabotageRevealed', (data) => {
+      const domainLabel = data.domain ? ` on ${data.domain}` : '';
+      this.eventBus.emit('ui:message', {
+        text: `Intel Report: Victor planning ${data.name}${domainLabel}`,
+        type: 'info',
+        duration: 5000,
+      });
+    });
+
     // ── Build retained top bar DOM ──
     this._buildTopBar();
 
@@ -334,10 +358,11 @@ export class HUD {
       barFill.style.cssText = 'display:block;height:100%';
       barOuter.appendChild(barFill);
       const pctEl = this._makeSpan({ fontSize: '6px', minWidth: '18px' });
+      const trendEl = this._makeSpan({ fontSize: '7px', fontWeight: 'bold', minWidth: '8px', textAlign: 'center' });
       const statusSymbol = this._makeSpan({ fontSize: '7px', fontWeight: 'bold', minWidth: '10px', textAlign: 'center' });
       const inlineLabel = this._makeSpan({ fontSize: '5px', maxWidth: '50px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' });
-      wrap.append(icon, barOuter, pctEl, statusSymbol, inlineLabel);
-      this._domainEls[d.key] = { wrap, barFill, pctEl, statusSymbol, inlineLabel, label: d.label };
+      wrap.append(icon, barOuter, pctEl, trendEl, statusSymbol, inlineLabel);
+      this._domainEls[d.key] = { wrap, barFill, pctEl, trendEl, statusSymbol, inlineLabel, label: d.label };
       this._domainSection.appendChild(wrap);
     }
 
@@ -854,8 +879,27 @@ export class HUD {
         const fillW = Math.floor(40 * (score / 100));
         d.barFill.style.width = `${fillW}px`;
         d.barFill.style.background = barColor;
+        // Trend arrow from 5-day rolling health history
+        const hist = s.domainHealthHistory?.[key];
+        let trendArrow = '\u25b8'; // stable (▸)
+        let trendColor = '#888';   // gray
+        if (hist && hist.length >= 4) {
+          const len = hist.length;
+          const recentAvg = (hist[len - 1] + hist[len - 2]) / 2;
+          const earlyAvg = (hist[0] + hist[1]) / 2;
+          if (recentAvg - earlyAvg >= 3) {
+            trendArrow = '\u25b2'; // ▲ improving
+            trendColor = '#00e436'; // green
+          } else if (earlyAvg - recentAvg >= 3) {
+            trendArrow = '\u25bc'; // ▼ declining
+            trendColor = '#ff004d'; // red
+          }
+        }
         d.pctEl.textContent = `${Math.floor(score)}%`;
         d.pctEl.style.color = barColor;
+        // Trend arrow shown in the trendEl (appended after pctEl)
+        d.trendEl.textContent = trendArrow;
+        d.trendEl.style.color = trendColor;
 
         // Accessibility symbol for color-blind players
         if (score > 80) {

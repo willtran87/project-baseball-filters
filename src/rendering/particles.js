@@ -200,6 +200,28 @@ const PRESETS = {
     gravity: 12,
     directionY: -1,
   },
+  // Blue sparkle burst for filter upgrades
+  upgrade: {
+    count: 10,
+    speed: 35,
+    spread: 20,
+    life: [0.8, 1.5],
+    colors: ['#29adff', '#00e436', '#ffffff'],
+    size: 3,
+    gravity: -15,
+    directionY: -1,
+  },
+  // Dark red haze for sabotage events
+  sabotageSmoke: {
+    count: 8,
+    speed: 10,
+    spread: 10,
+    life: [2.0, 3.5],
+    colors: ['#831e1e', '#5f1010', '#2b0808'],
+    size: 4,
+    gravity: -5,
+    directionY: -1,
+  },
 };
 
 export class ParticleSystem {

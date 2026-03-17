@@ -172,6 +172,7 @@ function renderCharactersTab(container, state, sprites) {
   const relationships = state.npcRelationships ?? {};
   const npcDefs = NPC_DATA ?? {};
 
+  const lastChat = state.npcLastChat ?? {};
   const npcIds = Object.keys(npcDefs);
   if (npcIds.length === 0) {
     container.innerHTML = '<div style="color:#5f574f;text-align:center;padding:20px">No characters met yet.</div>';
@@ -276,7 +277,12 @@ function renderCharactersTab(container, state, sprites) {
             <span style="color:${themeColor};font-weight:bold">${name}</span>
             ${role ? `<span style="color:#5f574f;font-size:9px;margin-left:4px">${role}</span>` : ''}
           </div>
-          <div style="font-size:9px;color:${tier.color};margin:2px 0">${tier.label}</div>
+          <div style="font-size:9px;color:${tier.color};margin:2px 0">${tier.label}
+            <span style="color:#5f574f;margin-left:4px">(${rel}/100)</span>${
+            lastChat[npcId] != null
+              ? `<span style="color:#5f574f;margin-left:6px">· Last spoke: Day ${lastChat[npcId]}</span>`
+              : ''
+          }</div>
           <div style="background:#222;height:4px;border-radius:2px;width:120px">
             <div style="background:${tier.color};height:100%;width:${Math.min(rel, 100)}%;border-radius:2px;
               transition:width 0.3s"></div>

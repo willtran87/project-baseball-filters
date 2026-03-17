@@ -69,6 +69,16 @@ const SABOTAGE_TYPES = [
       state._smearCampaignDays = 3;
     },
   },
+  {
+    id: 'infrastructureStress',
+    name: 'Infrastructure Stress',
+    description: 'Victor sabotaged your infrastructure -- system health declining!',
+    repRange: [30, 100],
+    effect: (state, targetDomain) => {
+      state._infraStressDomain = targetDomain ?? 'water';
+      state._infraStressDays = 3;
+    },
+  },
 ];
 
 // -- Rival Defense Definitions -----------------------------------------------
@@ -171,11 +181,14 @@ export class RivalSystem {
     // Execute delayed sabotage from previous day's Priya tip
     if (this._sabotageDelayed) {
       const delayed = this._sabotageDelayed;
+      const delayedDomain = this._sabotageDelayedDomain;
       this._sabotageDelayed = null;
-      this._executeSabotage([delayed], this.state._rivalDefenses);
+      this._sabotageDelayedDomain = null;
+      this._executeSabotage([delayed], this.state._rivalDefenses, delayedDomain);
     }
 
     this._driftRivalRep();
+    this._updateMomentum();
     this._checkWeeklyStandings(data);
     this._checkSeasonEnd();
     this._checkRivalInsight();
@@ -184,6 +197,7 @@ export class RivalSystem {
     this._checkSabotage();
     this._tickSmearCampaign();
     this._tickSupplyCost();
+    this._tickInfraStress();
   }
 
   /**
@@ -212,6 +226,44 @@ export class RivalSystem {
     // Clamp to 10-95 range (Victor never fully collapses or hits 100)
     rivalRep = Math.max(10, Math.min(95, rivalRep));
     this.state.set('rivalRep', Math.round(rivalRep * 10) / 10);
+  }
+
+  /**
+   * Update rival momentum (-3 to +3). Tracks competitive pressure between
+   * player and Victor over consecutive days.
+   */
+  _updateMomentum() {
+    let momentum = this.state.rivalMomentum ?? 0;
+
+    // Track consecutive reputation gain days
+    const repGainStreak = this.state._repGainStreak ?? 0;
+    const repBudget = this.state._repChangesToday ?? { positive: 0, negative: 0 };
+    const gainedRepYesterday = (repBudget.positive ?? 0) > 0;
+    if (gainedRepYesterday) {
+      this.state._repGainStreak = repGainStreak + 1;
+    } else {
+      this.state._repGainStreak = 0;
+    }
+    // Player gaining rep 3+ days straight: momentum -1
+    if (this.state._repGainStreak >= 3) {
+      momentum = Math.max(-3, momentum - 1);
+      this.state._repGainStreak = 0; // Reset streak after applying
+    }
+
+    // Player domain crisis (any domain < 25%): momentum +1
+    const health = this.state.domainHealth;
+    if (health) {
+      for (const key of ['air', 'water', 'hvac', 'drainage']) {
+        if ((health[key] ?? 100) < 25) {
+          momentum = Math.min(3, momentum + 1);
+          break; // Only +1 per day even if multiple crises
+        }
+      }
+    }
+
+    // Clamp to [-3, +3]
+    momentum = Math.max(-3, Math.min(3, momentum));
+    this.state.rivalMomentum = momentum;
   }
 
   /**
@@ -352,10 +404,28 @@ export class RivalSystem {
   _checkVictorEncounter() {
     const chapter = this.state.storyChapter ?? 1;
     if (chapter < 2) return;
-    if (Math.random() > 0.10) return;
+
+    // Momentum affects encounter chance: >=2 means +5%, <=-2 means -5%
+    const momentum = this.state.rivalMomentum ?? 0;
+    let encounterChance = 0.10;
+    if (momentum >= 2) encounterChance += 0.05;
+    else if (momentum <= -2) encounterChance -= 0.05;
+    if (Math.random() > encounterChance) return;
 
     const encounters = (this.state.victorEncounters ?? 0) + 1;
     this.state.set('victorEncounters', encounters);
+
+    // Momentum <= -2: Victor may offer a truce dialogue instead of taunting
+    if (momentum <= -2 && !this._victorDialogueToday && Math.random() < 0.4) {
+      this._victorDialogueToday = true;
+      this.eventBus.emit('rival:victorEncounter', { encounters, dialogue: true, truce: true });
+      this.eventBus.emit('ui:message', {
+        text: 'Victor approaches quietly: "Look... maybe we got off on the wrong foot. What do you say we ease up for a while?"',
+        type: 'info',
+        npcName: 'Victor Salazar',
+      });
+      return;
+    }
 
     // 50% chance to trigger full dialogue (max 1 per day)
     if (!this._victorDialogueToday && Math.random() < 0.5) {
@@ -365,9 +435,10 @@ export class RivalSystem {
       return;
     }
 
+    // Momentum >= 2: Victor taunts more aggressively
     // Otherwise, toast taunt as before
     // Every 5th encounter, Victor is more frustrated
-    const pool = (encounters % 5 === 0) ? VICTOR_FRUSTRATIONS : VICTOR_TAUNTS;
+    const pool = (momentum >= 2 || encounters % 5 === 0) ? VICTOR_FRUSTRATIONS : VICTOR_TAUNTS;
     const text = pool[Math.floor(Math.random() * pool.length)];
 
     const victor = NPC_DATA.victor;
@@ -395,22 +466,60 @@ export class RivalSystem {
     const tier = ESCALATION_TIERS.find(t => playerRep >= t.minRep && playerRep <= t.maxRep);
     if (!tier) return;
 
-    if (Math.random() > tier.chance) return;
+    // Momentum affects sabotage chance: baseSabotageChance + (momentum * 2%)
+    const momentum = this.state.rivalMomentum ?? 0;
+    const adjustedChance = tier.chance + (momentum * 0.02);
+    if (Math.random() > adjustedChance) return;
 
-    // Pick a sabotage type from the tier's allowed types
-    const availableTypes = SABOTAGE_TYPES.filter(s => tier.types.includes(s.id));
+    // Adaptive sabotage: 60% chance to target player's weakest domain
+    const health = this.state.domainHealth;
+    let adaptiveType = null;
+    let adaptiveDomain = null;
+    if (health && Math.random() < 0.60) {
+      // Find weakest domain
+      let weakest = null;
+      let weakestScore = Infinity;
+      for (const key of ['air', 'water', 'hvac', 'drainage']) {
+        const score = health[key] ?? 100;
+        if (score < weakestScore) {
+          weakestScore = score;
+          weakest = key;
+        }
+      }
+      if (weakest) {
+        adaptiveDomain = weakest;
+        if (weakest === 'air' || weakest === 'hvac') {
+          // Target air/hvac weakness with supply disruption (filter cost spike)
+          adaptiveType = SABOTAGE_TYPES.find(s => s.id === 'supplyDisruption');
+        } else {
+          // Target water/drainage weakness with infrastructure stress
+          adaptiveType = SABOTAGE_TYPES.find(s => s.id === 'infrastructureStress');
+        }
+      }
+    }
+
+    // Fallback: pick from tier's allowed types (original random behavior)
+    const availableTypes = adaptiveType
+      ? [adaptiveType]
+      : SABOTAGE_TYPES.filter(s => tier.types.includes(s.id));
     if (availableTypes.length === 0) return;
 
-    // Check counter-intel: if active, reveal the sabotage instead of executing
+    // Check counter-intel: if active, reveal AND block the sabotage
     const defenses = this.state._rivalDefenses;
-    if (defenses?.counterIntel?.active && defenses.counterIntel.revealedType === null) {
-      const revealed = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+    if (defenses?.counterIntel?.active) {
+      const revealed = adaptiveType ?? availableTypes[Math.floor(Math.random() * availableTypes.length)];
+      const targetLabel = adaptiveDomain ? ` targeting ${adaptiveDomain}` : '';
+      defenses.counterIntel.active = false;
       defenses.counterIntel.revealedType = revealed.id;
       this.eventBus.emit('ui:message', {
-        text: `Counter-intel report: Victor is planning "${revealed.name}". Prepare your defenses!`,
-        type: 'info',
+        text: `Counter-intel report: Victor is planning "${revealed.name}"${targetLabel}. Sabotage blocked!`,
+        type: 'success',
       });
-      this.eventBus.emit('rival:sabotageRevealed', { type: revealed.id, name: revealed.name });
+      this.eventBus.emit('rival:sabotageRevealed', {
+        type: revealed.id,
+        name: revealed.name,
+        domain: adaptiveDomain,
+      });
       return;
     }
 
@@ -422,22 +531,23 @@ export class RivalSystem {
         type: 'info',
       });
       this._sabotageDelayed = tipped;
+      this._sabotageDelayedDomain = adaptiveDomain;
       return;
     }
 
-    // Execute first sabotage
-    this._executeSabotage(availableTypes, defenses);
+    // Execute first sabotage (pass adaptive domain for infrastructure stress)
+    this._executeSabotage(availableTypes, defenses, adaptiveDomain);
 
     // Double sabotage chance at rep 80+
     if (tier.doubleChance > 0 && Math.random() < tier.doubleChance) {
-      this._executeSabotage(availableTypes, defenses);
+      this._executeSabotage(availableTypes, defenses, adaptiveDomain);
     }
   }
 
   /**
    * Execute a single sabotage event, checking defenses first.
    */
-  _executeSabotage(availableTypes, defenses) {
+  _executeSabotage(availableTypes, defenses, targetDomain) {
     const picked = availableTypes[Math.floor(Math.random() * availableTypes.length)];
 
     // Security upgrade blocks sabotage
@@ -462,8 +572,16 @@ export class RivalSystem {
       return;
     }
 
-    // Apply the sabotage effect
-    picked.effect(this.state);
+    // Apply the sabotage effect (pass targetDomain for infrastructureStress)
+    if (picked.id === 'infrastructureStress') {
+      picked.effect(this.state, targetDomain);
+    } else {
+      picked.effect(this.state);
+    }
+
+    // Successful sabotage: momentum +1
+    const momentum = this.state.rivalMomentum ?? 0;
+    this.state.rivalMomentum = Math.min(3, momentum + 1);
 
     const victor = NPC_DATA.victor;
     const portrait = victor?.portraits?.smug ?? 'portrait_victor_smug';
@@ -558,6 +676,34 @@ export class RivalSystem {
         text: 'Supply chain restored. Filter costs back to normal.',
         type: 'info',
       });
+    }
+  }
+
+  /**
+   * Tick infrastructure stress: apply -5% health to targeted domain per day for duration.
+   */
+  _tickInfraStress() {
+    const days = this.state._infraStressDays ?? 0;
+    if (days <= 0) return;
+
+    const domain = this.state._infraStressDomain;
+    if (domain && this.state.domainHealth && typeof this.state.domainHealth[domain] === 'number') {
+      this.state.domainHealth[domain] = Math.max(0, this.state.domainHealth[domain] - 5);
+    }
+
+    this.state._infraStressDays = days - 1;
+
+    if (days - 1 > 0) {
+      this.eventBus.emit('ui:message', {
+        text: `Infrastructure stress on ${domain}: -5% health. ${days - 1} day(s) remaining.`,
+        type: 'warning',
+      });
+    } else {
+      this.eventBus.emit('ui:message', {
+        text: `Infrastructure stress on ${domain} has ended. Systems stabilizing.`,
+        type: 'info',
+      });
+      this.state._infraStressDomain = null;
     }
   }
 

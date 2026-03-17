@@ -487,8 +487,13 @@ export class StorySystem {
 
     // Emit chat complete for casual NPC conversations
     if (this._lastChatNpcId) {
-      this.eventBus.emit('npc:chatComplete', { npcId: this._lastChatNpcId });
+      const npcId = this._lastChatNpcId;
       this._lastChatNpcId = null;
+
+      // Grant a small relationship bonus for taking the time to chat
+      this.adjustRelationship(npcId, 1);
+
+      this.eventBus.emit('npc:chatComplete', { npcId });
     }
   }
 

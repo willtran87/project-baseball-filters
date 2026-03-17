@@ -134,9 +134,38 @@ export class MediaSystem {
       ?? eventPool[Math.floor(Math.random() * eventPool.length)];
     this._pendingEventName = null;
 
-    const text = this._fillTemplate(template, event);
-    const repEffect = this._calculateRepEffect(sentiment);
+    // --- Headline streak momentum ---
+    const prevSentiment = this._lastHeadlineSentiment ?? null;
+    this._lastHeadlineSentiment = sentiment;
 
+    const streak = this.state.headlineStreak ?? 0;
+    if (prevSentiment === sentiment && sentiment !== 'neutral') {
+      this.state.set('headlineStreak', Math.min(streak + 1, 5));
+    } else {
+      this.state.set('headlineStreak', sentiment === 'neutral' ? 0 : 1);
+    }
+
+    let repEffect = this._calculateRepEffect(sentiment);
+
+    // Momentum bonus: 3+ streak amplifies rep effect
+    const currentStreak = this.state.headlineStreak ?? 0;
+    if (currentStreak >= 3 && sentiment === 'positive') {
+      repEffect = 2; // momentum: +2 instead of +1
+    } else if (currentStreak >= 3 && sentiment === 'negative') {
+      repEffect = -2; // spiral: -2 instead of -1
+    }
+
+    // NPC-tied exclusive: Priya relationship ≥ 30, 20% chance
+    const priyaRel = this.state.npcRelationships?.priya ?? 0;
+    const lastChat = this.state.lastNpcChat;
+    if (priyaRel >= 30 && lastChat && Math.random() < 0.2) {
+      const npcName = lastChat.charAt(0).toUpperCase() + lastChat.slice(1);
+      const exclusiveText = `Ridgemont Insider: Priya Okafor Reports on ${npcName} — "There's a Story Behind the Scenes"`;
+      this._publishHeadline(exclusiveText, sentiment, repEffect);
+      return;
+    }
+
+    const text = this._fillTemplate(template, event);
     this._publishHeadline(text, sentiment, repEffect);
   }
 

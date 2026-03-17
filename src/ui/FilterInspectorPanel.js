@@ -181,6 +181,15 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
     repairBtn.addEventListener('click', () => {
       if (!canRepair) return;
       eventBus.emit('filter:repair', { id: filter.id });
+      // Visual feedback: repair sparkle particles + border flash blue
+      if (state.particles) {
+        state.particles.emit('repairSparkle', filter.x ?? 0, filter.y ?? 0);
+      }
+      const panel = container.closest('.game-panel');
+      if (panel) {
+        panel.style.borderColor = '#29adff';
+        setTimeout(() => { panel.style.borderColor = ''; }, 300);
+      }
       // Re-open to refresh
       setTimeout(() => eventBus.emit('ui:openPanel', { name: 'filterInspector', data: { filterId: filter.id } }), 50);
     });
@@ -199,6 +208,17 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
       upgradeBtn.addEventListener('click', () => {
         if (!canUpgrade) return;
         eventBus.emit('filter:upgrade', { id: filter.id, newTier: nextTier.tier });
+        // Visual feedback: particles + sound + border flash
+        if (state.particles) {
+          state.particles.emit('upgrade', filter.x ?? 0, filter.y ?? 0);
+        }
+        eventBus.emit('filter:upgraded', filter);
+        // Flash panel border green for 300ms
+        const panel = container.closest('.game-panel');
+        if (panel) {
+          panel.style.borderColor = '#00e436';
+          setTimeout(() => { panel.style.borderColor = ''; }, 300);
+        }
         setTimeout(() => eventBus.emit('ui:openPanel', { name: 'filterInspector', data: { filterId: filter.id } }), 50);
       });
       actions.appendChild(upgradeBtn);
