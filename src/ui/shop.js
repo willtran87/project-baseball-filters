@@ -313,9 +313,25 @@ export class Shop {
     const tier = comp?.tiers?.find(t => t.tier === tierNum);
     if (!tier) return;
 
-    // Compute the effective cost including market multiplier (for affordability check)
+    // Compute the effective cost matching FiltrationSystem.installFilter's logic
+    let effectiveCost = tier.cost;
+    // Hank's plumbing discount for water/drainage
+    const plumbingDiscount = this.state.storyFlags?.discount_plumbing;
+    if (plumbingDiscount && (domain === 'water' || domain === 'drainage')) {
+      effectiveCost = Math.floor(effectiveCost * (1 - plumbingDiscount / 100));
+    }
+    // Off-season equipment clearance discount for T2-T3
+    const equipDiscount = (tierNum >= 2 && tierNum <= 3 && this.state.storyFlags?.offSeasonEquipmentDiscount > 0)
+      ? this.state.storyFlags.offSeasonEquipmentDiscount : 0;
+    if (equipDiscount > 0) {
+      effectiveCost = Math.floor(effectiveCost * (1 - equipDiscount / 100));
+    }
+    // Rival supply disruption cost multiplier
+    const supplyCostMult = this.state._supplyCostMultiplier ?? 1.0;
+    if (supplyCostMult > 1.0) effectiveCost = Math.ceil(effectiveCost * supplyCostMult);
+    // Dynamic market multiplier
     const marketMult = MarketSystem.getMarketMultiplier(this.state.market, domain, tierNum);
-    const effectiveCost = Math.round(tier.cost * marketMult);
+    effectiveCost = Math.round(effectiveCost * marketMult);
     if (this.state.money < effectiveCost) {
       this.eventBus.emit('ui:message', { text: 'Not enough money!', type: 'warning' });
       return;

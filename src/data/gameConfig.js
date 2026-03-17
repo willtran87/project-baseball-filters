@@ -168,6 +168,18 @@ export const GAME_CONFIG = {
       general: { domain: null, speedMultiplier: 1.0, earlyWarningChance: 0.05 },
     },
     maxStaffRPG: 12,
+    trainingCost: 500,        // cost to start training a staff member
+    trainingDays: 3,          // game days to complete training
+    trainingXP: 50,           // XP granted on training completion
+    // Trait mechanical effects — 6 key traits get gameplay bonuses, others stay cosmetic
+    traitEffects: {
+      'Perfectionist': { repairQuality: 0.15, repairSpeed: -0.10, desc: '+15% repair quality, -10% speed' },
+      'Speed Demon':   { repairSpeed: 0.25, repairQuality: -0.10, desc: '+25% speed, -10% quality' },
+      'Early Bird':    { freeRepairsPerDay: 1, desc: '+1 free repair/day (no overwork penalty)' },
+      'Night Owl':     { lateInningBonus: 0.50, desc: '+50% effectiveness innings 7-9' },
+      'Dad Joker':     { teamMoralePerDay: 5, desc: '+5 morale to all other staff each day' },
+      'Quiet Type':    { personalRepairSpeed: 0.20, desc: '+20% personal repair speed' },
+    },
   },
 
   // ── Research / Tech Tree Config ───────────────────────────────────────
@@ -728,5 +740,23 @@ export const GAME_CONFIG = {
     { source: 'drainage', target: 'water', effect: 'backupContamination', severity: 'high' },
     { source: 'drainage', target: 'air', effect: 'floodingAirQuality', severity: 'medium' },
     { source: 'air', target: 'water', effect: 'scrubberWaterDemand', severity: 'low' },
+  ],
+
+  // ── Monthly Challenges (Post-Win Content) ──────────────────────────
+  // After winning the championship, rotating challenges every 30 game days.
+  // Each challenge imposes a constraint for extra prestige points.
+  challengeDefinitions: [
+    { id: 'budget_crunch', name: 'Budget Crunch', description: '50% income for 30 days. End with more money than you started.', prestigeReward: 2, modifier: { incomeMultiplier: 0.5 } },
+    { id: 'skeleton_crew', name: 'Skeleton Crew', description: 'Operate with max 2 staff for 30 days.', prestigeReward: 2, modifier: { maxStaff: 2 } },
+    { id: 'perfect_record', name: 'Perfect Record', description: 'No filter breakdowns for 30 days.', prestigeReward: 3, modifier: {} },
+    { id: 'storm_season', name: 'Storm Season', description: 'Survive 3+ weather events in 30 days. 2x weather frequency.', prestigeReward: 2, modifier: { weatherFrequencyMultiplier: 2.0 } },
+    { id: 'no_repairs', name: 'No Repairs', description: 'Cannot repair filters for 15 days — only replace.', prestigeReward: 1, modifier: { repairsDisabled: true } },
+    { id: 'rookie_staff', name: 'Rookie Staff', description: 'All staff reset to level 1 for 30 days.', prestigeReward: 2, modifier: { staffLevelCap: 1 } },
+    { id: 'high_standards', name: 'High Standards', description: 'Keep all domains above 85% for 30 consecutive days. Reputation decay 2x.', prestigeReward: 3, modifier: { repDecayMultiplier: 2.0 } },
+    { id: 'economy_mode', name: 'Economy Mode', description: 'Filters cost 1.5x for 30 days. Spend wisely.', prestigeReward: 1, modifier: { filterCostMultiplier: 1.5 } },
+    { id: 'speed_run', name: 'Speed Run', description: 'Reach 90 reputation from current position in 30 days.', prestigeReward: 3, modifier: {} },
+    { id: 'minimalist', name: 'Minimalist', description: 'Complete 30 days with max 6 total filters installed.', prestigeReward: 2, modifier: { maxFilters: 6 } },
+    { id: 'fan_favorite', name: 'Fan Favorite', description: 'Maintain 90%+ attendance for 30 consecutive days.', prestigeReward: 2, modifier: {} },
+    { id: 'iron_manager', name: 'Iron Manager', description: 'No emergency repairs allowed for 30 days.', prestigeReward: 1, modifier: { emergencyRepairsDisabled: true } },
   ],
 };

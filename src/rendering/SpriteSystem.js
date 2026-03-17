@@ -348,6 +348,30 @@ export class SpriteSystem {
         const cx = barX + Math.floor(barWidth / 2);
         renderer.drawRectScreen(cx, barY - 4, 1, 1, '#ff004d');
       }
+
+      // Condition dot: 3x3 colored circle below the condition bar for at-a-glance status
+      const dotX = screenX + Math.floor(spriteSize.w / 2) - 1;
+      const dotY = barY + barH + 3;
+      let dotColor;
+      if (ratio <= 0) {
+        // Broken: gray dot
+        dotColor = '#555555';
+      } else if (ratio < 0.3) {
+        // Critical: pulsing red dot
+        const redPulse = Math.sin(now * 5 + i * 2) * 0.3 + 0.7;
+        renderer.save();
+        renderer.setAlpha(redPulse);
+        renderer.drawRectScreen(dotX, dotY, 3, 3, '#ff004d');
+        renderer.restore();
+        dotColor = null; // already drawn with pulse
+      } else if (ratio < 0.6) {
+        dotColor = '#ffa300'; // yellow/amber
+      } else {
+        dotColor = '#00e436'; // green
+      }
+      if (dotColor) {
+        renderer.drawRectScreen(dotX, dotY, 3, 3, dotColor);
+      }
     }
   }
 }

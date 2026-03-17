@@ -164,6 +164,9 @@ export class StateManager {
     this.sandboxGoals = null;
     this._sandboxHealthyDays = 0;
 
+    // Inspection scheduling
+    this.nextInspectionDay = 20 + Math.floor(Math.random() * 7) - 3; // ~20 days ± 3
+
     // Multi-day event chain state
     // { chainId, currentDay, flags: {}, startedOnGameDay }
     this.activeEventChain = null;
@@ -379,6 +382,8 @@ export class StateManager {
       // Sandbox goals
       sandboxGoals: this.sandboxGoals ? this.sandboxGoals.map(g => ({ ...g })) : null,
       _sandboxHealthyDays: this._sandboxHealthyDays ?? 0,
+      // Inspection scheduling
+      nextInspectionDay: this.nextInspectionDay,
       // Multi-day event chains
       activeEventChain: this.activeEventChain ? { ...this.activeEventChain, flags: { ...(this.activeEventChain.flags ?? {}) } } : null,
       // Dynamic market
@@ -505,6 +510,8 @@ export class StateManager {
     // Sandbox goals
     this.sandboxGoals = Array.isArray(data.sandboxGoals) ? data.sandboxGoals.map(g => ({ ...g })) : null;
     this._sandboxHealthyDays = data._sandboxHealthyDays ?? 0;
+    // Inspection scheduling
+    this.nextInspectionDay = data.nextInspectionDay ?? (this.gameDay + 20 + Math.floor(Math.random() * 7) - 3);
     // Multi-day event chains
     this.activeEventChain = data.activeEventChain ? { ...data.activeEventChain, flags: { ...(data.activeEventChain.flags ?? {}) } } : null;
     // Dynamic market
@@ -514,6 +521,9 @@ export class StateManager {
       activeEvent: dm.activeEvent ? { ...dm.activeEvent } : null,
       trend: dm.trend ?? { air: 0, water: 0, hvac: 0, drainage: 0 },
     };
+    // Reset transient per-day state that isn't serialized
+    this._repChangesToday = { positive: 0, negative: 0 };
+
     this.eventBus.emit('state:loaded', data);
     return true;
   }

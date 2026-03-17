@@ -47,10 +47,11 @@ export class EconomyPanel {
     const ticketPrice = econ.ticketBasePrice ?? 25;
     const ticketRevenue = estAttendance * ticketPrice;
 
-    // Concession revenue
+    // Concession revenue (with staff efficiency bonus from happy specialists)
     const avgQuality = this._getAvgFilterQuality();
     const satisfactionMod = avgQuality * (econ.concessionSatisfactionWeight ?? 0.5) + 0.5;
-    const concessionRevenue = Math.floor(estAttendance * (econ.concessionPerFan ?? 12) * satisfactionMod);
+    const staffEfficiencyBonus = s._staffEfficiencyBonus ?? 0;
+    const concessionRevenue = Math.floor(estAttendance * (econ.concessionPerFan ?? 12) * satisfactionMod * (1 + staffEfficiencyBonus));
 
     // Sponsor income (paid by ContractPanel, not EconomySystem — show contract totals)
     const activeContracts = s.activeContracts ?? [];
@@ -174,6 +175,10 @@ export class EconomyPanel {
     html += this._row('Ticket sales', `$${ticketRevenue.toLocaleString()}`, '#aaa', `${estAttendance.toLocaleString()} fans x $${ticketPrice}`);
     html += this._row('Concessions', `$${concessionRevenue.toLocaleString()}`, '#aaa', `Satisfaction: ${Math.round(satisfactionMod * 100)}%`);
     html += this._row('Contract income', `$${contractIncome.toLocaleString()}`, '#29adff', `${activeContracts.length} active contract${activeContracts.length !== 1 ? 's' : ''}`);
+    if (staffEfficiencyBonus > 0) {
+      const staffBonusDollar = Math.floor(estAttendance * (econ.concessionPerFan ?? 12) * satisfactionMod * staffEfficiencyBonus);
+      html += this._row('Staff Quality Bonus', `+$${staffBonusDollar.toLocaleString()}`, '#00e436', `+${Math.round(staffEfficiencyBonus * 100)}% concessions`);
+    }
 
     if (revenueMultiplier !== 1.0 || earlyBoost !== 1.0 || expansionRevBoost > 0) {
       html += `<div style="margin-top:4px;padding-top:4px;border-top:1px solid #222;color:#888;font-size:9px;">Multipliers applied:</div>`;

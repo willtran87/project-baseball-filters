@@ -33,6 +33,9 @@ export class StaffPanel {
     this.eventBus.on('staff:levelUp', () => this._rerender());
     this.eventBus.on('staff:specialized', () => this._rerender());
     this.eventBus.on('staff:candidatesRefreshed', () => this._rerender());
+    this.eventBus.on('staff:trainingStarted', () => this._rerender());
+    this.eventBus.on('staff:praised', () => this._rerender());
+    this.eventBus.on('staff:trainingComplete', () => this._rerender());
   }
 
   toggle() {
@@ -166,6 +169,7 @@ export class StaffPanel {
               MRL: <span style="color:#00e436">${c.morale}</span>
             </div>
             ${c.traitDesc ? `<div style="color:#777;font-size:9px;font-style:italic;margin-top:2px">${c.traitDesc}</div>` : ''}
+            ${this._getTraitEffectHtml(c)}
           </div>
           <span style="color:${canAfford ? '#00e436' : '#555'};width:65px;text-align:right">$${c.hireCost.toLocaleString()}</span>
           <button data-action="hire" data-candidate-id="${c.id}"
@@ -198,8 +202,39 @@ export class StaffPanel {
         ? `<span style="color:#cc44cc;font-size:9px;margin-left:4px;background:rgba(204,68,204,0.1);padding:1px 4px;border-radius:2px">${s.trait}</span>`
         : '';
 
+      // Trait mechanical effect text
+      const traitEffects = this.state.config.staffConfig?.traitEffects ?? {};
+      const traitEffect = s.trait ? traitEffects[s.trait] : null;
+      const traitEffectHtml = traitEffect
+        ? `<div style="color:#a78bfa;font-size:9px;margin-top:1px">${traitEffect.desc}</div>`
+        : '';
+
+      // Morale tier effect description
+      const moraleTier = this.staffSystem.getMoraleTier(s);
+      const moraleEffectHtml = moraleTier === 'high'
+        ? '<div style="color:#00e436;font-size:9px;margin-top:1px">High Morale: +10% repair speed, +3 domain health</div>'
+        : moraleTier === 'low'
+          ? '<div style="color:#ff004d;font-size:9px;margin-top:1px">Low Morale: -15% repair speed, -3 domain health, quit risk</div>'
+          : '';
+
+      // Training status
+      const isTraining = this.staffSystem.isTraining(s);
+      const trainingHtml = isTraining
+        ? (() => {
+            const t = s.training;
+            const pct = Math.floor(((t.totalDays - t.daysRemaining) / t.totalDays) * 100);
+            return `
+              <div style="margin-top:2px">
+                <span style="color:#ffec27;font-size:9px;background:rgba(255,236,39,0.15);padding:1px 4px;border-radius:2px">IN TRAINING (${t.daysRemaining}d left)</span>
+                <div style="background:#222;height:3px;border-radius:2px;margin-top:2px;width:60px">
+                  <div style="background:#ffec27;height:100%;width:${pct}%;border-radius:2px"></div>
+                </div>
+              </div>`;
+          })()
+        : '';
+
       html += `
-        <div data-action="select-staff" data-staff-id="${s.id}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;background:rgba(255,255,255,0.03);border-left:3px solid #29adff;cursor:pointer">
+        <div data-action="select-staff" data-staff-id="${s.id}" style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;background:rgba(255,255,255,0.03);border-left:3px solid ${isTraining ? '#ffec27' : '#29adff'};cursor:pointer">
           <div style="flex:1">
             <div style="color:#e0e0e0;margin-bottom:2px">
               <strong>${s.name}</strong>
@@ -213,6 +248,9 @@ export class StaffPanel {
               XP: <span style="color:#c2c3c7">${xpDisplay}</span>
               ${s.assignedDomain ? ` | <span style="color:#ffec27">${s.assignedDomain}</span>` : ''}
             </div>
+            ${moraleEffectHtml}
+            ${traitEffectHtml}
+            ${trainingHtml}
           </div>
           <div style="width:60px">
             <div style="font-size:9px;color:${moraleColor};margin-bottom:2px">MRL ${moralePct}%</div>
@@ -354,6 +392,7 @@ export class StaffPanel {
         ? `<div style="margin-bottom:8px;padding:6px 8px;background:rgba(204,68,204,0.06);border-left:2px solid #cc44cc;border-radius:2px">
             <div style="color:#cc44cc;font-size:10px;margin-bottom:2px">Trait: ${member.trait}</div>
             <div style="color:#888;font-size:10px;font-style:italic">${member.traitDesc ?? ''}</div>
+            ${this._getTraitEffectHtml(member)}
           </div>`
         : ''
       }
@@ -365,6 +404,52 @@ export class StaffPanel {
         : ''
       }
     `;
+
+    // Morale effect display
+    const moraleTier = this.staffSystem.getMoraleTier(member);
+    if (moraleTier === 'high') {
+      html += '<div style="margin-bottom:8px;padding:4px 8px;background:rgba(0,228,54,0.06);border-left:2px solid #00e436;border-radius:2px;color:#00e436;font-size:10px">High Morale: +10% repair speed, +3 domain health</div>';
+    } else if (moraleTier === 'low') {
+      html += '<div style="margin-bottom:8px;padding:4px 8px;background:rgba(255,0,77,0.06);border-left:2px solid #ff004d;border-radius:2px;color:#ff004d;font-size:10px">Low Morale: -15% repair speed, -3 domain health, quit risk</div>';
+    }
+
+    // Training status / Train button
+    const isTraining = this.staffSystem.isTraining(member);
+    if (isTraining) {
+      const t = member.training;
+      const pct = Math.floor(((t.totalDays - t.daysRemaining) / t.totalDays) * 100);
+      html += `
+        <div style="margin-bottom:8px;padding:6px 8px;background:rgba(255,236,39,0.06);border-left:2px solid #ffec27;border-radius:2px">
+          <div style="color:#ffec27;font-size:10px;margin-bottom:4px">IN TRAINING (${t.daysRemaining} day${t.daysRemaining !== 1 ? 's' : ''} remaining)</div>
+          <div style="background:#222;height:6px;border-radius:2px">
+            <div style="background:#ffec27;height:100%;width:${pct}%;border-radius:2px"></div>
+          </div>
+          <div style="color:#888;font-size:9px;margin-top:2px">Unavailable for work until training completes. +50 XP on completion.</div>
+        </div>
+      `;
+    } else {
+      const trainCost = this.state.config.staffConfig?.trainingCost ?? 500;
+      const canTrain = this.state.money >= trainCost;
+      html += `
+        <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+          <button data-action="train-staff" data-staff-id="${member.id}"
+            style="background:${canTrain ? '#1a2a3a' : '#1a1a1a'};color:${canTrain ? '#ffec27' : '#444'};
+            border:1px solid ${canTrain ? '#3a4a6a' : '#2a2a2a'};padding:3px 10px;font-family:monospace;
+            cursor:${canTrain ? 'pointer' : 'not-allowed'};font-size:10px"
+            title="Train for 3 days, costs $${trainCost}, grants +50 XP on completion">
+            Train ($${trainCost})
+          </button>
+          ${!this.staffSystem.hasPraisedToday(member.id)
+            ? `<button data-action="praise-staff" data-staff-id="${member.id}"
+                style="background:#1a3a2a;color:#00e436;border:1px solid #3a6a4a;padding:3px 10px;font-family:monospace;cursor:pointer;font-size:10px"
+                title="Praise this staff member (+5 morale, once/day)">
+                Praise (+5 morale)
+              </button>`
+            : '<span style="color:#555;font-size:9px;padding:3px 0">Already praised today</span>'
+          }
+        </div>
+      `;
+    }
 
     // Specialize buttons
     if (canSpecialize) {
@@ -392,6 +477,16 @@ export class StaffPanel {
   }
 
   /**
+   * Get HTML for a staff member's trait mechanical effect (if any).
+   */
+  _getTraitEffectHtml(staffMember) {
+    const traitEffects = this.state.config.staffConfig?.traitEffects ?? {};
+    const effect = staffMember.trait ? traitEffects[staffMember.trait] : null;
+    if (!effect || !effect.desc) return '';
+    return `<div style="color:#a78bfa;font-size:9px;margin-top:2px">Effect: ${effect.desc}</div>`;
+  }
+
+  /**
    * Auto-assign all unassigned staff to domains.
    * Prioritizes specialization match, then lowest domain health.
    */
@@ -410,7 +505,7 @@ export class StaffPanel {
     const specDomainMap = {
       airTech: ['air', 'hvac'],
       plumber: ['water', 'drainage'],
-      electrician: [],
+      electrician: ['hvac'],
       general: ['air', 'water', 'hvac', 'drainage'],
     };
 
@@ -455,6 +550,18 @@ export class StaffPanel {
     this._render();
   }
 
+  /**
+   * Returns HTML showing a candidate/staff member's trait mechanical effects
+   * from config, if any exist for the given trait.
+   */
+  _getTraitEffectHtml(staffOrCandidate) {
+    if (!staffOrCandidate.trait) return '';
+    const traitEffects = this.state.config.staffConfig?.traitEffects ?? {};
+    const effect = traitEffects[staffOrCandidate.trait];
+    if (!effect || !effect.desc) return '';
+    return `<div style="color:#a78bfa;font-size:9px;margin-top:1px">${effect.desc}</div>`;
+  }
+
   _attachEvents() {
     if (!this._el) return;
 
@@ -473,7 +580,12 @@ export class StaffPanel {
       }
 
       const action = target.dataset.action;
-      this.eventBus.emit('ui:click');
+
+      // Actions that trigger their own dedicated sounds — skip generic click
+      const hasOwnSound = ['hire', 'fire-staff', 'specialize', 'auto-assign'];
+      if (!hasOwnSound.includes(action)) {
+        this.eventBus.emit('ui:click');
+      }
 
       switch (action) {
         case 'close-staff':
@@ -533,6 +645,20 @@ export class StaffPanel {
 
         case 'auto-assign': {
           this._autoAssignStaff();
+          break;
+        }
+
+        case 'train-staff': {
+          const staffId = parseInt(target.dataset.staffId, 10);
+          this.eventBus.emit('staff:train', { staffId });
+          this._render();
+          break;
+        }
+
+        case 'praise-staff': {
+          const staffId = parseInt(target.dataset.staffId, 10);
+          this.eventBus.emit('staff:praise', { staffId });
+          this._render();
           break;
         }
 

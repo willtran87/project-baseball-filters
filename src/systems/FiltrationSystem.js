@@ -80,6 +80,13 @@ export class FiltrationSystem {
     if (plumbingDiscount && (domain === 'water' || domain === 'drainage')) {
       cost = Math.floor(cost * (1 - plumbingDiscount / 100));
     }
+    // Apply off-season equipment clearance discount for T2-T3 filters
+    const tierNum = tier ?? 1;
+    const equipDiscount = (tierNum >= 2 && tierNum <= 3 && this.state.storyFlags?.offSeasonEquipmentDiscount > 0)
+      ? this.state.storyFlags.offSeasonEquipmentDiscount : 0;
+    if (equipDiscount > 0) {
+      cost = Math.floor(cost * (1 - equipDiscount / 100));
+    }
     // Apply rival supply disruption cost multiplier
     const supplyCostMult = this.state._supplyCostMultiplier ?? 1.0;
     if (supplyCostMult > 1.0) cost = Math.ceil(cost * supplyCostMult);
@@ -340,7 +347,13 @@ export class FiltrationSystem {
       ? (1 - weatherResponseBonus)
       : 1.0;
 
-    const combinedDegradeMultiplier = stressDegradeMultiplier * eventDegradeMultiplier * weatherResearchMult * difficultyDegrade * attDegradeMult;
+    // Championship game stress multiplier (1.5x during championship game day)
+    const championshipMult = this.state.championshipStressMultiplier ?? 1.0;
+    // Monthly challenge weather frequency multiplier
+    const challengeWeatherMult = (this.state.challengeConstraints?.type === 'weatherFrequency')
+      ? (this.state.challengeConstraints.value ?? 1) : 1.0;
+
+    const combinedDegradeMultiplier = stressDegradeMultiplier * eventDegradeMultiplier * weatherResearchMult * difficultyDegrade * attDegradeMult * championshipMult * challengeWeatherMult;
 
     // Pre-scan for weatherShield passive: reduces degradation by 20% during weather events
     const weatherShieldDomains = new Set();
@@ -372,12 +385,12 @@ export class FiltrationSystem {
 
       // Staff specialization: 10% reduced degradation when a specialist is assigned to this domain
       // Specialization coverage: airTech covers air+hvac, plumber covers water+drainage,
-      // general covers all domains, electrician covers electrical only
+      // general covers all domains, electrician covers hvac
       let staffSpecMult = 1.0;
       const staffList = this.state.staffList ?? [];
       const specDomainMap = {
         airTech: ['air', 'hvac'], plumber: ['water', 'drainage'],
-        electrician: ['electrical'], general: ['air', 'water', 'hvac', 'drainage'],
+        electrician: ['hvac'], general: ['air', 'water', 'hvac', 'drainage'],
       };
       for (const staff of staffList) {
         if (!staff.specialization || staff.assignedDomain !== filter.domain) continue;

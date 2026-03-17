@@ -35,6 +35,7 @@ export class ObjectivesPanel {
     this.eventBus = eventBus;
     this._el = null;
     this._visible = false;
+    this._inspectionWarningEmitted = false; // track per-inspection toast
 
     this.eventBus.on('ui:toggleObjectives', () => this.toggle());
     this.eventBus.on('ui:closeObjectives', () => this.hide());
@@ -216,7 +217,45 @@ export class ObjectivesPanel {
       </div>
     `;
 
-    // --- 5. Rivalry ---
+    // --- 5. Inspection Countdown ---
+    const nextInsp = s.nextInspectionDay ?? 999;
+    const daysUntilInsp = Math.max(0, nextInsp - (s.gameDay ?? 0));
+    const lastGrade = s.lastInspectionGrade ?? '--';
+    // Estimate grade from domain health averages
+    const { grade: estGrade, avgHealth } = ObjectivesPanel.getEstimatedInspectionGrade(s);
+    const estGradeColor = estGrade === 'A' ? '#00e436' : estGrade === 'B' ? '#29adff' : estGrade === 'C' ? '#ffec27' : '#ff004d';
+    const urgencyColor = daysUntilInsp <= 3 ? '#ff004d' : daysUntilInsp <= 7 ? '#ffa300' : '#888';
+    const showEstimate = daysUntilInsp <= 3;
+    const inspectionSection = `
+      <div style="padding:10px 12px;border-bottom:1px solid #333">
+        <div style="color:#c8c8c8;font-size:10px;letter-spacing:1px;margin-bottom:4px">\u{1f50d} HEALTH INSPECTION</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="color:#e0e0e0;font-size:10px">Next inspection in: <span style="color:${urgencyColor};font-weight:bold">${daysUntilInsp} days</span></span>
+          <span style="color:#888;font-size:9px">Last grade: <span style="font-weight:bold">${lastGrade}</span></span>
+        </div>
+        ${showEstimate ? `
+          <div style="color:#e0e0e0;font-size:9px;padding:4px 6px;background:rgba(255,255,255,0.03);border-left:2px solid ${estGradeColor}">
+            Estimated grade: <span style="color:${estGradeColor};font-weight:bold">${estGrade}</span>
+            <span style="color:#888;margin-left:6px">(avg domain health: ${Math.floor(avgHealth)}%)</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    // Emit toast warning when inspection is 3 days away (once per inspection)
+    if (daysUntilInsp <= 3 && daysUntilInsp > 0 && !this._inspectionWarningEmitted) {
+      this._inspectionWarningEmitted = true;
+      this.eventBus.emit('ui:message', {
+        text: `Inspection in ${daysUntilInsp} day${daysUntilInsp !== 1 ? 's' : ''}! Estimated grade: ${estGrade} (avg health: ${Math.floor(avgHealth)}%)`,
+        type: 'warning',
+      });
+    }
+    // Reset warning flag when a new inspection is scheduled (days jump back up)
+    if (daysUntilInsp > 3) {
+      this._inspectionWarningEmitted = false;
+    }
+
+    // --- 6. Rivalry ---
     const rivalrySection = this._renderRivalrySection(s);
 
     // --- 6. Story ---
@@ -245,6 +284,7 @@ export class ObjectivesPanel {
         ${milestoneSection}
         ${dailySection}
         ${streakSection}
+        ${inspectionSection}
         ${rivalrySection}
         ${storySection}
       </div>
@@ -361,5 +401,26 @@ export class ObjectivesPanel {
         ${defensesHtml}
       </div>
     `;
+  }
+
+  /**
+   * Calculate estimated inspection grade from average domain health.
+   * Thresholds: A (>80%), B (>60%), C (>40%), D (>20%), F (<=20%).
+   * @param {object} state - game state with domainHealth map
+   * @returns {{ grade: string, avgHealth: number }}
+   */
+  static getEstimatedInspectionGrade(state) {
+    const domHealth = state.domainHealth ?? {};
+    const healthVals = Object.values(domHealth);
+    const avgHealth = healthVals.length > 0
+      ? healthVals.reduce((a, b) => a + b, 0) / healthVals.length
+      : 50;
+    let grade;
+    if (avgHealth > 80) grade = 'A';
+    else if (avgHealth > 60) grade = 'B';
+    else if (avgHealth > 40) grade = 'C';
+    else if (avgHealth > 20) grade = 'D';
+    else grade = 'F';
+    return { grade, avgHealth };
   }
 }

@@ -56,7 +56,7 @@ import { ZoneNavigator } from './ui/ZoneNavigator.js';
 import { AudioManager } from './audio/audioManager.js';
 import { MusicGenerator } from './audio/musicGenerator.js';
 import { InteractiveObjects } from './rendering/InteractiveObjects.js';
-import { ParticleSystem, FloatingTextSystem, ScreenShake, ScreenFlash } from './rendering/particles.js';
+import { ParticleSystem, FloatingTextSystem, ScreenShake, ScreenFlash, IncomeBreakdown, EventBanner } from './rendering/particles.js';
 import { CrowdSystem } from './rendering/CrowdSystem.js';
 import { PIXEL_SPRITES } from './assets/pixelSprites.js';
 import { MobileAdapter } from './ui/MobileAdapter.js';
@@ -90,6 +90,8 @@ function init() {
   const floatingText = new FloatingTextSystem();
   const screenShake = new ScreenShake();
   const screenFlash = new ScreenFlash();
+  const incomeBreakdown = new IncomeBreakdown(eventBus);
+  const eventBanner = new EventBanner(eventBus);
 
   // Crowd system (walking characters in each zone)
   const crowd = new CrowdSystem(state, eventBus);
@@ -228,6 +230,18 @@ function init() {
   });
 
   eventBus.on('filter:removed', (f) => particles.emit('removePuff', f.x + 8, f.y + 8));
+
+  // Prestige points from monthly challenges
+  eventBus.on('prestige:addPoints', ({ points }) => {
+    if (points > 0) prestige.addPoints(points);
+  });
+
+  // Generic particle emit bridge (used by CrowdSystem for confetti bursts)
+  eventBus.on('particles:emit', ({ preset, x, y }) => {
+    if (preset && x != null && y != null) {
+      particles.emit(preset, x, y);
+    }
+  });
 
   // Filter upgrade: double success burst + floating text
   eventBus.on('filter:upgraded', ({ filter: f, newType }) => {
@@ -372,6 +386,9 @@ function init() {
     music.update(dt);
     hud.update(dt);
     panels.update(dt);
+    incomeBreakdown.update(dt);
+    eventBanner.update(dt);
+    zoneManager.updateTransition(dt * 1000); // convert seconds to ms
   }
 
   function render(interpolation) {
@@ -483,6 +500,15 @@ function init() {
         renderer.restore();
       }
     }
+
+    // Income/expense breakdown floating text (screen-space)
+    incomeBreakdown.render(renderer);
+
+    // Event announcement banner overlay
+    eventBanner.render(renderer);
+
+    // Zone transition crossfade overlay (renders on top of everything)
+    zoneManager.renderTransition(renderer);
   }
 
   const loop = new GameLoop(update, render);

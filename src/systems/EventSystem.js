@@ -1151,29 +1151,74 @@ export class EventSystem {
     // reliable even on the easiest difficulty — preserving strategic uncertainty.
     const baseAccuracy = 0.9 * forecastAccuracy;
 
+    // Domain mapping: derive affected domains from systemEffects/systemStress
+    const domainKeys = ['air', 'water', 'hvac', 'drainage'];
+
     const weatherEvents = this._getWeatherEvents();
     for (let i = 0; i < 3; i++) {
       const possible = weatherEvents.filter(w => w.seasons.includes(season));
       if (possible.length === 0) {
-        this._forecast.push({ name: 'Clear', description: 'Clear skies expected.', accuracy: baseAccuracy - i * 0.15 });
+        this._forecast.push({ name: 'Clear', description: 'Clear skies expected.', accuracy: baseAccuracy - i * 0.15, domainsAffected: [], severity: 0 });
         continue;
       }
 
       // Higher chance of "clear" than any specific weather
       if (Math.random() < 0.6) {
-        this._forecast.push({ name: 'Clear', description: 'Clear skies expected.', accuracy: baseAccuracy - i * 0.15 });
+        this._forecast.push({ name: 'Clear', description: 'Clear skies expected.', accuracy: baseAccuracy - i * 0.15, domainsAffected: [], severity: 0 });
       } else {
         const pick = possible[Math.floor(Math.random() * possible.length)];
+        // Derive domainsAffected from systemEffects or systemStress
+        const effects = pick.systemEffects ?? pick.systemStress ?? {};
+        const domainsAffected = domainKeys.filter(d => effects[d] !== undefined);
+        // Derive severity 1-3 from the highest stress level
+        const severityMap = { low: 1, medium: 1, high: 2, extreme: 3 };
+        let maxSeverity = 1;
+        for (const val of Object.values(effects)) {
+          if (typeof val === 'string') {
+            maxSeverity = Math.max(maxSeverity, severityMap[val] ?? 1);
+          } else if (typeof val === 'number') {
+            maxSeverity = Math.max(maxSeverity, val >= 2.5 ? 3 : val >= 1.5 ? 2 : 1);
+          }
+        }
         this._forecast.push({
           name: pick.name,
           description: pick.description,
-          accuracy: baseAccuracy - i * 0.15, // accuracy drops for further-out forecasts
+          accuracy: baseAccuracy - i * 0.15,
+          domainsAffected,
+          severity: maxSeverity,
         });
+      }
+    }
+
+    // Scramble pass: on harder difficulties, randomly swap some forecast entries
+    // to simulate inaccurate predictions. Rookie = 0% scramble, HoF = 50%.
+    const scrambleChance = 1 - forecastAccuracy; // 0 for rookie (1.0), 0.5 for HoF (0.5)
+    if (scrambleChance > 0) {
+      const possibleWeather = weatherEvents.filter(w => w.seasons.includes(season));
+      for (let i = 0; i < this._forecast.length; i++) {
+        if (Math.random() < scrambleChance && possibleWeather.length > 0) {
+          // Replace with a random weather or clear
+          if (Math.random() < 0.5) {
+            this._forecast[i] = { ...this._forecast[i], name: 'Clear', description: 'Clear skies expected.', domainsAffected: [], severity: 0 };
+          } else {
+            const decoy = possibleWeather[Math.floor(Math.random() * possibleWeather.length)];
+            const effects = decoy.systemEffects ?? decoy.systemStress ?? {};
+            const domainsAffected = domainKeys.filter(d => effects[d] !== undefined);
+            const severityMap = { low: 1, medium: 1, high: 2, extreme: 3 };
+            let maxSev = 1;
+            for (const val of Object.values(effects)) {
+              if (typeof val === 'string') maxSev = Math.max(maxSev, severityMap[val] ?? 1);
+              else if (typeof val === 'number') maxSev = Math.max(maxSev, val >= 2.5 ? 3 : val >= 1.5 ? 2 : 1);
+            }
+            this._forecast[i] = { ...this._forecast[i], name: decoy.name, description: decoy.description, domainsAffected, severity: maxSev };
+          }
+        }
       }
     }
 
     // Sync forecast to state so HUD and other systems can read it
     this.state.weatherForecast = this._forecast;
+    this.eventBus.emit('weather:forecastUpdated', { forecast: this._forecast });
   }
 
   /** Get the current 3-day weather forecast. */

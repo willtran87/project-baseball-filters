@@ -477,3 +477,231 @@ export class ScreenShake {
   get offsetY() { return Math.round(this._offsetY); }
   get active() { return this._duration > 0; }
 }
+
+/**
+ * IncomeBreakdown — Staggered floating text cascade showing income/expense line items.
+ *
+ * On `economy:inningEnd`, displays a vertical cascade of income/expense items
+ * near the HUD area for a few seconds.
+ */
+export class IncomeBreakdown {
+  constructor(eventBus) {
+    this._items = []; // { text, color, x, y, life, maxLife, delay }
+    this._eventBus = eventBus;
+
+    eventBus.on('economy:inningEnd', (data) => this._onInningEnd(data));
+  }
+
+  _onInningEnd(data) {
+    // Build line items from economy data for detailed floating breakdown
+    const lines = [];
+
+    // Income lines (green) — show specific revenue sources
+    const ticketIncome = data.ticketIncome ?? 0;
+    const concessionIncome = data.concessionIncome ?? 0;
+    if (ticketIncome > 0) {
+      lines.push({ text: `+$${ticketIncome.toLocaleString()} Tickets`, color: '#00e436' });
+    }
+    if (concessionIncome > 0) {
+      lines.push({ text: `+$${concessionIncome.toLocaleString()} Concessions`, color: '#00e436' });
+    }
+    // Fallback: if specific breakdowns not available, show total income
+    if (lines.length === 0 && data.income > 0) {
+      lines.push({ text: `+$${Math.floor(data.income).toLocaleString()} Income`, color: '#00e436' });
+    }
+
+    // Expense line (red) — combined maintenance/staff/energy as "Maintenance"
+    const maintenance = (data.maintenance ?? 0) + (data.staffCost ?? 0) + (data.energyCost ?? 0);
+    if (maintenance > 0) {
+      lines.push({ text: `-$${maintenance.toLocaleString()} Maintenance`, color: '#ff004d' });
+    } else if (data.expenses > 0) {
+      lines.push({ text: `-$${Math.floor(data.expenses).toLocaleString()} Expenses`, color: '#ff004d' });
+    }
+
+    // Position as vertical cascade starting near top of screen
+    const baseX = 70;  // screen-space X (left area, clear of HUD)
+    const baseY = 26;  // below the top HUD bar
+    for (let i = 0; i < lines.length; i++) {
+      this._items.push({
+        text: lines[i].text,
+        color: lines[i].color,
+        x: baseX,
+        y: baseY + i * 11,
+        life: 2.8,
+        maxLife: 2.8,
+        delay: i * 0.2, // stagger each line by 200ms
+        vy: -6,
+      });
+    }
+  }
+
+  update(dt) {
+    for (let i = this._items.length - 1; i >= 0; i--) {
+      const item = this._items[i];
+      if (item.delay > 0) {
+        item.delay -= dt;
+        continue;
+      }
+      item.y += item.vy * dt;
+      item.vy *= 0.98;
+      item.life -= dt;
+      if (item.life <= 0) {
+        this._items[i] = this._items[this._items.length - 1];
+        this._items.pop();
+      }
+    }
+  }
+
+  render(renderer) {
+    for (const item of this._items) {
+      if (item.delay > 0) continue;
+      const alpha = Math.max(0, item.life / item.maxLife);
+      renderer.save();
+      renderer.setAlpha(alpha);
+      renderer.drawText(item.text, item.x, item.y, { color: item.color, size: 6, align: 'left' });
+      renderer.restore();
+    }
+  }
+
+  clear() {
+    this._items.length = 0;
+  }
+}
+
+/**
+ * EventBanner — Dramatic center-screen banner for major events.
+ *
+ * Slides in from top, holds for 2 seconds, slides out upward.
+ * Large text with domain-colored background strip.
+ */
+export class EventBanner {
+  constructor(eventBus) {
+    this._eventBus = eventBus;
+    this._banners = []; // { title, subtitle, color, phase, timer }
+    this._bannerDurations = { slideIn: 0.3, hold: 2.0, slideOut: 0.3 };
+
+    // Listen for major event types
+    eventBus.on('event:started', (data) => {
+      if (data.degradeMultiplier >= 1.5 || data.isChampionship) {
+        const color = this._getDomainColor(data.affectedSystem ?? data.domain);
+        this.showEventBanner(data.name, data.description?.substring(0, 60) ?? '', color);
+      }
+    });
+    eventBus.on('inspection:imminent', () => {
+      this.showEventBanner('INSPECTION IMMINENT', 'Health inspector approaching!', '#ffa300');
+    });
+    eventBus.on('rival:victorEncounter', () => {
+      this.showEventBanner('RIVAL SABOTAGE', 'Victor Vane is up to something...', '#ff004d');
+    });
+    eventBus.on('championship:started', () => {
+      this.showEventBanner('CHAMPIONSHIP GAME', 'All systems must stay above 70%!', '#ffec27');
+    });
+    // Weather events
+    eventBus.on('event:weatherStart', (data) => {
+      const name = data.name ?? data.type ?? 'Weather Event';
+      const color = this._getDomainColor(data.affectedSystem ?? data.domain);
+      this.showEventBanner(name.toUpperCase(), data.description?.substring(0, 60) ?? 'Weather changing...', color);
+    });
+    // Rival sabotage
+    eventBus.on('rival:sabotage', (data) => {
+      this.showEventBanner('RIVAL SABOTAGE', data.name ?? 'Victor Vane strikes!', '#ff004d');
+    });
+  }
+
+  _getDomainColor(domain) {
+    const colors = { air: '#cccccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44' };
+    return colors[domain] ?? '#8b4513';
+  }
+
+  /**
+   * Show a dramatic center-screen event banner.
+   * @param {string} title - Main banner text
+   * @param {string} subtitle - Secondary text
+   * @param {string} color - Background accent color
+   */
+  showEventBanner(title, subtitle, color) {
+    this._banners.push({
+      title,
+      subtitle: subtitle || '',
+      color,
+      phase: 'slideIn',
+      timer: 0,
+    });
+  }
+
+  update(dt) {
+    for (let i = this._banners.length - 1; i >= 0; i--) {
+      const b = this._banners[i];
+      b.timer += dt;
+
+      const d = this._bannerDurations;
+      if (b.phase === 'slideIn' && b.timer >= d.slideIn) {
+        b.phase = 'hold';
+        b.timer = 0;
+      } else if (b.phase === 'hold' && b.timer >= d.hold) {
+        b.phase = 'slideOut';
+        b.timer = 0;
+      } else if (b.phase === 'slideOut' && b.timer >= d.slideOut) {
+        this._banners.splice(i, 1);
+      }
+    }
+  }
+
+  render(renderer) {
+    for (const b of this._banners) {
+      const d = this._bannerDurations;
+      const canvasW = renderer.width ?? 480;
+      const canvasH = renderer.height ?? 270;
+      const bannerH = 28;
+      let yOffset;
+
+      if (b.phase === 'slideIn') {
+        // Slide in from top
+        const progress = b.timer / d.slideIn;
+        yOffset = -bannerH + progress * bannerH;
+      } else if (b.phase === 'hold') {
+        yOffset = 0;
+      } else {
+        // Slide out upward
+        const progress = b.timer / d.slideOut;
+        yOffset = -progress * bannerH;
+      }
+
+      const bannerY = Math.floor(canvasH * 0.3 + yOffset);
+
+      // Background strip
+      renderer.save();
+      renderer.setAlpha(0.85);
+      renderer.drawRectScreen(0, bannerY, canvasW, bannerH, '#0a0a0a');
+      // Domain color accent line at top
+      renderer.setAlpha(0.9);
+      renderer.drawRectScreen(0, bannerY, canvasW, 2, b.color);
+      // Domain color accent line at bottom
+      renderer.drawRectScreen(0, bannerY + bannerH - 2, canvasW, 2, b.color);
+      renderer.restore();
+
+      // Title text (large, centered)
+      renderer.drawText(b.title, canvasW / 2, bannerY + 8, {
+        color: '#ffffff', size: 10, align: 'center',
+      });
+      // Subtitle text (smaller)
+      if (b.subtitle) {
+        renderer.save();
+        renderer.setAlpha(0.7);
+        renderer.drawText(b.subtitle, canvasW / 2, bannerY + 19, {
+          color: '#cccccc', size: 6, align: 'center',
+        });
+        renderer.restore();
+      }
+    }
+  }
+
+  get active() {
+    return this._banners.length > 0;
+  }
+
+  clear() {
+    this._banners.length = 0;
+  }
+}
+

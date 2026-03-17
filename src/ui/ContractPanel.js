@@ -203,6 +203,7 @@ export class ContractPanel {
       if (active.breachCount >= 5) {
         removed.push({ contractId: active.contractId, reason: 'breached', active });
         this.state.adjustReputation(-3);
+        this.eventBus.emit('contract:lost', { contractId: active.contractId, name: def.name, reason: 'breach' });
         this.eventBus.emit('ui:message', {
           text: `${def.name} terminated your contract due to quality failures!`,
           type: 'danger',
@@ -293,6 +294,8 @@ export class ContractPanel {
       this.state._followUpContracts = this.state._followUpContracts.filter(c => c.id !== def.id);
     }
 
+    this.eventBus.emit('contract:accepted', { contractId: def.id, name: def.name });
+    this.eventBus.emit('contract:gained', { contractId: def.id, name: def.name });
     this.eventBus.emit('ui:message', {
       text: `Accepted contract with ${def.name}: $${def.payPerGame}/game for ${def.durationGames} games.`,
       type: 'success',
@@ -343,6 +346,8 @@ export class ContractPanel {
       this.state._followUpContracts = this.state._followUpContracts.filter(c => c.id !== def.id);
     }
 
+    this.eventBus.emit('contract:accepted', { contractId: def.id, name: def.name });
+    this.eventBus.emit('contract:gained', { contractId: def.id, name: def.name });
     this.eventBus.emit('ui:message', {
       text: `Counter-offer accepted! ${def.name}: $${boostedPay}/game for ${shorterDuration} games.`,
       type: 'success',

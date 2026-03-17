@@ -21,7 +21,23 @@ export class SaveLoad {
     this._autoSaveInterval = setInterval(() => this.autoSave(), 15000);
 
     // Save on page unload (browser close/refresh)
-    window.addEventListener('beforeunload', () => this.autoSave());
+    this._beforeUnloadHandler = () => this.autoSave();
+    window.addEventListener('beforeunload', this._beforeUnloadHandler);
+  }
+
+  /**
+   * Clean up timers and event listeners.
+   * Call when the game is fully torn down or before creating a new SaveLoad instance.
+   */
+  destroy() {
+    if (this._autoSaveInterval !== null) {
+      clearInterval(this._autoSaveInterval);
+      this._autoSaveInterval = null;
+    }
+    if (this._beforeUnloadHandler) {
+      window.removeEventListener('beforeunload', this._beforeUnloadHandler);
+      this._beforeUnloadHandler = null;
+    }
   }
 
   /**

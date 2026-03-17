@@ -23,6 +23,24 @@ export class ConsequenceSystem {
       this._cascadeMsgDay = {};
     });
 
+    // Schedule next inspection after one completes
+    this.eventBus.on('inspection:result', () => {
+      const nextDay = this.state.gameDay + 17 + Math.floor(Math.random() * 7); // ~20 days ± 3
+      this.state.nextInspectionDay = nextDay;
+    });
+
+    // Inspection countdown warning at 3 days out
+    this.eventBus.on('game:newDay', () => {
+      const daysUntil = (this.state.nextInspectionDay ?? 999) - (this.state.gameDay ?? 0);
+      if (daysUntil === 3) {
+        const grade = this.getEstimatedInspectionGrade();
+        this.eventBus.emit('ui:message', {
+          text: `Health inspection in 3 days \u2014 estimated grade: ${grade}`,
+          type: grade === 'A' || grade === 'B' ? 'info' : 'warning',
+        });
+      }
+    });
+
     // Listen for cross-system cascade events from FiltrationSystem
     this.eventBus.on('system:cascade', (data) => {
       const health = this.state.domainHealth ?? {};
@@ -57,6 +75,13 @@ export class ConsequenceSystem {
 
     // Apply gameplay effects
     this._applyEffects(scores, consequences);
+
+    // Emit domain:critical for any domain below 20%
+    for (const [domain, score] of Object.entries(scores)) {
+      if (score < 20) {
+        this.eventBus.emit('domain:critical', { domain, score });
+      }
+    }
 
     // Emit for visual/notification layers
     this.eventBus.emit('consequence:update', { scores, consequences });
@@ -103,16 +128,31 @@ export class ConsequenceSystem {
     // Staff specialization bonus: +5 domain health when a specialist is assigned
     const specDomainMap = {
       airTech: ['air', 'hvac'], plumber: ['water', 'drainage'],
-      electrician: ['electrical'], general: ['air', 'water', 'hvac', 'drainage'],
+      electrician: ['hvac'], general: ['air', 'water', 'hvac', 'drainage'],
     };
     const staffList = this.state.staffList ?? [];
     for (const staff of staffList) {
       if (!staff.specialization || !staff.assignedDomain) continue;
+      // Skip staff in training — they don't contribute
+      if (staff.training && staff.training.daysRemaining > 0) continue;
       const coveredDomains = specDomainMap[staff.specialization];
       if (coveredDomains && coveredDomains.includes(staff.assignedDomain)) {
         if (domainBonuses[staff.assignedDomain] !== undefined) {
           domainBonuses[staff.assignedDomain] += 5;
         }
+      }
+    }
+
+    // Morale tier bonus/penalty: high morale (>70) staff add +3 domain health,
+    // low morale (<30) staff subtract -3 domain health for their assigned domain.
+    for (const staff of staffList) {
+      if (!staff.assignedDomain) continue;
+      if (staff.training && staff.training.daysRemaining > 0) continue;
+      if (domainBonuses[staff.assignedDomain] === undefined) continue;
+      if (staff.morale > 70) {
+        domainBonuses[staff.assignedDomain] += 3;
+      } else if (staff.morale < 30) {
+        domainBonuses[staff.assignedDomain] -= 3;
       }
     }
 
@@ -422,5 +462,23 @@ export class ConsequenceSystem {
   /** Check if a specific consequence is active. */
   hasConsequence(id) {
     return (this.state.activeConsequences ?? []).some(c => c.id === id);
+  }
+
+  /**
+   * Estimate inspection grade based on current domain health averages.
+   * Reuses the same grading thresholds as EventSystem._resolveInspection().
+   */
+  getEstimatedInspectionGrade() {
+    const health = this.state.domainHealth ?? {};
+    const values = Object.values(health);
+    if (values.length === 0) return 'C';
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    // Normalize to 0-1 range (health is 0-100)
+    const quality = avg / 100;
+    if (quality >= 0.85) return 'A';
+    if (quality >= 0.70) return 'B';
+    if (quality >= 0.50) return 'C';
+    if (quality >= 0.30) return 'D';
+    return 'F';
   }
 }

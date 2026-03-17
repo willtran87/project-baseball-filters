@@ -120,6 +120,54 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
     const actions = document.createElement('div');
     actions.style.cssText = 'display:flex; gap:6px; flex-wrap:wrap;';
 
+    // Emergency Repair — only for critical filters (<15% condition)
+    const isCritical = condPct < 15 && filter.condition > 0;
+    if (isCritical) {
+      const emergencyRepairCost = repairCost * 2;
+      // Requires assigned staff level 2+ or domain specialist
+      const staffList = state.staffList ?? [];
+      const qualifiedStaff = staffList.find(s => {
+        if (s.assignedDomain !== filter.domain) return false;
+        if (s.training && s.training.daysRemaining > 0) return false;
+        if (s.level >= 2) return true;
+        if (s.specialization) return true;
+        return false;
+      });
+      const canEmergencyRepair = qualifiedStaff && state.money >= emergencyRepairCost;
+      let emergencyTooltip = `Instant full repair (2x cost: $${emergencyRepairCost})`;
+      if (!qualifiedStaff) {
+        emergencyTooltip = 'Requires assigned staff Lv.2+ or domain specialist';
+      } else if (state.money < emergencyRepairCost) {
+        emergencyTooltip = `Not enough money ($${emergencyRepairCost} needed)`;
+      }
+
+      const emergBtn = document.createElement('button');
+      emergBtn.textContent = `EMERGENCY ($${emergencyRepairCost})`;
+      emergBtn.title = emergencyTooltip;
+      emergBtn.disabled = !canEmergencyRepair;
+      emergBtn.style.cssText = `
+        background:${canEmergencyRepair ? '#4a1a1a' : '#1a1a1a'}; color:${canEmergencyRepair ? '#ff004d' : '#444'};
+        border:1px solid ${canEmergencyRepair ? '#8a3a3a' : '#2a2a2a'}; font-family:monospace; font-size:10px;
+        padding:4px 10px; cursor:${canEmergencyRepair ? 'pointer' : 'not-allowed'};
+        font-weight:bold;
+      `;
+      emergBtn.addEventListener('click', () => {
+        if (!canEmergencyRepair) return;
+        // Deduct cost and instantly repair
+        state.set('money', state.money - emergencyRepairCost);
+        filter.condition = filter.maxCondition;
+        filter.efficiency = 1.0;
+        state.repairsCompleted = (state.repairsCompleted ?? 0) + 1;
+        eventBus.emit('filter:repaired', filter);
+        eventBus.emit('ui:message', {
+          text: `Emergency repair on ${name} for $${emergencyRepairCost.toLocaleString()}! Fully restored.`,
+          type: 'success',
+        });
+        setTimeout(() => eventBus.emit('ui:openPanel', { name: 'filterInspector', data: { filterId: filter.id } }), 50);
+      });
+      actions.appendChild(emergBtn);
+    }
+
     // Repair
     const repairBtn = document.createElement('button');
     repairBtn.textContent = `Repair ($${repairCost})`;

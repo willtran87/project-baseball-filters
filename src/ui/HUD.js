@@ -243,6 +243,34 @@ export class HUD {
     this._rivalEl = this._makeSpan({ fontSize: '8px', marginLeft: '2px' });
     this._repSection.append(this._repTierEl, this._repPctEl, this._repBarOuter, this._rivalEl);
 
+    // -- Active Event Icons (3-slot status strip) --
+    this._eventIconsSection = this._makeSpan({
+      display: 'flex', alignItems: 'center', gap: '3px',
+      padding: '0 4px', borderLeft: '1px solid #333', borderRight: '1px solid #333'
+    });
+    // Slot 1: Active weather event
+    this._eiWeather = this._makeSpan({
+      display: 'inline-block', width: '16px', height: '14px', lineHeight: '14px',
+      textAlign: 'center', fontSize: '7px', fontWeight: 'bold',
+      borderRadius: '2px', border: '1px solid #333', background: 'rgba(0,0,0,0.3)'
+    });
+    this._eiWeather.title = 'Active weather event';
+    // Slot 2: Inspection countdown
+    this._eiInspection = this._makeSpan({
+      display: 'inline-block', width: '16px', height: '14px', lineHeight: '14px',
+      textAlign: 'center', fontSize: '7px', fontWeight: 'bold',
+      borderRadius: '2px', border: '1px solid #333', background: 'rgba(0,0,0,0.3)'
+    });
+    this._eiInspection.title = 'Inspection countdown';
+    // Slot 3: Rival threat status
+    this._eiRival = this._makeSpan({
+      display: 'inline-block', width: '16px', height: '14px', lineHeight: '14px',
+      textAlign: 'center', fontSize: '7px', fontWeight: 'bold',
+      borderRadius: '2px', border: '1px solid #333', background: 'rgba(0,0,0,0.3)'
+    });
+    this._eiRival.title = 'Rival threat status';
+    this._eventIconsSection.append(this._eiWeather, this._eiInspection, this._eiRival);
+
     // -- Speed controls --
     this._speedSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '2px' });
     this._pauseBtn = this._makeSpan({ cursor: 'pointer', color: '#83769c', fontSize: '12px' });
@@ -263,7 +291,8 @@ export class HUD {
     // Append all sections to top bar
     this.el.append(
       budgetSection, shopSection, this._attSection,
-      this._gameSection, this._sandboxBadge, this._zoneSection, this._repSection,
+      this._gameSection, this._sandboxBadge, this._eventIconsSection,
+      this._zoneSection, this._repSection,
       this._speedSection
     );
   }
@@ -341,6 +370,46 @@ export class HUD {
       this._panelBtnsSection.appendChild(btn);
     }
 
+    // -- Weather forecast icons (3-day) --
+    this._forecastSection = this._makeSpan({
+      display: 'flex', alignItems: 'center', gap: '2px',
+      padding: '0 3px', borderLeft: '1px solid #333'
+    });
+    this._forecastLabel = this._makeSpan({ color: '#666', fontSize: '6px', marginRight: '1px' });
+    this._forecastLabel.textContent = 'WX';
+    this._forecastSection.appendChild(this._forecastLabel);
+    this._forecastIcons = [];
+    for (let i = 0; i < 3; i++) {
+      const icon = this._makeSpan({
+        display: 'inline-block', fontSize: '9px', cursor: 'default',
+        width: '14px', height: '14px', lineHeight: '14px',
+        textAlign: 'center', borderRadius: '2px',
+        border: '1px solid #333', background: 'rgba(0,0,0,0.2)'
+      });
+      this._forecastIcons.push(icon);
+      this._forecastSection.appendChild(icon);
+    }
+
+    // -- Reputation budget indicator --
+    this._repBudgetSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '7px' });
+    this._repBudgetLabel = this._makeSpan({ color: '#888' });
+    this._repBudgetLabel.textContent = 'REP:';
+    this._repBudgetGain = this._makeSpan({});
+    this._repBudgetSep = this._makeSpan({ color: '#555' });
+    this._repBudgetSep.textContent = '|';
+    this._repBudgetLoss = this._makeSpan({});
+    // Thin fill bars for gain/loss
+    this._repGainBarOuter = this._makeSpan({ display: 'inline-block', width: '16px', height: '3px', background: '#222', border: '1px solid #333', overflow: 'hidden', verticalAlign: 'middle', marginLeft: '1px' });
+    this._repGainBarFill = document.createElement('span');
+    this._repGainBarFill.style.cssText = 'display:block;height:100%';
+    this._repGainBarOuter.appendChild(this._repGainBarFill);
+    this._repLossBarOuter = this._makeSpan({ display: 'inline-block', width: '16px', height: '3px', background: '#222', border: '1px solid #333', overflow: 'hidden', verticalAlign: 'middle', marginLeft: '1px' });
+    this._repLossBarFill = document.createElement('span');
+    this._repLossBarFill.style.cssText = 'display:block;height:100%';
+    this._repLossBarOuter.appendChild(this._repLossBarFill);
+    this._repBudgetSection.append(this._repBudgetLabel, this._repBudgetGain, this._repGainBarOuter, this._repBudgetSep, this._repBudgetLoss, this._repLossBarOuter);
+    this._repBudgetSection.title = 'Daily reputation budget: max +3 gain, -5 loss per day. Resets each game day.';
+
     // -- Alert section --
     this._alertSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '4px' });
     this._zoneHintEl = this._makeSpan({ color: '#555', fontSize: '7px' });
@@ -351,7 +420,8 @@ export class HUD {
 
     // Append all sections to bottom bar
     this.bottomBar.append(
-      this._filterSection, this._domainSection, this._panelBtnsSection, this._alertSection
+      this._filterSection, this._domainSection, this._forecastSection,
+      this._repBudgetSection, this._panelBtnsSection, this._alertSection
     );
   }
 
@@ -385,6 +455,18 @@ export class HUD {
         this.eventBus.emit('ui:click');
         const speed = parseInt(btn.dataset.speed, 10);
         this.eventBus.emit('game:setSpeed', { speed });
+      });
+    }
+
+    // Active event icon clicks — show toast with details
+    for (const slot of [this._eiWeather, this._eiInspection, this._eiRival]) {
+      slot.addEventListener('click', (e) => {
+        e.preventDefault();
+        const detail = slot._eventDetail;
+        if (detail) {
+          this.eventBus.emit('ui:click');
+          this.eventBus.emit('ui:message', { text: detail, type: 'info' });
+        }
       });
     }
   }
@@ -654,6 +736,89 @@ export class HUD {
       }
     }
 
+    // ── Active Event Icons (3-slot strip in top bar) ──
+
+    // Slot 1: Active weather event
+    if (s.activeEvent) {
+      const isWeatherEvent = s.activeEvent.category === 'weather' || s.activeEvent.type === 'weather';
+      const evtIcon = isWeatherEvent ? 'WX' : 'EV';
+      const isPositive = s.activeEvent.category === 'positive' || s.activeEvent.isPositive;
+      const evtColor = isPositive ? '#00e436' : '#ff77a8';
+      this._eiWeather.textContent = evtIcon;
+      this._eiWeather.style.color = evtColor;
+      this._eiWeather.style.borderColor = evtColor;
+      this._eiWeather.style.background = `${evtColor}22`;
+      this._eiWeather.title = `Active: ${s.activeEvent.name}`;
+      this._eiWeather._eventDetail = `Active event: ${s.activeEvent.name} — ${s.activeEvent.description ?? 'Event in progress'}`;
+    } else {
+      this._eiWeather.textContent = '--';
+      this._eiWeather.style.color = '#444';
+      this._eiWeather.style.borderColor = '#333';
+      this._eiWeather.style.background = 'rgba(0,0,0,0.3)';
+      this._eiWeather.title = 'No active event';
+      this._eiWeather._eventDetail = null;
+    }
+
+    // Slot 2: Inspection countdown
+    const inspDaysLeft = (s.nextInspectionDay ?? 999) - (s.gameDay ?? 0);
+    if (inspDaysLeft <= 10) {
+      const inspColor = inspDaysLeft <= 2 ? '#ff004d' : inspDaysLeft <= 5 ? '#ffa300' : '#ffec27';
+      this._eiInspection.textContent = `I${inspDaysLeft}`;
+      this._eiInspection.style.color = inspColor;
+      this._eiInspection.style.borderColor = inspColor;
+      this._eiInspection.style.background = `${inspColor}22`;
+      this._eiInspection.title = `Inspection in ${inspDaysLeft} day${inspDaysLeft !== 1 ? 's' : ''}`;
+      this._eiInspection._eventDetail = `Stadium inspection in ${inspDaysLeft} day${inspDaysLeft !== 1 ? 's' : ''}! Keep domain health above thresholds.`;
+      if (inspDaysLeft <= 2) {
+        this._eiInspection.style.animation = 'hud-pulse 1s infinite';
+      } else {
+        this._eiInspection.style.animation = '';
+      }
+    } else {
+      this._eiInspection.textContent = 'IN';
+      this._eiInspection.style.color = '#444';
+      this._eiInspection.style.borderColor = '#333';
+      this._eiInspection.style.background = 'rgba(0,0,0,0.3)';
+      this._eiInspection.title = `Next inspection: Day ${s.nextInspectionDay ?? '?'}`;
+      this._eiInspection._eventDetail = null;
+      this._eiInspection.style.animation = '';
+    }
+
+    // Slot 3: Rival threat status
+    const smearActive = (s._smearCampaignDays ?? 0) > 0;
+    const supplyCostActive = (s._supplyCostDays ?? 0) > 0;
+    const rivalDefenses = s._rivalDefenses;
+    const counterIntelRevealed = rivalDefenses?.counterIntel?.revealedType ?? null;
+    const rivalThreatActive = smearActive || supplyCostActive || counterIntelRevealed;
+    if (rivalThreatActive) {
+      const threats = [];
+      if (smearActive) threats.push(`Smear campaign (${s._smearCampaignDays}d)`);
+      if (supplyCostActive) threats.push(`Supply disruption (${s._supplyCostDays}d)`);
+      if (counterIntelRevealed) threats.push(`Intel: ${counterIntelRevealed}`);
+      const rivalTColor = '#ff77a8';
+      this._eiRival.textContent = 'R!';
+      this._eiRival.style.color = rivalTColor;
+      this._eiRival.style.borderColor = rivalTColor;
+      this._eiRival.style.background = `${rivalTColor}22`;
+      this._eiRival.title = `Rival threat: ${threats.join(', ')}`;
+      this._eiRival._eventDetail = `Rival activity: ${threats.join('. ')}.`;
+    } else if (repGap < 0) {
+      // Rival is ahead — show subtle warning
+      this._eiRival.textContent = 'RV';
+      this._eiRival.style.color = '#ffa300';
+      this._eiRival.style.borderColor = '#ffa30044';
+      this._eiRival.style.background = 'rgba(255,163,0,0.1)';
+      this._eiRival.title = `Rival ahead by ${Math.abs(repGap)} rep`;
+      this._eiRival._eventDetail = `The Glendale Grizzlies are ${Math.abs(repGap)} reputation points ahead of you!`;
+    } else {
+      this._eiRival.textContent = 'RV';
+      this._eiRival.style.color = '#444';
+      this._eiRival.style.borderColor = '#333';
+      this._eiRival.style.background = 'rgba(0,0,0,0.3)';
+      this._eiRival.title = 'Rival: no active threats';
+      this._eiRival._eventDetail = null;
+    }
+
     // ── BOTTOM BAR UPDATES ──
 
     // Filter status
@@ -736,6 +901,57 @@ export class HUD {
       }
     } else {
       this._domainSection.style.display = 'none';
+    }
+
+    // Reputation budget indicator
+    const repBudget = s._repChangesToday ?? { positive: 0, negative: 0 };
+    const gainUsed = Math.floor(repBudget.positive ?? 0);
+    const lossUsed = Math.floor(Math.abs(repBudget.negative ?? 0));
+    const gainCap = 3;
+    const lossCap = 5;
+    const gainExhausted = gainUsed >= gainCap;
+    const lossExhausted = lossUsed >= lossCap;
+    this._repBudgetGain.textContent = `+${gainUsed}/${gainCap}`;
+    this._repBudgetGain.style.color = gainExhausted ? '#555' : '#00e436';
+    this._repBudgetLoss.textContent = `-${lossUsed}/${lossCap}`;
+    this._repBudgetLoss.style.color = lossExhausted ? '#555' : '#ff004d';
+    const gainPct = Math.min(100, Math.floor((gainUsed / gainCap) * 100));
+    const lossPct = Math.min(100, Math.floor((lossUsed / lossCap) * 100));
+    this._repGainBarFill.style.width = `${gainPct}%`;
+    this._repGainBarFill.style.background = gainExhausted ? '#555' : '#00e436';
+    this._repLossBarFill.style.width = `${lossPct}%`;
+    this._repLossBarFill.style.background = lossExhausted ? '#555' : '#ff004d';
+    this._repBudgetSection.style.opacity = (gainExhausted && lossExhausted) ? '0.5' : '1';
+
+    // Weather forecast icons (3-day) in bottom bar
+    const forecastData = s.weatherForecast;
+    const _forecastWeatherIcons = {
+      'Heavy Rain': '\u26c8', 'Light Rain': '\ud83c\udf27', 'Heatwave': '\u2600\ufe0f',
+      'Cold Snap': '\u2744', 'Humidity Spike': '\ud83d\udca7', 'Wind Storm': '\ud83c\udf2c',
+      'Snow/Ice': '\u2744', 'Fog': '\ud83c\udf2b', 'Ice Storm': '\u2744',
+      'Dust Storm': '\ud83c\udf2a', 'Flash Flood': '\ud83c\udf0a', 'Clear': '\u2600',
+    };
+    const _severityColors = { 0: '#e0e0e0', 1: '#ffec27', 2: '#ffa300', 3: '#ff004d' };
+    if (Array.isArray(forecastData)) {
+      for (let fi = 0; fi < 3; fi++) {
+        const fc = forecastData[fi];
+        const iconEl = this._forecastIcons[fi];
+        if (!iconEl) continue;
+        if (fc) {
+          const emoji = _forecastWeatherIcons[fc.name] ?? '\u2601';
+          iconEl.textContent = emoji;
+          iconEl.style.color = _severityColors[fc.severity ?? 0] ?? '#888';
+          const dayLabel = fi === 0 ? 'Today' : fi === 1 ? 'Tomorrow' : 'Day 3';
+          const domainsList = (fc.domainsAffected ?? []).join(', ') || 'none';
+          iconEl.title = `${dayLabel}: ${fc.name} (sev ${fc.severity ?? 0}) \u2014 Domains: ${domainsList}`;
+          iconEl.style.display = '';
+        } else {
+          iconEl.style.display = 'none';
+        }
+      }
+      this._forecastSection.style.display = '';
+    } else {
+      this._forecastSection.style.display = 'none';
     }
 
     // Alert badge

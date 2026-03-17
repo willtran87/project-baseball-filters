@@ -62,6 +62,118 @@ const OFF_SEASON_EVENTS = [
   },
 ];
 
+// Monthly challenge definitions (post-championship-win content)
+const MONTHLY_CHALLENGES = [
+  {
+    id: 'budget_crunch',
+    name: 'Budget Crunch',
+    description: '50% income for 30 days.',
+    constraint: 'economyMultiplier',
+    value: 0.5,
+    duration: 30,
+    prestigeReward: 2,
+  },
+  {
+    id: 'skeleton_crew',
+    name: 'Skeleton Crew',
+    description: 'Max 2 staff allowed.',
+    constraint: 'maxStaff',
+    value: 2,
+    duration: 30,
+    prestigeReward: 2,
+  },
+  {
+    id: 'perfect_record',
+    name: 'Perfect Record',
+    description: 'No domain drops below 60%.',
+    constraint: 'minDomainHealth',
+    value: 60,
+    duration: 30,
+    prestigeReward: 3,
+  },
+  {
+    id: 'storm_season',
+    name: 'Storm Season',
+    description: '2x weather frequency.',
+    constraint: 'weatherFrequency',
+    value: 2,
+    duration: 30,
+    prestigeReward: 2,
+  },
+  {
+    id: 'no_repairs',
+    name: 'No Repairs',
+    description: 'Cannot repair, only replace.',
+    constraint: 'noRepairs',
+    value: true,
+    duration: 30,
+    prestigeReward: 3,
+  },
+  {
+    id: 'rookie_staff',
+    name: 'Rookie Staff',
+    description: 'All staff effectiveness at level 1.',
+    constraint: 'staffLevelCap',
+    value: 1,
+    duration: 30,
+    prestigeReward: 1,
+  },
+  {
+    id: 'high_standards',
+    name: 'High Standards',
+    description: 'Reputation decay 2x faster.',
+    constraint: 'repDecayMultiplier',
+    value: 2,
+    duration: 30,
+    prestigeReward: 2,
+  },
+  {
+    id: 'economy_mode',
+    name: 'Economy Mode',
+    description: 'Filters cost 1.5x.',
+    constraint: 'filterCostMultiplier',
+    value: 1.5,
+    duration: 30,
+    prestigeReward: 1,
+  },
+  {
+    id: 'speed_run',
+    name: 'Speed Run',
+    description: 'Reach 80 rep from 50 in 30 days.',
+    constraint: 'speedRunTarget',
+    value: 80,
+    duration: 30,
+    prestigeReward: 3,
+  },
+  {
+    id: 'minimalist',
+    name: 'Minimalist',
+    description: 'Max 6 total filters.',
+    constraint: 'maxFilters',
+    value: 6,
+    duration: 30,
+    prestigeReward: 2,
+  },
+  {
+    id: 'fan_favorite',
+    name: 'Fan Favorite',
+    description: 'Reputation must stay above 70.',
+    constraint: 'minReputation',
+    value: 70,
+    duration: 30,
+    prestigeReward: 2,
+  },
+  {
+    id: 'iron_manager',
+    name: 'Iron Manager',
+    description: 'No emergency repairs allowed.',
+    constraint: 'noEmergencyRepairs',
+    value: true,
+    duration: 30,
+    prestigeReward: 1,
+  },
+];
+
 // Post-win sandbox challenge goals
 const SANDBOX_GOALS = [
   { id: 'perfect_season', name: 'Perfect Season', description: 'All 4 domains > 80% health for an entire season (80 days)', completed: false },
@@ -102,6 +214,16 @@ export class ProgressionSystem {
     this._lastTier = null;
     this._unlockedExpansions = [];
 
+    // Championship Game state (Feature 6)
+    // Phases: null -> 'announced' (Day 1) -> 'gameDay' (Day 2) -> 'won'/'lost'
+    this._championshipPhase = this.state.championshipPhase ?? null;
+    this._championshipInning = 0;
+    this._championshipDomainsFailed = false;
+
+    // Monthly Challenge state (Feature 9 - post-win)
+    this._challengeDayCounter = this.state.challengeDayCounter ?? 0;
+    this._activeChallenge = this.state.activeChallenge ?? null;
+
     // Reputation drift accumulator — smooths reputation changes
     // BALANCE: 5-second interval (down from 10) for smoother, more responsive
     // drift. Players see quality changes reflected in reputation more quickly.
@@ -141,6 +263,10 @@ export class ProgressionSystem {
       this._seasonProfits = [];
       this._dailyObjective = null;
       this._shownDay1Objective = true; // don't re-show on load
+      // Restore championship and challenge state
+      this._championshipPhase = this.state.championshipPhase ?? null;
+      this._challengeDayCounter = this.state.challengeDayCounter ?? 0;
+      this._activeChallenge = this.state.activeChallenge ?? null;
       // Rebuild unlocked expansions from state + current rep to prevent re-notification spam
       this._unlockedExpansions = [...(this.state.unlockedExpansions ?? [])];
       const expansions = this.state.config.expansions ?? EXPANSIONS;
@@ -1028,23 +1154,325 @@ export class ProgressionSystem {
       });
     }
 
-    // WIN: Major League tier + championship hosted + 90% system efficiency (GDD soft victory)
+    // WIN: Major League tier triggers Championship Game event (multi-day)
     const winConfig = this.state.config.winConditions?.softVictory ?? {};
-    if (rep >= (winConfig.reputationRequired ?? 86)) {
-      const allHealthy = this.state.filters.length > 0 &&
-        this.state.filters.every(f =>
-          (f.condition / (f.maxCondition || 1)) >= (winConfig.systemEfficiencyMin ?? 0.90)
-        );
+    if (rep >= (winConfig.reputationRequired ?? 86) && !this._championshipPhase && !this.state.championshipWon) {
+      this._startChampionship();
+    }
 
-      if (allHealthy && (this.state.championshipHosted || !winConfig.championshipHosted)) {
-        this.eventBus.emit('game:win', {
-          reason: 'Major League status achieved with all systems at peak performance!',
-        });
+    // Process active championship
+    if (this._championshipPhase) {
+      this._updateChampionship();
+    }
+
+    // Post-win: monthly challenge rotation
+    if (this.state.championshipWon) {
+      this._updateMonthlyChallenge();
+    }
+  }
+
+  // ── Championship Game (multi-day event) ──────────────────────────
+
+  /**
+   * Start the Championship Game sequence.
+   * Day 1: Announcement + media coverage.
+   * Day 2: The championship game itself — all domains must stay >70% for 9 innings.
+   */
+  _startChampionship() {
+    this._championshipPhase = 'announced';
+    this._championshipInning = 0;
+    this._championshipDomainsFailed = false;
+    this.state.championshipPhase = 'announced';
+
+    this.eventBus.emit('championship:announced');
+    this.eventBus.emit('ui:message', {
+      text: 'CHAMPIONSHIP ANNOUNCED! Tomorrow is the big game. All domains must stay above 70% for the full 9 innings!',
+      type: 'achievement',
+    });
+    this.eventBus.emit('ui:message', {
+      text: 'Media coverage incoming -- weather stress 1.5x, 100% attendance. Prepare your systems!',
+      type: 'warning',
+    });
+  }
+
+  /**
+   * Process championship state on each new day.
+   */
+  _updateChampionship() {
+    if (this._championshipPhase === 'announced') {
+      // Advance to game day
+      this._championshipPhase = 'gameDay';
+      this.state.championshipPhase = 'gameDay';
+      this._championshipInning = 0;
+      this._championshipDomainsFailed = false;
+
+      // Apply championship game modifiers
+      this.state.storyFlags = this.state.storyFlags ?? {};
+      this.state.storyFlags.championshipActive = true;
+
+      // Championship weather stress: 1.5x degradation via synthetic event overlay
+      this.state.championshipStressMultiplier = 1.5;
+      // Championship attendance: force 100%
+      this.state.set('attendancePercent', 100);
+      this.state.championshipAttendanceOverride = true;
+
+      this.eventBus.emit('championship:started');
+      this.eventBus.emit('ui:message', {
+        text: 'CHAMPIONSHIP GAME DAY! Keep all 4 domains above 70% for all 9 innings to win!',
+        type: 'achievement',
+      });
+
+      // Listen for inning updates during championship
+      this._championshipInningHandler = (data) => {
+        if (this._championshipPhase !== 'gameDay') return;
+        this._championshipInning++;
+
+        // Check all domains above 70%
+        const health = this.state.domainHealth ?? {};
+        const allAbove70 = (health.air ?? 0) >= 70 && (health.water ?? 0) >= 70 &&
+                           (health.hvac ?? 0) >= 70 && (health.drainage ?? 0) >= 70;
+
+        if (!allAbove70) {
+          this._championshipDomainsFailed = true;
+        }
+
+        // After all 9 innings, resolve
+        if (this._championshipInning >= 9) {
+          this._resolveChampionship();
+        }
+      };
+      this.eventBus.on('economy:inningEnd', this._championshipInningHandler);
+
+    } else if (this._championshipPhase === 'gameDay') {
+      // If we hit a new day without resolving (shouldn't happen normally), resolve
+      this._resolveChampionship();
+    }
+  }
+
+  /**
+   * Resolve the championship game outcome.
+   */
+  _resolveChampionship() {
+    // Clean up listener
+    if (this._championshipInningHandler) {
+      this.eventBus.off('economy:inningEnd', this._championshipInningHandler);
+      this._championshipInningHandler = null;
+    }
+
+    // Clear championship modifiers
+    if (this.state.storyFlags) {
+      this.state.storyFlags.championshipActive = false;
+    }
+    this.state.championshipStressMultiplier = 1.0;
+    this.state.championshipAttendanceOverride = false;
+
+    if (this._championshipDomainsFailed) {
+      // Championship lost — can try again when conditions are met
+      this._championshipPhase = null;
+      this.state.championshipPhase = null;
+
+      this.eventBus.emit('championship:lost');
+      this.eventBus.emit('ui:message', {
+        text: 'CHAMPIONSHIP LOST! Domain health dropped below 70%. Maintain Major League status to try again.',
+        type: 'danger',
+      });
+    } else {
+      // Championship won!
+      this._championshipPhase = 'won';
+      this.state.championshipPhase = 'won';
+      this.state.championshipWon = true;
+      this.state.championshipHosted = true;
+      this._challengeDayCounter = 0;
+      this.state.challengeDayCounter = 0;
+
+      this.eventBus.emit('championship:won');
+      this.eventBus.emit('game:win', {
+        reason: 'Championship game won! All domains held above 70% for the full game!',
+      });
+      this.eventBus.emit('ui:message', {
+        text: 'CHAMPIONSHIP WON! You are the champion! Monthly challenges now available. Continue in sandbox mode!',
+        type: 'achievement',
+      });
+
+      // Initialize sandbox goals
+      this.initSandboxGoals();
+    }
+  }
+
+  // ── Monthly Challenges (post-win) ────────────────────────────────
+
+  /**
+   * After championship win: rotate through challenges every 30 days.
+   * Completing a challenge earns prestige points.
+   */
+  _updateMonthlyChallenge() {
+    this._challengeDayCounter++;
+    this.state.challengeDayCounter = this._challengeDayCounter;
+
+    // Ensure completedChallenges array exists on state
+    if (!this.state.completedChallenges) {
+      this.state.completedChallenges = [];
+    }
+
+    // Check if active challenge failed its constraint (for fail-on-breach challenges)
+    if (this._activeChallenge && !this._activeChallenge.completed && !this._activeChallenge.failed) {
+      const breached = this._checkChallengeBreach(this._activeChallenge);
+      if (breached) {
+        this._activeChallenge.failed = true;
+        this.state.activeChallenge = { ...this._activeChallenge };
+        this.eventBus.emit('challenge:failed', this._activeChallenge);
         this.eventBus.emit('ui:message', {
-          text: 'VICTORY: You\'ve reached Major League status! Continue playing in sandbox mode.',
-          type: 'success',
+          text: `CHALLENGE FAILED: "${this._activeChallenge.name}" -- constraint breached!`,
+          type: 'danger',
         });
       }
+    }
+
+    // Check if active challenge is completed (survived the duration)
+    if (this._activeChallenge && !this._activeChallenge.completed && !this._activeChallenge.failed) {
+      const met = this._checkChallengeCondition(this._activeChallenge);
+      if (met) {
+        this._activeChallenge.completed = true;
+        this.state.activeChallenge = { ...this._activeChallenge };
+        const points = this._activeChallenge.prestigeReward ?? 1;
+
+        // Track in completed list
+        this.state.completedChallenges.push({
+          id: this._activeChallenge.id,
+          name: this._activeChallenge.name,
+          completedDay: this.state.gameDay,
+          prestigeEarned: points,
+        });
+
+        this.eventBus.emit('prestige:addPoints', { points });
+        this.eventBus.emit('challenge:completed', this._activeChallenge);
+        this.eventBus.emit('ui:message', {
+          text: `CHALLENGE COMPLETE: "${this._activeChallenge.name}"! +${points} prestige point${points > 1 ? 's' : ''}!`,
+          type: 'achievement',
+        });
+      }
+    }
+
+    // Every 30 days, assign a new challenge
+    if (this._challengeDayCounter % 30 === 1 || !this._activeChallenge) {
+      const challenges = this.state.config.challengeDefinitions ?? MONTHLY_CHALLENGES;
+      if (challenges.length > 0) {
+        // Pick next challenge (rotate, skipping recently completed ones if possible)
+        const completed = this.state.completedChallenges ?? [];
+        const completedIds = new Set(completed.map(c => c.id));
+        let available = challenges.filter(c => !completedIds.has(c.id));
+        if (available.length === 0) available = challenges; // all completed, cycle through again
+
+        const idx = Math.floor(this._challengeDayCounter / 30) % available.length;
+        const chosen = available[idx];
+        this._activeChallenge = {
+          ...chosen,
+          completed: false,
+          failed: false,
+          startDay: this.state.gameDay,
+          startMoney: this.state.money,
+          startWeatherEvents: this.state.stats?.weatherEventsEndured ?? 0,
+          startReputation: this.state.reputation,
+        };
+        this.state.activeChallenge = { ...this._activeChallenge };
+
+        // Apply challenge constraint flags to state for other systems to check
+        this.state.challengeConstraints = {
+          type: chosen.constraint,
+          value: chosen.value,
+        };
+
+        // Special setup for speed_run: drop rep to 50
+        if (chosen.id === 'speed_run') {
+          this.state.set('reputation', 50);
+        }
+
+        this.eventBus.emit('challenge:started', this._activeChallenge);
+        this.eventBus.emit('ui:message', {
+          text: `NEW MONTHLY CHALLENGE: "${this._activeChallenge.name}" -- ${this._activeChallenge.description}`,
+          type: 'info',
+        });
+      }
+    }
+  }
+
+  /**
+   * Check if a monthly challenge's completion condition is met (survived the duration).
+   * Most challenges complete after 30 days if the constraint was never breached.
+   */
+  _checkChallengeCondition(challenge) {
+    const daysSinceStart = (this.state.gameDay ?? 0) - (challenge.startDay ?? 0);
+
+    switch (challenge.id) {
+      case 'budget_crunch':
+        // Survive 30 days at 50% income -- completion = survived the period
+        return daysSinceStart >= 29;
+      case 'skeleton_crew':
+        // Operate with max 2 staff for 30 days
+        return daysSinceStart >= 29 && (this.state.staffList?.length ?? 0) <= 2;
+      case 'perfect_record':
+        // No domain drops below 60% for 30 days (breach checked separately)
+        return daysSinceStart >= 29;
+      case 'storm_season':
+        // Survive 2x weather frequency for 30 days
+        return daysSinceStart >= 29;
+      case 'no_repairs':
+        // Cannot repair, only replace for 30 days (constraint enforced by game systems)
+        return daysSinceStart >= 29;
+      case 'rookie_staff':
+        // All staff effectiveness at level 1 for 30 days
+        return daysSinceStart >= 29;
+      case 'high_standards':
+        // Reputation decay 2x faster -- survive 30 days above rep 50
+        return daysSinceStart >= 29 && this.state.reputation >= 50;
+      case 'economy_mode':
+        // Filters cost 1.5x -- survive 30 days
+        return daysSinceStart >= 29;
+      case 'speed_run':
+        // Reach 80 rep from 50 in 30 days
+        return this.state.reputation >= 80;
+      case 'minimalist':
+        // Complete 30 days with max 6 total filters
+        return daysSinceStart >= 29 && (this.state.filters?.length ?? 0) <= 6;
+      case 'fan_favorite':
+        // Reputation must stay above 70 for 30 days (breach checked separately)
+        return daysSinceStart >= 29;
+      case 'iron_manager':
+        // No emergency repairs for 30 days (constraint enforced by game systems)
+        return daysSinceStart >= 29;
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Check if a challenge's constraint has been breached (instant failure).
+   * Challenges like "Perfect Record" or "Fan Favorite" fail immediately on breach.
+   */
+  _checkChallengeBreach(challenge) {
+    const health = this.state.domainHealth ?? {};
+
+    switch (challenge.id) {
+      case 'perfect_record':
+        // Fail if any domain drops below 60%
+        return (health.air ?? 100) < 60 || (health.water ?? 100) < 60 ||
+               (health.hvac ?? 100) < 60 || (health.drainage ?? 100) < 60;
+      case 'fan_favorite':
+        // Fail if reputation drops below 70
+        return this.state.reputation < 70;
+      case 'skeleton_crew':
+        // Fail if more than 2 staff at any point
+        return (this.state.staffList?.length ?? 0) > 2;
+      case 'minimalist':
+        // Fail if more than 6 filters at any point
+        return (this.state.filters?.length ?? 0) > 6;
+      case 'speed_run':
+        // Fail if 30 days pass without reaching 80 rep
+        return ((this.state.gameDay ?? 0) - (challenge.startDay ?? 0)) >= 30 &&
+               this.state.reputation < 80;
+      default:
+        // Most challenges don't have instant-fail breaches
+        return false;
     }
   }
 

@@ -2555,10 +2555,11 @@ export class TileMap {
   /*  Vent slot overlays — normal glow + placement-mode highlights    */
   /* ================================================================ */
 
-  _renderVentSlotOverlays(renderer, time, domainGlowColors) {
+  _renderVentSlotOverlays(renderer, time, domainGlowColors, state) {
     const t = time * 0.001;
     const pm = this.placementMode;
     const occupied = this.placementOccupied;
+    const domainHealth = state?.domainHealth ?? { air: 100, water: 100, hvac: 100, drainage: 100 };
 
     for (const slot of this._ventSlots) {
       const x = slot.col * TILE_SIZE;
@@ -2605,6 +2606,44 @@ export class TileMap {
         renderer.drawRect(x, y, TILE_SIZE, TILE_SIZE, domainGlowColors[slot.domain] ?? PALETTE.GREEN);
         renderer.restore();
       }
+
+      // --- Health-based colored border overlay ---
+      // Renders on top of the existing glow regardless of placement mode
+      const hp = domainHealth[slot.domain] ?? 100;
+      let borderColor, borderAlpha, borderThickness;
+
+      if (hp > 60) {
+        // Green glow — healthy
+        borderColor = '#44ff44';
+        borderAlpha = 0.25 + Math.sin(t * 2) * 0.05; // subtle steady glow
+        borderThickness = 1;
+      } else if (hp > 40) {
+        // Yellow — caution
+        borderColor = '#ffdd44';
+        borderAlpha = 0.4 + Math.sin(t * 3) * 0.1;
+        borderThickness = 1;
+      } else if (hp > 20) {
+        // Orange pulsing — warning
+        borderColor = '#ff8833';
+        borderAlpha = 0.4 + Math.sin(t * 5) * 0.25; // faster pulsing
+        borderThickness = 2;
+      } else {
+        // Red pulsing + thick border — critical
+        borderColor = '#ff2222';
+        borderAlpha = 0.5 + Math.sin(t * 7) * 0.35; // rapid pulsing
+        borderThickness = 2;
+      }
+
+      renderer.save();
+      renderer.setAlpha(Math.max(0, Math.min(1, borderAlpha)));
+      // Draw border lines (top, bottom, left, right) with appropriate thickness
+      for (let i = 0; i < borderThickness; i++) {
+        renderer.drawRect(x + i, y + i, TILE_SIZE - 2 * i, 1, borderColor);                   // top
+        renderer.drawRect(x + i, y + TILE_SIZE - 1 - i, TILE_SIZE - 2 * i, 1, borderColor);   // bottom
+        renderer.drawRect(x + i, y + i, 1, TILE_SIZE - 2 * i, borderColor);                   // left
+        renderer.drawRect(x + TILE_SIZE - 1 - i, y + i, 1, TILE_SIZE - 2 * i, borderColor);   // right
+      }
+      renderer.restore();
     }
   }
 
@@ -2622,7 +2661,7 @@ export class TileMap {
       this._zoneRenderer.renderZoneAnimated(this._currentZone, renderer, state);
       // Still render vent slot glow for all zones (domain-colored)
       const time = state?.time ?? Date.now();
-      this._renderVentSlotOverlays(renderer, time, _domainGlowColors);
+      this._renderVentSlotOverlays(renderer, time, _domainGlowColors, state);
       // Health-based visual degradation overlays for non-field zones
       this._renderHealthOverlays(renderer, state);
       // Weather effects render on all zones
@@ -2640,7 +2679,7 @@ export class TileMap {
     this._renderSkyTint(renderer, state);
 
     // --- Vent slot pulsing glow (domain-colored) ---
-    this._renderVentSlotOverlays(renderer, time, _domainGlowColors);
+    this._renderVentSlotOverlays(renderer, time, _domainGlowColors, state);
 
     // --- Dripping water animation in underground ---
     const dripCols = [5, 10, 16, 23];

@@ -186,8 +186,10 @@ export class EconomySystem {
     const ticketIncome = attendance * (econ.ticketBasePrice ?? 25);
 
     // Revenue source 2: Concessions (scales with attendance, satisfaction, and filter quality)
+    // Staff efficiency bonus: specialists with high morale grant +5% per domain (up to +20%)
+    const staffEfficiencyBonus = this.state._staffEfficiencyBonus ?? 0;
     const satisfactionMod = this._lastQuality * (econ.concessionSatisfactionWeight ?? 0.5) + 0.5;
-    const concessionIncome = Math.floor(attendance * (econ.concessionPerFan ?? 12) * satisfactionMod);
+    const concessionIncome = Math.floor(attendance * (econ.concessionPerFan ?? 12) * satisfactionMod * (1 + staffEfficiencyBonus));
 
     // Revenue source 3: Sponsorships (flat per-game from active sponsors)
     const sponsorIncome = this._calculateSponsorIncome(econ);
@@ -283,6 +285,9 @@ export class EconomySystem {
       maintenance,
       attendance,
       balance: this.state.money,
+      // Detailed breakdown for floating income display
+      ticketIncome: Math.floor(ticketIncome * revenueMultiplier * consequenceRevMod * earlyBoost * difficultyIncomeMult * (1 + expansionRevBoost) / innings),
+      concessionIncome: Math.floor(concessionIncome * revenueMultiplier * consequenceRevMod * earlyBoost * difficultyIncomeMult * (1 + expansionRevBoost) / innings),
     });
   }
 
@@ -329,7 +334,7 @@ export class EconomySystem {
     const staffSpecDomains = new Set();
     const specDomainMap = {
       airTech: ['air', 'hvac'], plumber: ['water', 'drainage'],
-      electrician: ['electrical'], general: ['air', 'water', 'hvac', 'drainage'],
+      electrician: ['hvac'], general: ['air', 'water', 'hvac', 'drainage'],
     };
     const staffList = this.state.staffList ?? [];
     for (const staff of staffList) {

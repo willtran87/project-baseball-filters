@@ -38,7 +38,10 @@ export class EventBus {
   emit(event, data = {}) {
     const list = this._listeners.get(event);
     if (!list) return;
-    for (const cb of list) {
+    // Snapshot the array so that listeners removing themselves (e.g. once())
+    // during iteration don't cause other listeners to be skipped.
+    const snapshot = [...list];
+    for (const cb of snapshot) {
       cb(data);
     }
   }

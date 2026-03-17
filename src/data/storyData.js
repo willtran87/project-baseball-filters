@@ -1012,7 +1012,7 @@ export const STORY_EVENTS = [
       { speaker: null, portrait: null, text: 'Every seat is filled. The national broadcast cameras are rolling. The air is clean. The water is pure. The drains are ready. The temperature is perfect.', emotion: null },
       { speaker: 'rusty', portrait: 'happy', text: 'All systems green. Every single one. Kid... I\'m proud of you. Don\'t tell anyone I said that.', emotion: 'happy' },
       { speaker: 'diego', portrait: 'pumped', text: 'Bottom of the ninth, Pipes. This is it. Whatever happens on the field — you already won.', emotion: 'pumped' },
-      { speaker: 'maggie', portrait: 'happy', text: 'My grandmother built this place. I almost sold it. You saved it. Now let\'s finish the job.', emotion: 'happy' },
+      { speaker: 'maggie', portrait: 'happy', text: 'My father built this place. I almost sold it. You saved it. Now let\'s finish the job.', emotion: 'happy' },
       { speaker: null, portrait: null, text: '[The Ridgemont Raptors take the field for the biggest game in stadium history.]', emotion: null },
     ],
     choices: [],

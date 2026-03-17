@@ -119,6 +119,49 @@ export class SeasonSummaryPanel {
     html += `</div>`;
 
     html += `</div>`; // end flex
+
+    // Season Awards ceremony section
+    const awards = data.awards ?? [];
+    if (awards.length > 0) {
+      html += `<div style="margin-top:12px;">`;
+      // Awards ceremony header with gold styling
+      html += `
+        <div style="text-align:center;padding:6px 0 4px 0;margin-bottom:6px;border-top:2px solid #c8a84833;border-bottom:2px solid #c8a84833;background:linear-gradient(90deg, transparent, rgba(200,168,72,0.08), transparent);">
+          <div style="color:#c8a848;font-size:12px;letter-spacing:3px;font-weight:bold;">SEASON AWARDS</div>
+          <div style="color:#8b6914;font-size:8px;letter-spacing:1px;margin-top:2px;">Awards Ceremony</div>
+        </div>
+      `;
+      html += `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px;">`;
+      const awardIcons = {
+        TROPHY: '\u2666', // diamond
+        SHIELD: '\u25C6', // filled diamond
+        COIN: '\u25CF',   // filled circle
+        STAR: '\u2605',   // star
+        HEART: '\u2665',  // heart
+      };
+      for (const award of awards) {
+        const icon = awardIcons[award.icon] ?? '\u2605';
+        html += `
+          <div style="flex:1;min-width:120px;background:linear-gradient(180deg, rgba(200,168,72,0.1), rgba(139,69,19,0.05));border:1px solid #c8a84844;border-radius:4px;padding:8px 8px;text-align:center;">
+            <div style="color:#c8a848;font-size:16px;text-shadow:0 0 6px rgba(200,168,72,0.4);">${icon}</div>
+            <div style="color:#c8a848;font-size:9px;font-weight:bold;margin-top:3px;letter-spacing:0.5px;">${award.name}</div>
+            <div style="color:#999;font-size:8px;margin-top:2px;">${award.description}</div>
+          </div>
+        `;
+      }
+      html += `</div>`; // end awards flex
+      html += `</div>`; // end awards section
+    } else {
+      // No awards earned -- show a subtle message
+      html += `<div style="margin-top:10px;">`;
+      html += `
+        <div style="text-align:center;padding:6px 0;color:#555;font-size:9px;">
+          No awards earned this season. Keep improving!
+        </div>
+      `;
+      html += `</div>`;
+    }
+
     html += `</div>`; // end scroll area
 
     // Continue button

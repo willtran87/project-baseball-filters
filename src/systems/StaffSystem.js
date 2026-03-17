@@ -75,8 +75,8 @@ const XP_THRESHOLDS = [50, 150, 300, 500];
 const SPECIALIZATIONS = {
   airTech:     { name: 'Air Tech',     domains: ['air', 'hvac'] },
   plumber:     { name: 'Plumber',      domains: ['water', 'drainage'] },
-  electrician: { name: 'Electrician',  domains: ['electrical'] },
-  general:     { name: 'General Maintenance', domains: ['air', 'water', 'hvac', 'drainage', 'electrical'] },
+  electrician: { name: 'Electrician',  domains: ['hvac'] },
+  general:     { name: 'General Maintenance', domains: ['air', 'water', 'hvac', 'drainage'] },
 };
 
 const MORALE_QUIT_THRESHOLD = 30;
@@ -104,6 +104,9 @@ export class StaffSystem {
     for (const member of this.staff) {
       this._dailyRepairs.set(member.id, 0);
     }
+
+    // Track daily praise usage (one praise per staff per day)
+    this._dailyPraise = new Set();
 
     // Day accumulator for per-day processing
     this._dayTimer = 0;
@@ -143,6 +146,7 @@ export class StaffSystem {
         ? Math.max(...this.staff.map(s => s.id)) + 1
         : 1;
       this._dailyRepairs.clear();
+      this._dailyPraise.clear();
       for (const member of this.staff) {
         this._dailyRepairs.set(member.id, 0);
       }
@@ -155,6 +159,8 @@ export class StaffSystem {
     this.eventBus.on('staff:assign', (data) => this.assignToDomain(data.staffId, data.domain));
     this.eventBus.on('staff:unassign', (data) => this.unassignStaff(data.staffId));
     this.eventBus.on('staff:refreshCandidates', () => this.refreshCandidates());
+    this.eventBus.on('staff:train', (data) => this.trainStaff(data.staffId));
+    this.eventBus.on('staff:praise', (data) => this.praiseStaff(data.staffId));
   }
 
   /**
@@ -339,6 +345,127 @@ export class StaffSystem {
     return true;
   }
 
+  // ── Morale Tier System ────────────────────────────────────────────────
+
+  /**
+   * Get morale tier for a staff member: 'high' (>70), 'normal' (30-70), 'low' (<30).
+   */
+  getMoraleTier(staff) {
+    if (staff.morale > 70) return 'high';
+    if (staff.morale < 30) return 'low';
+    return 'normal';
+  }
+
+  /**
+   * Get the trait mechanical effects for a staff member, if any.
+   * Returns the effect object from config or null if trait has no mechanical effect.
+   */
+  getTraitEffects(staff) {
+    if (!staff.trait) return null;
+    return this.state.config.staffConfig?.traitEffects?.[staff.trait] ?? null;
+  }
+
+  // ── Training System ─────────────────────────────────────────────────
+
+  /**
+   * Start training a staff member. Costs money, takes game days, grants XP on completion.
+   */
+  trainStaff(staffId) {
+    const member = this.getStaff(staffId);
+    if (!member) return false;
+
+    if (member.training) {
+      this.eventBus.emit('ui:message', { text: `${member.name} is already in training!`, type: 'warning' });
+      return false;
+    }
+
+    const config = this.state.config.staffConfig ?? {};
+    const cost = config.trainingCost ?? 500;
+
+    if (this.state.money < cost) {
+      this.eventBus.emit('ui:message', { text: `Not enough money to train ($${cost})!`, type: 'warning' });
+      return false;
+    }
+
+    this.state.set('money', this.state.money - cost);
+    member.training = {
+      daysRemaining: config.trainingDays ?? 3,
+      totalDays: config.trainingDays ?? 3,
+    };
+    this._syncToState();
+    this.eventBus.emit('staff:trainingStarted', { staff: member });
+    this.eventBus.emit('ui:message', {
+      text: `${member.name} has started training (${member.training.totalDays} days, $${cost})`,
+      type: 'info',
+    });
+    return true;
+  }
+
+  /**
+   * Check if a staff member is currently in training (unavailable for work).
+   */
+  isTraining(staff) {
+    return !!(staff.training && staff.training.daysRemaining > 0);
+  }
+
+  // ── Praise Action ───────────────────────────────────────────────────
+
+  /**
+   * Praise a staff member: +5 morale, once per day per staff.
+   */
+  praiseStaff(staffId) {
+    const member = this.getStaff(staffId);
+    if (!member) return false;
+
+    if (this._dailyPraise.has(staffId)) {
+      this.eventBus.emit('ui:message', { text: `Already praised ${member.name} today!`, type: 'info' });
+      return false;
+    }
+
+    this._dailyPraise.add(staffId);
+    member.morale = Math.min(100, member.morale + 5);
+    this._syncToState();
+    this.eventBus.emit('staff:praised', { staff: member });
+    this.eventBus.emit('ui:message', {
+      text: `Praised ${member.name}! (+5 morale)`,
+      type: 'success',
+    });
+    return true;
+  }
+
+  /**
+   * Check if a staff member has already been praised today.
+   */
+  hasPraisedToday(staffId) {
+    return this._dailyPraise.has(staffId);
+  }
+
+  // ── Staff Efficiency Bonus (for EconomySystem) ──────────────────────
+
+  /**
+   * Calculate staff efficiency bonus for concession revenue.
+   * Per domain: if assigned specialist with morale >60, grant +5% bonus.
+   * All 4 domains covered = +20% total.
+   */
+  getStaffEfficiencyBonus() {
+    const domains = ['air', 'water', 'hvac', 'drainage'];
+    let bonus = 0;
+    for (const domain of domains) {
+      for (const member of this.staff) {
+        if (member.assignedDomain !== domain) continue;
+        if (this.isTraining(member)) continue;
+        if (!member.specialization) continue;
+        if (member.morale <= 60) continue;
+        const spec = SPECIALIZATIONS[member.specialization];
+        if (spec && spec.domains.includes(domain)) {
+          bonus += 0.05; // +5% per domain with a happy specialist
+          break; // only one bonus per domain
+        }
+      }
+    }
+    return bonus;
+  }
+
   /**
    * Grant XP to a specific staff member and check for level-up.
    */
@@ -386,8 +513,9 @@ export class StaffSystem {
    */
   _onRepair(filter) {
     // Find staff assigned to this filter's domain, or pick first available
-    const assigned = this.staff.find(s => s.assignedDomain === filter.domain);
-    const worker = assigned ?? this.staff[0];
+    // Training staff are excluded from repair contributions
+    const assigned = this.staff.find(s => s.assignedDomain === filter.domain && !this.isTraining(s));
+    const worker = assigned ?? this.staff.find(s => !this.isTraining(s));
     if (!worker) return;
 
     this.grantXP(worker.id, 15);
@@ -404,13 +532,46 @@ export class StaffSystem {
   }
 
   /**
-   * New day processing: morale, wages, quit checks, XP for day worked.
+   * New day processing: morale, wages, quit checks, XP for day worked,
+   * training countdown, trait effects, good day bonus.
    */
   _onNewDay() {
     this._refreshCount = 0;
+    this._dailyPraise.clear();
     const quitters = [];
 
+    // Calculate average domain health for "good day" morale bonus
+    const domainHealth = this.state.domainHealth ?? {};
+    const healthValues = Object.values(domainHealth);
+    const avgDomainHealth = healthValues.length > 0
+      ? healthValues.reduce((a, b) => a + b, 0) / healthValues.length
+      : 50;
+
+    // Check for Dad Joker trait — applies +5 morale to all OTHER staff
+    const traitEffects = this.state.config.staffConfig?.traitEffects ?? {};
+    const hasDadJoker = this.staff.some(s => s.trait === 'Dad Joker' && !this.isTraining(s));
+    const dadJokerBonus = hasDadJoker ? (traitEffects['Dad Joker']?.teamMoralePerDay ?? 5) : 0;
+
     for (const member of this.staff) {
+      // --- Training countdown ---
+      if (member.training && member.training.daysRemaining > 0) {
+        member.training.daysRemaining--;
+        if (member.training.daysRemaining <= 0) {
+          // Training complete — grant XP bonus
+          const trainingXP = this.state.config.staffConfig?.trainingXP ?? 50;
+          member.xp += trainingXP;
+          this._checkLevelUp(member);
+          member.training = null;
+          this.eventBus.emit('staff:trainingComplete', { staff: member });
+          this.eventBus.emit('ui:message', {
+            text: `${member.name} completed training! (+${trainingXP} XP)`,
+            type: 'success',
+          });
+        }
+        // Training staff skip normal daily XP/morale processing
+        continue;
+      }
+
       // Grant daily XP (3 base + skill bonus)
       member.xp += 3 + Math.floor(member.skill / 5);
       this._checkLevelUp(member);
@@ -420,6 +581,16 @@ export class StaffSystem {
       const dailyMoraleRecovery = 1 + Math.floor(this._storyMoraleBoost * 20);
       member.morale = Math.min(100, member.morale + dailyMoraleRecovery);
 
+      // Good day bonus: +3 morale if average domain health >60%
+      if (avgDomainHealth > 60) {
+        member.morale = Math.min(100, member.morale + 3);
+      }
+
+      // Dad Joker trait: +5 morale to all other staff (not the joker themselves)
+      if (dadJokerBonus > 0 && member.trait !== 'Dad Joker') {
+        member.morale = Math.min(100, member.morale + dadJokerBonus);
+      }
+
       // Wage-based morale
       if (member.wagePerDay > GOOD_WAGE_THRESHOLD) {
         member.morale = Math.min(100, member.morale + 3);
@@ -428,9 +599,11 @@ export class StaffSystem {
         member.morale = Math.max(0, member.morale - 2);
       }
 
-      // Overwork penalty
+      // Overwork penalty (Early Bird gets 1 free repair before overwork)
       const repairs = this._dailyRepairs.get(member.id) ?? 0;
-      if (repairs > OVERWORK_THRESHOLD) {
+      const earlyBirdEffect = traitEffects['Early Bird'];
+      const freeRepairs = (member.trait === 'Early Bird' && earlyBirdEffect) ? (earlyBirdEffect.freeRepairsPerDay ?? 1) : 0;
+      if (repairs > OVERWORK_THRESHOLD + freeRepairs) {
         member.morale = Math.max(0, member.morale - 5);
       }
 
@@ -494,6 +667,7 @@ export class StaffSystem {
   _checkEarlyWarnings() {
     for (const member of this.staff) {
       if (!member.specialization || !member.assignedDomain) continue;
+      if (this.isTraining(member)) continue;
 
       const spec = SPECIALIZATIONS[member.specialization];
       if (!spec || !spec.domains.includes(member.assignedDomain)) continue;
@@ -530,23 +704,47 @@ export class StaffSystem {
     for (const domain of ['air', 'water', 'hvac', 'drainage']) {
       this.state.staffRepairMultipliers[domain] = this.getRepairSpeedMultiplier(domain);
     }
+    // Update staff efficiency bonus for EconomySystem concession revenue
+    this.state._staffEfficiencyBonus = this.getStaffEfficiencyBonus();
   }
 
   /**
    * Get repair speed multiplier for a given domain.
    * Specialists in the matching domain repair 50% faster.
+   * Morale tier: high (>70) +10%, low (<30) -15%.
+   * Trait effects: Perfectionist -10%, Speed Demon +25%, Quiet Type +20%.
    */
   getRepairSpeedMultiplier(domain) {
     // Research bonus from config (modified by ResearchSystem)
     const configBonus = this.state.config?.staff?.repairSpeedPerStaff ?? 1.0;
     let multiplier = configBonus * (this._storyRepairSpeedBonus ?? 1.0); // Rusty relationship bonus
+    const traitEffects = this.state.config.staffConfig?.traitEffects ?? {};
+
     for (const member of this.staff) {
-      if (!member.specialization || member.assignedDomain !== domain) continue;
-      const spec = SPECIALIZATIONS[member.specialization];
-      if (spec && spec.domains.includes(domain)) {
-        multiplier *= 1.5; // 50% faster from specialization
-        break;
+      if (member.assignedDomain !== domain) continue;
+      if (this.isTraining(member)) continue;
+
+      // Specialization bonus: 50% faster
+      if (member.specialization) {
+        const spec = SPECIALIZATIONS[member.specialization];
+        if (spec && spec.domains.includes(domain)) {
+          multiplier *= 1.5;
+        }
       }
+
+      // Morale tier bonus/penalty
+      const tier = this.getMoraleTier(member);
+      if (tier === 'high') multiplier *= 1.10;  // +10%
+      else if (tier === 'low') multiplier *= 0.85; // -15%
+
+      // Trait-based speed modifiers
+      const effect = member.trait ? traitEffects[member.trait] : null;
+      if (effect) {
+        if (effect.repairSpeed) multiplier *= (1 + effect.repairSpeed);
+        if (effect.personalRepairSpeed) multiplier *= (1 + effect.personalRepairSpeed);
+      }
+
+      break; // only apply one worker's effects per domain
     }
     return multiplier;
   }

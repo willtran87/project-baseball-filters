@@ -140,7 +140,7 @@ export class TooltipManager {
 
     // Staff assignment status
     let staffLine = '';
-    const staff = this.state.staff ?? [];
+    const staff = this.state.staffList ?? [];
     const assignedStaff = staff.filter(s => s.assignedDomain === filter.domain);
     if (assignedStaff.length > 0) {
       staffLine = `<div style="font-size:9px;color:#29adff">Staff: ${assignedStaff.map(s => s.name).join(', ')}</div>`;

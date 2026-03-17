@@ -95,6 +95,19 @@ export class CrowdSystem {
     this._currentZone = null;
     this._lastAwaySchemeIndex = -1;
 
+    // Crowd reaction state tracking
+    this._reactionTimer = 0;    // seconds remaining for active reaction
+    this._reactionType = null;  // 'wave' | 'rush' | 'confetti'
+    this._confettiBursts = [];  // [{x, y, timer, interval}] for confetti effect
+    this._baseSpeedMultiplier = 1.0;
+    this._wavingEntities = new Set(); // entity IDs selected for wave animation
+    this._lastFiltrationQuality = 0.5; // track quality from filtration system
+
+    // Track filtration quality for inning-end wave trigger
+    eventBus.on('filtration:quality', (data) => {
+      this._lastFiltrationQuality = data.avgEfficiency ?? data.quality ?? 0.5;
+    });
+
     // Randomize away team colors on each new game day
     this._randomizeAwayColors();
     eventBus.on('game:newDay', () => {
@@ -107,8 +120,77 @@ export class CrowdSystem {
       this._spawnForZone(to ?? state.currentZone);
     });
 
+    // After good inning: random crowd members briefly wave for 3 seconds
+    eventBus.on('economy:inningEnd', () => {
+      if (this._lastFiltrationQuality > 0.75) {
+        this._startReaction('wave', 3.0);
+      }
+    });
+
+    // After crisis/negative event: crowd movement speed doubles for 5 seconds (panic)
+    eventBus.on('event:started', (evt) => {
+      const isPositive = evt.category === 'positive' || evt.isPositive;
+      if (!isPositive) {
+        this._startReaction('rush', 5.0);
+      }
+    });
+
+    // During victory: trigger confetti burst from crowd positions
+    eventBus.on('game:win', () => {
+      this._startReaction('confetti', 8.0);
+    });
+
+    eventBus.on('championship:won', () => {
+      this._startReaction('confetti', 8.0);
+    });
+
     // Initial spawn
     this._spawnForZone(state.currentZone ?? 'field');
+  }
+
+  /**
+   * Start a crowd reaction effect.
+   * @param {'wave'|'rush'|'confetti'} type
+   * @param {number} duration - seconds
+   */
+  _startReaction(type, duration) {
+    this._reactionType = type;
+    this._reactionTimer = duration;
+    this._wavingEntities.clear();
+
+    if (type === 'wave') {
+      // Select random subset of fan/player entities to animate the wave
+      const fanEntities = this._entities.filter(e => e.type !== 'npc' && e.type !== 'worker');
+      const waveCount = Math.max(2, Math.floor(fanEntities.length * 0.6));
+      const shuffled = fanEntities.sort(() => Math.random() - 0.5);
+      for (let i = 0; i < Math.min(waveCount, shuffled.length); i++) {
+        this._wavingEntities.add(shuffled[i].id);
+      }
+    }
+
+    if (type === 'rush') {
+      // Panic effect: double movement speed
+      this._baseSpeedMultiplier = 2.0;
+      // Un-pause all entities so they scramble immediately
+      for (const e of this._entities) {
+        if (e.paused && e.type !== 'npc') {
+          e.paused = false;
+          e.pauseTimer = 0;
+          e.targetX = e.xMin + Math.random() * (e.xMax - e.xMin);
+        }
+      }
+    }
+
+    if (type === 'confetti') {
+      // Spawn confetti bursts from crowd entity positions
+      this._confettiBursts = [];
+      const fanEntities = this._entities.filter(e => e.type !== 'npc' && e.type !== 'worker');
+      const burstCount = Math.min(6, fanEntities.length);
+      for (let i = 0; i < burstCount; i++) {
+        const e = fanEntities[Math.floor(Math.random() * fanEntities.length)];
+        this._confettiBursts.push({ x: e.x, y: e.y, timer: 0, interval: 0.4 + Math.random() * 0.3 });
+      }
+    }
   }
 
   /** Pick a random away color scheme (different from last game). */
@@ -261,6 +343,27 @@ export class CrowdSystem {
   }
 
   update(dt) {
+    // Update crowd reaction timer
+    if (this._reactionTimer > 0) {
+      this._reactionTimer -= dt;
+      if (this._reactionTimer <= 0) {
+        this._reactionType = null;
+        this._reactionTimer = 0;
+        this._baseSpeedMultiplier = 1.0;
+        this._confettiBursts = [];
+        this._wavingEntities.clear();
+      }
+    }
+
+    // Update confetti burst timers (emit particles via event bus)
+    for (const burst of this._confettiBursts) {
+      burst.timer += dt;
+      if (burst.timer >= burst.interval) {
+        burst.timer -= burst.interval;
+        this._eventBus.emit('particles:emit', { preset: 'confetti', x: burst.x, y: burst.y });
+      }
+    }
+
     for (let i = 0; i < this._entities.length; i++) {
       const e = this._entities[i];
 
@@ -298,7 +401,7 @@ export class CrowdSystem {
       e.facing = dx > 0 ? 1 : -1;
 
       // Sprites pass through each other freely
-      e.x += e.facing * e.speed * dt;
+      e.x += e.facing * e.speed * this._baseSpeedMultiplier * dt;
       // Clamp
       if (e.x < e.xMin) e.x = e.xMin;
       if (e.x > e.xMax) e.x = e.xMax;
@@ -340,13 +443,28 @@ export class CrowdSystem {
 
   render(renderer) {
     const ctx = renderer.ctx;
+    const now = Date.now() * 0.001;
+
     for (const e of this._entities) {
       const frames = e.sprite;
       if (!frames || !frames[e.frameIndex]) continue;
 
       const data = frames[e.frameIndex];
       const baseX = Math.floor(e.x - renderer.cameraX);
-      const baseY = Math.floor(e.y - renderer.cameraY);
+
+      // Wave reaction: selected crowd members bob up and down in a wave pattern
+      let waveOffset = 0;
+      if (this._reactionType === 'wave' && this._wavingEntities.has(e.id)) {
+        waveOffset = Math.round(Math.sin(now * 4 + e.x * 0.3) * 2);
+      }
+
+      // Rush reaction: slight jitter for panic effect on non-NPC entities
+      let rushJitter = 0;
+      if (this._reactionType === 'rush' && e.type !== 'npc') {
+        rushJitter = Math.round((Math.random() - 0.5) * 1);
+      }
+
+      const baseY = Math.floor(e.y - renderer.cameraY) + waveOffset + rushJitter;
 
       for (let row = 0; row < data.length; row++) {
         const line = data[row];

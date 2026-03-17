@@ -163,6 +163,9 @@ export class StorySystem {
       }
     }
 
+    // Extra condition flag must be set if specified (used by Hank's notes)
+    if (trigger.extraCondition && !this.state.storyFlags[trigger.extraCondition]) return false;
+
     // Check primary trigger type
     switch (trigger.type) {
       case 'gameStart':

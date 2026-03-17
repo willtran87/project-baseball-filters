@@ -193,6 +193,9 @@ export class InputManager {
   }
 
   _handleClick(x, y) {
+    // Block input during zone transition crossfade
+    if (this.zoneManager && this.zoneManager.isTransitioning) return;
+
     this.eventBus.emit('ui:click');
 
     // Placement mode: place filter on valid slot with matching domain
