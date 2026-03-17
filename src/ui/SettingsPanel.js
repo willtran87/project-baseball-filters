@@ -6,6 +6,8 @@
  * Persists settings to localStorage under 'raptors_settings'.
  */
 
+import { MusicGenerator } from '../audio/musicGenerator.js';
+
 const SETTINGS_KEY = 'raptors_settings';
 
 const DEFAULTS = {
@@ -13,16 +15,18 @@ const DEFAULTS = {
   musicVolume: 30,
   sfxVolume: 70,
   muted: false,
+  soundtrack: 'organ',
   showTooltips: true,
   showTutorialHints: true,
 };
 
 export class SettingsPanel {
-  constructor(panelManager, state, eventBus, audioManager) {
+  constructor(panelManager, state, eventBus, audioManager, musicGenerator) {
     this.state = state;
     this.eventBus = eventBus;
     this.panelManager = panelManager;
     this.audio = audioManager;
+    this.music = musicGenerator;
 
     // Load saved settings and apply immediately
     this._settings = this._load();
@@ -77,6 +81,17 @@ export class SettingsPanel {
     // Store display prefs on state so other UI can read them
     this.state.showTooltips = s.showTooltips;
     this.state.showTutorialHints = s.showTutorialHints;
+
+    // Apply saved soundtrack
+    if (this.music && s.soundtrack) {
+      this.music.setSoundtrack(s.soundtrack);
+    }
+  }
+
+  _applySoundtrack(id) {
+    this._settings.soundtrack = id;
+    if (this.music) this.music.setSoundtrack(id);
+    this._save();
   }
 
   _applyVolume(type, value) {
@@ -136,6 +151,15 @@ export class SettingsPanel {
             <span data-vol-label="sfxVolume" style="min-width:28px;text-align:right;color:#00e436;font-size:9px">${s.sfxVolume}%</span>
           </label>
 
+          <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:10px">
+            <span style="min-width:60px;color:#aaa">Soundtrack</span>
+            <select data-soundtrack style="flex:1;background:#1a1a2e;color:#fff;border:1px solid #333;font-size:9px;padding:2px;cursor:pointer;font-family:inherit">
+              ${MusicGenerator.SOUNDTRACK_LIST.map(st =>
+                `<option value="${st.id}" ${st.id === s.soundtrack ? 'selected' : ''}>${st.name}</option>`
+              ).join('')}
+            </select>
+          </label>
+
           <label style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:10px;cursor:pointer">
             <input type="checkbox" data-toggle="muted" ${s.muted ? 'checked' : ''}
               style="accent-color:#ff004d;cursor:pointer">
@@ -190,6 +214,14 @@ export class SettingsPanel {
         if (label) label.textContent = `${val}%`;
       });
     });
+
+    // Wire soundtrack selector
+    const soundtrackSelect = el.querySelector('[data-soundtrack]');
+    if (soundtrackSelect) {
+      soundtrackSelect.addEventListener('change', () => {
+        this._applySoundtrack(soundtrackSelect.value);
+      });
+    }
 
     // Wire toggle events
     el.querySelectorAll('[data-toggle]').forEach(cb => {

@@ -130,17 +130,24 @@ export class StaffPanel {
 
   _renderHireTab() {
     const candidates = this.staffSystem.candidates;
+    const refreshCost = this.staffSystem.getRefreshCost();
+    const canAffordRefresh = refreshCost === 0 || this.state.money >= refreshCost;
+    const refreshLabel = refreshCost === 0 ? 'Refresh (Free)' : `Refresh ($${refreshCost})`;
+    const refreshStyle = canAffordRefresh
+      ? 'background:#1a2a4a;color:#29adff;border:1px solid #3a5a8a;cursor:pointer'
+      : 'background:#2a2a2a;color:#555;border:1px solid #333;cursor:not-allowed';
+
     if (candidates.length === 0) {
       return `
         <div style="color:#888;margin-bottom:8px">No candidates available.</div>
-        <button data-action="refresh-candidates" style="background:#1a2a4a;color:#29adff;border:1px solid #3a5a8a;padding:4px 12px;font-family:monospace;cursor:pointer;font-size:10px">Refresh Candidates</button>
+        <button data-action="refresh-candidates" style="${refreshStyle};padding:4px 12px;font-family:monospace;font-size:10px">${refreshLabel}</button>
       `;
     }
 
     let html = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <span style="color:#aaa">Available Candidates</span>
-        <button data-action="refresh-candidates" style="background:#1a2a4a;color:#29adff;border:1px solid #3a5a8a;padding:3px 10px;font-family:monospace;cursor:pointer;font-size:10px">Refresh</button>
+        <button data-action="refresh-candidates" style="${refreshStyle};padding:3px 10px;font-family:monospace;font-size:10px">${refreshLabel}</button>
       </div>
     `;
 
@@ -474,6 +481,9 @@ export class StaffPanel {
           break;
 
         case 'refresh-candidates':
+          if (this._refreshCooldown) break;
+          this._refreshCooldown = true;
+          setTimeout(() => { this._refreshCooldown = false; }, 500);
           this.eventBus.emit('staff:refreshCandidates');
           break;
 

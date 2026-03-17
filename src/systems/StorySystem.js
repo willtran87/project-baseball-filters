@@ -55,6 +55,9 @@ export class StorySystem {
     // Track if initial gameStart triggers have been checked
     this._gameStartFired = false;
 
+    // Track NPC for casual chat completion emission
+    this._lastChatNpcId = null;
+
     // Listen to game events that can trigger story beats
     this.eventBus.on('game:newDay', (data) => this._onNewDay(data));
     this.eventBus.on('progression:tierChange', (data) => this._onTierChange(data));
@@ -81,7 +84,11 @@ export class StorySystem {
       this._dialogueActive = false;
       this._cutsceneActive = false;
       this._eventCooldown = 0;
-      this._gameStartFired = true; // don't re-fire game start triggers on load
+      // Only suppress gameStart if loading a save with progress;
+      // allow it to fire on a fresh new game (day <= 1, no events completed)
+      const isFreshGame = (this.state.gameDay ?? 0) <= 1
+        && (this.state.storyEventsCompleted ?? []).length === 0;
+      this._gameStartFired = !isFreshGame;
     });
   }
 
@@ -474,6 +481,12 @@ export class StorySystem {
 
   _onDialogueComplete(data) {
     this._dialogueActive = false;
+
+    // Emit chat complete for casual NPC conversations
+    if (this._lastChatNpcId) {
+      this.eventBus.emit('npc:chatComplete', { npcId: this._lastChatNpcId });
+      this._lastChatNpcId = null;
+    }
   }
 
   _onChoiceMade(data) {
@@ -543,20 +556,33 @@ export class StorySystem {
   adjustRelationship(npcId, delta) {
     if (this.state.npcRelationships[npcId] == null) return;
 
-    const old = this.state.npcRelationships[npcId];
+    const oldValue = this.state.npcRelationships[npcId];
     const oldTier = this.getRelationshipTier(npcId);
 
     this.state.npcRelationships[npcId] = Math.max(-100, Math.min(100,
       this.state.npcRelationships[npcId] + delta
     ));
 
+    const newValue = this.state.npcRelationships[npcId];
     const newTier = this.getRelationshipTier(npcId);
+    const tierChanged = oldTier.name !== newTier.name;
 
-    if (oldTier.name !== newTier.name) {
-      // Use NPC-specific tier names from storyData when available
-      const npcDef = NPC_DATA[npcId];
-      const npcTierName = this._getNpcTierName(npcId, this.state.npcRelationships[npcId]);
+    // Emit relationship change event for UI feedback (toasts, celebrations)
+    const npcDef = NPC_DATA[npcId];
+    const npcTierName = this._getNpcTierName(npcId, newValue);
+    this.eventBus.emit('npc:relationshipChange', {
+      npcId,
+      npcName: npcDef?.name ?? this._npcDisplayName(npcId),
+      themeColor: npcDef?.themeColor ?? '#888888',
+      delta,
+      oldValue,
+      newValue,
+      oldTier: oldTier.name,
+      newTier: npcTierName ?? newTier.name,
+      tierChanged,
+    });
 
+    if (tierChanged) {
       this.eventBus.emit('story:npcReaction', {
         npcId,
         reaction: delta > 0 ? 'warmer' : 'colder',
@@ -946,10 +972,16 @@ export class StorySystem {
     // Pick a context based on game state
     const context = this._getAmbientContext();
 
-    // Gather eligible NPCs (met = relationship > 0) that have lines for this context
+    // Gather eligible NPCs that have lines for this context
+    // Most NPCs require relationship > 0; Victor is eligible if chapter >= 2
     const eligible = [];
     for (const [npcId, dialogueSet] of Object.entries(NPC_AMBIENT_DIALOGUE)) {
-      if ((this.state.npcRelationships[npcId] ?? 0) <= 0) continue;
+      const rel = this.state.npcRelationships[npcId] ?? 0;
+      if (npcId === 'victor') {
+        if ((this.state.storyChapter ?? 1) < 2) continue;
+      } else {
+        if (rel <= 0) continue;
+      }
       const lines = dialogueSet[context] ?? dialogueSet.general;
       if (lines && lines.length > 0) {
         eligible.push({ npcId, lines });
@@ -986,8 +1018,82 @@ export class StorySystem {
     const dayType = this.state.currentGameDayType ?? '';
     if (dayType !== 'weekdayRegular') return 'gameDay';
 
+    // Rival standing comparison for Victor-flavored contexts
+    const playerRep = this.state.reputation ?? 0;
+    const rivalRep = this.state.rivalReputation ?? 0;
+    if (playerRep > rivalRep + 10) return 'playerWinning';
+    if (playerRep < rivalRep - 10) return 'playerLosing';
+
     if (minHealth > 75) return 'systemGood';
     return 'general';
+  }
+
+  // ── Staff Mentions ──────────────────────────────────────────────
+
+  /**
+   * 20% chance to prepend a staff-mention line to a casual dialogue.
+   * Each NPC has a template referencing a random staff member's trait.
+   */
+  _maybeAddStaffMention(npcId, dialogue) {
+    if (Math.random() > 0.20) return dialogue;
+
+    const staffList = this.state.staffList ?? [];
+    if (staffList.length === 0) return dialogue;
+
+    const staff = staffList[Math.floor(Math.random() * staffList.length)];
+    const name = staff.name?.split(' ')[0] ?? 'someone';
+    const trait = staff.trait ?? '';
+
+    const traitComment = this._getTraitComment(trait);
+    if (!traitComment) return dialogue;
+
+    const templates = {
+      maggie: `I saw ${name} in the halls. ${traitComment}`,
+      rusty: `${name}'s been doing good work. ${traitComment}`,
+      diego: `Hey, ${name} fixed something in the dugout! ${traitComment}`,
+      priya: `I was chatting with ${name} for a story. ${traitComment}`,
+      bea: `I noted ${name} during my rounds. ${traitComment}`,
+      fiona: `${name} came up in the sponsor tour. ${traitComment}`,
+    };
+
+    const mentionText = templates[npcId];
+    if (!mentionText) return dialogue;
+
+    // Prepend the staff mention as the first line
+    const mentionLine = { speaker: npcId, portrait: dialogue.portrait ?? 'neutral', text: mentionText };
+    return {
+      ...dialogue,
+      lines: [mentionLine, ...dialogue.lines],
+    };
+  }
+
+  /**
+   * Map a staff trait name to a short NPC-appropriate comment.
+   */
+  _getTraitComment(trait) {
+    const comments = {
+      'Whistler': 'Always whistling. I can hear it from two rooms away.',
+      'Early Bird': 'In before dawn every single day. Impressive.',
+      'Night Owl': 'Does their best work at midnight, apparently.',
+      'Duct Tape Devotee': 'Duct tape on everything. Rusty would approve.',
+      'Tool Hoarder': 'Three wrenches for every job. "Just in case," they say.',
+      'Superstitious': 'Won\'t touch filter thirteen. Refuses to explain why.',
+      'Former Chef': 'Treats the pipes like a kitchen line. Oddly effective.',
+      'Podcast Addict': 'Always has an earbud in. True crime, I think.',
+      'Ex-Navy': 'Submarine background. Tight spaces don\'t faze them.',
+      'Cat Person': 'Showed me cat photos for ten minutes. I didn\'t stop them.',
+      'Baseball Nerd': 'Knows every Raptors stat since \'87. Good for morale.',
+      'Perfectionist': 'Triple-checks everything. Slow, but the work holds.',
+      'Speed Demon': 'Fastest hands on the crew. Quality varies.',
+      'Old School': 'No power tools, no complaints. Gets it done.',
+      'YouTube Grad': 'Self-taught from videos. Surprisingly effective.',
+      'Snack Stasher': 'Has snacks hidden in every zone. The crew loves it.',
+      'Dad Joker': 'The puns are terrible. Morale is somehow up.',
+      'Quiet Type': 'Barely says a word, but everyone respects them.',
+      'Overachiever': 'Volunteers for every shift. Hope they don\'t burn out.',
+      'Lucky': 'Things just work out for them. Can\'t explain it.',
+    };
+    return comments[trait] ?? null;
   }
 
   // ── Helpers ───────────────────────────────────────────────────────
@@ -1043,7 +1149,13 @@ export class StorySystem {
     if (!npc) return;
 
     // Check cooldown: once per game day per NPC
+    // Victor bypasses the "already spoke" notification for system-initiated encounters
+    const isVictor = npcId === 'victor';
     if (this.state.npcLastChat[npcId] === this.state.gameDay) {
+      if (isVictor) {
+        // Victor already had a dialogue today -- silently skip
+        return;
+      }
       this.eventBus.emit('ui:message', {
         text: `You already spoke with ${npc.name} today.`,
         type: 'info',
@@ -1052,7 +1164,7 @@ export class StorySystem {
     }
 
     // Get contextual dialogue
-    const dialogue = this._pickCasualDialogue(npcId);
+    let dialogue = this._pickCasualDialogue(npcId);
     if (!dialogue) {
       this.eventBus.emit('ui:message', {
         text: `${npc.name} is busy right now.`,
@@ -1061,8 +1173,14 @@ export class StorySystem {
       return;
     }
 
+    // Maybe prepend a staff mention (20% chance)
+    dialogue = this._maybeAddStaffMention(npcId, dialogue);
+
     // Record cooldown
     this.state.npcLastChat[npcId] = this.state.gameDay;
+
+    // Track which NPC we're chatting with for chatComplete emission
+    this._lastChatNpcId = npcId;
 
     // Format and emit dialogue for DialogueBox
     this._dialogueActive = true;

@@ -13,6 +13,8 @@ export const NPC_DATA = {
     name: 'Maggie Chen',
     role: 'Stadium Owner',
     themeColor: '#c44040',
+    bio: 'Inherited Ridgemont from her father and refuses to let it die. Sharp, pragmatic, and fiercely protective of the stadium\'s legacy.',
+    lore: 'Maggie turned down a VP position at a Fortune 500 to run Ridgemont. Her father\'s last words to her were: "Don\'t let them tear it down."',
     portraits: {
       neutral: 'portrait_maggie_neutral',
       happy: 'portrait_maggie_happy',
@@ -32,6 +34,8 @@ export const NPC_DATA = {
     name: 'Rusty Kowalski',
     role: 'Head Maintenance',
     themeColor: '#b87333',
+    bio: 'Grizzled veteran who\'s kept Ridgemont\'s pipes flowing for 20 years. Gruff exterior, heart of gold. Learned everything from Hank Doolan.',
+    lore: 'Rusty once fixed a burst main during the 7th inning stretch using nothing but a belt buckle and a wad of chewing gum. He doesn\'t talk about it, but everyone else does.',
     portraits: {
       neutral: 'portrait_rusty_neutral',
       happy: 'portrait_rusty_happy',
@@ -51,6 +55,8 @@ export const NPC_DATA = {
     name: 'Victor Salazar',
     role: 'Rival Owner',
     themeColor: '#333366',
+    bio: 'Wealthy developer who wants Ridgemont\'s land. Charming in public, ruthless behind closed doors.',
+    lore: 'Victor\'s grandfather built stadiums. Victor tears them down. He\'s demolished three minor-league parks across the state, each time promising "community revitalization" that never comes.',
     portraits: {
       neutral: 'portrait_victor_neutral',
       smug: 'portrait_victor_smug',
@@ -69,6 +75,8 @@ export const NPC_DATA = {
     name: 'Priya Okafor',
     role: 'Reporter',
     themeColor: '#e8a030',
+    bio: 'Local sports journalist with a nose for stories. Covers Ridgemont for the Ridgemont Gazette. Fair but persistent.',
+    lore: 'Priya turned down a network TV offer to stay local. She says small-town baseball has better stories than the majors. She\'s been quietly building a file on Victor\'s land deals for months.',
     portraits: {
       neutral: 'portrait_priya_neutral',
       excited: 'portrait_priya_excited',
@@ -88,6 +96,8 @@ export const NPC_DATA = {
     name: 'Inspector Bea Thornton',
     role: 'Health Inspector',
     themeColor: '#557755',
+    bio: 'By-the-book county health inspector. Intimidating clipboard, impeccable standards. Secretly roots for Ridgemont.',
+    lore: 'Bea\'s father took her to Ridgemont games every summer as a kid. She requested this district assignment. She\'ll never admit it, but she wants to see the stadium pass — not just survive.',
     portraits: {
       neutral: 'portrait_bea_neutral',
       satisfied: 'portrait_bea_satisfied',
@@ -107,6 +117,8 @@ export const NPC_DATA = {
     name: 'Diego "Clutch" Ramirez',
     role: 'Star Player',
     themeColor: '#4488cc',
+    bio: 'The Raptors\' best hitter and clubhouse leader. Energetic, superstitious, and genuinely loves playing at Ridgemont.',
+    lore: 'Diego was drafted by three MLB teams and turned them all down. He says Ridgemont\'s air "smells like baseball." He\'s not wrong — that\'s the HVAC.',
     portraits: {
       neutral: 'portrait_diego_neutral',
       pumped: 'portrait_diego_pumped',
@@ -126,6 +138,8 @@ export const NPC_DATA = {
     name: 'Fiona Park',
     role: 'Sponsor Rep',
     themeColor: '#886699',
+    bio: 'Corporate sponsorship coordinator with sharp instincts and a spreadsheet for everything. All business, until she\'s not.',
+    lore: 'Fiona grew up in the concession stands — her mom ran the hot dog cart at Ridgemont for 15 years. She went corporate, but she still judges a stadium by its mustard.',
     portraits: {
       neutral: 'portrait_fiona_neutral',
       pleased: 'portrait_fiona_pleased',
@@ -1106,6 +1120,8 @@ export const NPC_AMBIENT_DIALOGUE = {
       'My grandmother built this place with borrowed money and stubbornness. I plan to honor both.',
       'Every dollar we spend on maintenance is a dollar we don\'t spend on lawyers.',
       'The league office called. They\'re "monitoring our progress." That\'s code for watching us fail.',
+      'Fiona says the sponsors want a tour. Make sure nothing\'s dripping.',
+      'Rusty left me a voicemail about valve pressure at 3 AM. The man never sleeps.',
     ],
     systemGood: [
       'Numbers look good, Peralta. Don\'t let it go to your head.',
@@ -1130,6 +1146,8 @@ export const NPC_AMBIENT_DIALOGUE = {
       'Don\'t trust the pressure gauge in Section C. It lies. Always has.',
       'Coffee\'s fresh. The gaskets aren\'t. Priorities.',
       'Back in \'04, we ran this whole operation with two guys and a dolly. Now we\'ve got fancy computers and it still leaks.',
+      'Diego asked me to fix his locker. Again. Kid breaks everything he touches.',
+      'Bea was in the tunnels Tuesday. Didn\'t say hi. Just measured things and left.',
     ],
     systemGood: [
       'Huh. Everything\'s green. I don\'t trust it, but I\'ll take it.',
@@ -1174,10 +1192,13 @@ export const NPC_AMBIENT_DIALOGUE = {
       'I\'ve got sources in every press box in the league. You\'d be surprised what I hear.',
       'The Browntide piece got me 40,000 views. Your redemption arc could double that.',
       'Can I quote you on that? Just kidding. I already wrote it down.',
+      'Bea gave me a three-word quote: "Standards were met." Classic Thornton.',
+      'Diego wants me to write about his charity work. He\'s a better story than he knows.',
     ],
     systemGood: [
       'This is the headline I want to write: "Ridgemont Rising." Give me the proof.',
       'My photographer wants to do a feature on the mechanical room. Is that weird? He thinks pipes are photogenic.',
+      'Fiona sent me the sponsor metrics. Even I\'m impressed, and I\'m hard to impress.',
     ],
     systemBad: [
       'I\'m going to have to report this, Casey. I\'m sorry, but that\'s the job.',
@@ -1191,6 +1212,8 @@ export const NPC_AMBIENT_DIALOGUE = {
       'I inspect twenty-three venues in this district. Yours is the only one I worry about.',
       'My clipboard has no opinions. It has standards.',
       'The code requires twelve air changes per hour in food prep areas. I count eleven and a half as eleven.',
+      'I ran into Rusty lecturing a pipe fitting. I chose not to comment.',
+      'Maggie asked me to fast-track the annual review. I don\'t fast-track. I thorough-track.',
     ],
     systemGood: [
       'Your numbers are within acceptable parameters. That is the highest compliment I give.',
@@ -1209,6 +1232,8 @@ export const NPC_AMBIENT_DIALOGUE = {
       'I told the pitcher the water tasted different. He said it tasted like water. That\'s the point!',
       'My batting average goes up 15 points when the clubhouse is comfortable. I did the math. Okay, the coach did the math.',
       'The visiting team complained about our guest locker room. Too hot. I said that\'s called home field advantage!',
+      'Rusty taught me how to read a pressure gauge yesterday. Said I\'m a natural. I think he was being sarcastic.',
+      'Fiona wants me to do a photo shoot with the sponsor banners. I told her I only pose after walk-off hits.',
     ],
     systemGood: [
       'Everything\'s running smooth! I almost slipped in the shower because the floor was actually clean!',
@@ -1229,6 +1254,8 @@ export const NPC_AMBIENT_DIALOGUE = {
       'The quarterly metrics will determine contract renewal. I\'m sharing this as a courtesy.',
       'Our brand alignment team scored Ridgemont a 6.2 last quarter. Seven is the threshold for tier-two sponsorship.',
       'I don\'t make the rules about the penalty clauses. I just enforce them. Politely.',
+      'Diego\'s jersey sales translate directly to brand alignment scores. Keep that kid smiling.',
+      'Priya\'s latest article brought in two sponsor inquiries. Free press is the best press.',
     ],
     systemGood: [
       'These numbers are strong. I\'m presenting Ridgemont as a case study at the regional conference.',

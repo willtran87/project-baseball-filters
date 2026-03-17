@@ -59,6 +59,7 @@ import { InteractiveObjects } from './rendering/InteractiveObjects.js';
 import { ParticleSystem, FloatingTextSystem, ScreenShake, ScreenFlash } from './rendering/particles.js';
 import { CrowdSystem } from './rendering/CrowdSystem.js';
 import { PIXEL_SPRITES } from './assets/pixelSprites.js';
+import { MobileAdapter } from './ui/MobileAdapter.js';
 import { GAME_CONFIG } from './data/gameConfig.js';
 
 const CANVAS_WIDTH = 480;
@@ -152,7 +153,8 @@ function init() {
   menus.setSaveLoad(saveLoad);
   menus.setPrestige(prestige);
   const interactiveObjects = new InteractiveObjects(state, eventBus);
-  const input = new InputManager(canvas, uiOverlay, state, eventBus, tileMap, tooltips, zoneManager, interactiveObjects, crowd);
+  const mobile = new MobileAdapter(canvas, uiOverlay, eventBus);
+  const input = new InputManager(canvas, uiOverlay, state, eventBus, tileMap, tooltips, zoneManager, interactiveObjects, crowd, mobile);
   const zoneNav = new ZoneNavigator(uiOverlay, zoneManager, state, eventBus);
 
   // Register enhanced filter inspector (adds upgrade support to built-in)
@@ -197,6 +199,8 @@ function init() {
   // Audio
   const audio = new AudioManager(eventBus, state);
   const music = new MusicGenerator(audio, eventBus, state);
+  // Ensure audio initializes on first touch (mobile devices)
+  document.addEventListener('touchstart', () => audio.init(), { once: true });
 
   // ── Wire particle effects, floating text, and screen shake to game events ──
 
@@ -571,7 +575,7 @@ function init() {
   });
 
   // Settings and help panels (need audio reference)
-  const settingsPanel = new SettingsPanel(panels, state, eventBus, audio);
+  const settingsPanel = new SettingsPanel(panels, state, eventBus, audio, music);
   const helpPanel = new HelpPanel(panels, state, eventBus);
 
   // Wire up audio mute toggle (M key)
@@ -594,6 +598,28 @@ function init() {
       menus.show('pause');
     }
   });
+
+  // Mobile toolbar events
+  if (mobile.isMobile) {
+    eventBus.on('mobile:togglePause', () => {
+      if (state.paused) {
+        if (menus.isVisible) menus.hide();
+        eventBus.emit('game:resume');
+      } else {
+        eventBus.emit('game:pause');
+      }
+    });
+    eventBus.on('mobile:nextZone', () => {
+      if (zoneManager) zoneManager.nextZone();
+    });
+    eventBus.on('mobile:cancel', () => {
+      if (input.isPlacing) {
+        input.exitPlacementMode();
+      } else {
+        eventBus.emit('ui:closeAllPanels');
+      }
+    });
+  }
 
   // Off-season event dialogs
   eventBus.on('offseason:event', (eventData) => {

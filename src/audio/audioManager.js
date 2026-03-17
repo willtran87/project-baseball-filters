@@ -872,10 +872,12 @@ export class AudioManager {
 
   // ── Procedural SFX ──────────────────────────────────────────────
 
-  /** Short sine-wave blip for UI clicks. */
+  /** Short sine-wave blip for UI clicks (throttled to prevent sound stacking). */
   playClick() {
     if (!this._ctx) return;
     const t = this._ctx.currentTime;
+    if (this._lastClickTime && t - this._lastClickTime < 0.08) return;
+    this._lastClickTime = t;
     const osc = this._ctx.createOscillator();
     const gain = this._ctx.createGain();
 

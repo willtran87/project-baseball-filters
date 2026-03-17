@@ -66,13 +66,41 @@ export class GuidedTutorial {
     this._bannerEl = null;
     this._highlightedEl = null;
 
+    // Re-sync on save/load
+    this._eventBus.on('state:loaded', () => this._onStateLoaded());
+
     if (!state.isFirstGame) return;
     if (this._currentStep >= STEPS.length) return;
 
+    this._init();
+  }
+
+  _init() {
     this._injectStyles();
     this._createBanner();
     this._showCurrentStep();
     this._bindEvents();
+  }
+
+  _onStateLoaded() {
+    this._currentStep = this._state.tutorialStep ?? 0;
+    this._clearHighlight();
+
+    // Tutorial already completed in loaded save — remove banner if present
+    if (!this._state.isFirstGame || this._currentStep >= STEPS.length) {
+      if (this._bannerEl) {
+        this._bannerEl.remove();
+        this._bannerEl = null;
+      }
+      return;
+    }
+
+    // Tutorial should be active in loaded save but banner doesn't exist yet
+    if (!this._bannerEl) {
+      this._init();
+    } else {
+      this._showCurrentStep();
+    }
   }
 
   _injectStyles() {
@@ -99,9 +127,17 @@ export class GuidedTutorial {
       position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
       background: rgba(0,0,0,0.85); border: 1px solid #8b4513; border-radius: 3px;
       padding: 6px 16px; font: 10px monospace; color: #d0d0e0; z-index: 45;
-      text-align: center; pointer-events: none;
+      text-align: center; pointer-events: auto;
       transition: opacity 0.3s ease;
     `;
+    this._bannerEl.addEventListener('click', (e) => {
+      if (e.target.closest('[data-tutorial-next]')) {
+        this._advanceStep();
+      }
+      if (e.target.closest('[data-tutorial-skip]')) {
+        this._completeTutorial();
+      }
+    });
     this._container.appendChild(this._bannerEl);
   }
 
@@ -113,10 +149,23 @@ export class GuidedTutorial {
 
     const step = STEPS[this._currentStep];
     this._bannerEl.style.opacity = '1';
+    this._bannerEl.style.borderColor = '#8b4513';
+    const isLast = this._currentStep >= STEPS.length - 1;
     this._bannerEl.innerHTML = `
       <div style="color:#ffec27;font-size:11px;margin-bottom:3px;letter-spacing:1px">${step.title}</div>
       <div style="color:#c0c0d0;font-size:9px;line-height:1.4">${step.text}</div>
-      <div style="color:#666;font-size:8px;margin-top:3px">Step ${this._currentStep + 1}/5</div>
+      <div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-top:5px">
+        <span data-tutorial-skip style="
+          cursor:pointer;font-size:8px;color:#666;padding:2px 6px;
+        ">Skip tutorial</span>
+        <span style="color:#444">|</span>
+        <span style="color:#666;font-size:8px">Step ${this._currentStep + 1}/${STEPS.length}</span>
+        <span data-tutorial-next style="
+          cursor:pointer;font-size:9px;color:#ffec27;padding:2px 8px;
+          border:1px solid #ffec2744;border-radius:2px;
+          background:rgba(255,236,39,0.08);
+        ">${isLast ? 'Finish' : 'Next \u25b6'}</span>
+      </div>
     `;
 
     this._applyHighlight(step.highlightButton);
@@ -156,6 +205,14 @@ export class GuidedTutorial {
     for (const evt of events) {
       this._eventBus.on(evt, () => this._checkCompletion(evt));
     }
+  }
+
+  _advanceStep() {
+    this._showCompletionFlash(() => {
+      this._currentStep++;
+      this._state.tutorialStep = this._currentStep;
+      this._showCurrentStep();
+    });
   }
 
   _checkCompletion(eventName) {

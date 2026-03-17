@@ -10,7 +10,7 @@ import { TILES } from '../rendering/TileMap.js';
 const PIXEL_SCALE = 2;
 
 export class InputManager {
-  constructor(canvas, uiOverlay, state, eventBus, tileMap, tooltipManager, zoneManager, interactiveObjects, crowd) {
+  constructor(canvas, uiOverlay, state, eventBus, tileMap, tooltipManager, zoneManager, interactiveObjects, crowd, mobileAdapter) {
     this.canvas = canvas;
     this.uiOverlay = uiOverlay;
     this.state = state;
@@ -20,6 +20,8 @@ export class InputManager {
     this.zoneManager = zoneManager ?? null;
     this.interactiveObjects = interactiveObjects ?? null;
     this.crowd = crowd ?? null;
+    this._mobile = mobileAdapter ?? null;
+    this._displayScale = mobileAdapter?.isMobile ? mobileAdapter.getDisplayScale() : PIXEL_SCALE;
 
     this._placementMode = null; // { type: 'basic' } when placing a filter
     this._hoveredFilter = null;
@@ -30,6 +32,7 @@ export class InputManager {
     this._filterNavList = [];
 
     this._bindMouse();
+    this._bindTouch();
     this._bindKeyboard();
     this._bindEventBus();
   }
@@ -38,9 +41,10 @@ export class InputManager {
 
   _canvasCoords(e) {
     const rect = this.canvas.getBoundingClientRect();
+    const scale = this._displayScale;
     return {
-      x: Math.floor((e.clientX - rect.left) / PIXEL_SCALE),
-      y: Math.floor((e.clientY - rect.top) / PIXEL_SCALE),
+      x: Math.floor((e.clientX - rect.left) / scale),
+      y: Math.floor((e.clientY - rect.top) / scale),
     };
   }
 
@@ -137,6 +141,55 @@ export class InputManager {
         this.exitPlacementMode();
       }
     });
+  }
+
+  // -- Touch Handlers (mobile only) --
+
+  _bindTouch() {
+    if (!this._mobile?.isMobile) return;
+
+    this.canvas.addEventListener('touchend', (e) => {
+      if (e.changedTouches.length !== 1) return;
+      // Skip tap if it was a long-press (tooltip shown instead)
+      if (this._mobile.wasLongPress()) return;
+      const touch = e.changedTouches[0];
+      const { x, y } = this._touchToCanvas(touch);
+      this._handleClick(x, y);
+    }, { passive: true });
+
+    this.canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length !== 1) return;
+      const { x, y } = this._touchToCanvas(e.touches[0]);
+      this._mousePos = { x, y };
+    }, { passive: true });
+
+    // Long-press tooltip support
+    this.eventBus.on('input:longPress', ({ clientX, clientY }) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const scale = this._displayScale;
+      const x = Math.floor((clientX - rect.left) / scale);
+      const y = Math.floor((clientY - rect.top) / scale);
+      this._handleHover(x, y, { clientX, clientY });
+    });
+
+    this.eventBus.on('input:longPressEnd', () => {
+      this.tooltips.hide();
+      this._hoveredFilter = null;
+    });
+
+    // Update display scale on resize
+    this.eventBus.on('mobile:scaleChanged', ({ scale }) => {
+      this._displayScale = scale;
+    });
+  }
+
+  _touchToCanvas(touch) {
+    const rect = this.canvas.getBoundingClientRect();
+    const scale = this._displayScale;
+    return {
+      x: Math.floor((touch.clientX - rect.left) / scale),
+      y: Math.floor((touch.clientY - rect.top) / scale),
+    };
   }
 
   _handleClick(x, y) {

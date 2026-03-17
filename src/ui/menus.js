@@ -19,9 +19,14 @@ export class MenuManager {
     this.eventBus.on('ui:hideMenu', () => this.hide());
     this.eventBus.on('game:over', (data) => this.showGameOver(data));
 
-    // Show start screen on init
+    // On init: auto-load save if available, otherwise show start screen
     this.eventBus.on('game:init', () => {
-      this.show('start');
+      if (this._saveLoad && this._saveLoad.hasAutoSave()) {
+        this._saveLoad.loadAutoSave();
+        this.eventBus.emit('game:resume');
+      } else {
+        this.show('start');
+      }
     });
   }
 
@@ -256,22 +261,40 @@ export class MenuManager {
       if (diffBtn) {
         this.eventBus.emit('ui:click');
         const selectedDifficulty = diffBtn.dataset.difficulty;
-        // Reset state with chosen difficulty
-        this.state._initDefaults(this.state.config);
-        this.state.difficulty = selectedDifficulty;
-        // Apply prestige unlocks to the fresh state
-        if (this._prestige) {
-          this._prestige.applyUnlocks(this.state);
+
+        const startNew = () => {
+          this.state._initDefaults(this.state.config);
+          this.state.difficulty = selectedDifficulty;
+          if (this._prestige) {
+            this._prestige.applyUnlocks(this.state);
+          }
+          this.eventBus.emit('state:loaded', {});
+          this.hide();
+          this.eventBus.emit('game:resume');
+        };
+
+        if (this._newGamePending) {
+          this._newGamePending = false;
+          showConfirmDialog(
+            this._el,
+            'All unsaved progress will be lost. Are you sure?',
+            startNew,
+            'CONFIRM'
+          );
+        } else {
+          startNew();
         }
-        this.eventBus.emit('state:loaded', {});
-        this.hide();
-        this.eventBus.emit('game:resume');
         return;
       }
       const action = e.target.closest('[data-action]')?.dataset.action;
       if (action === 'back') {
         this.eventBus.emit('ui:click');
-        this.show('start');
+        if (this._newGamePending) {
+          this._newGamePending = false;
+          this.show('pause');
+        } else {
+          this.show('start');
+        }
       }
     });
 
@@ -327,6 +350,11 @@ export class MenuManager {
           padding:5px 24px;font-family:monospace;font-size:11px;cursor:pointer;
           width:190px;border-radius:2px;
         ">? HELP</button>
+        <button data-action="new-game" style="
+          background:linear-gradient(180deg,#3a1a1a,#2a0d0d);color:#ff004d;border:1px solid #6a3a3a;
+          padding:5px 24px;font-family:monospace;font-size:11px;cursor:pointer;
+          width:190px;border-radius:2px;margin-top:6px;
+        ">\u{1f504} NEW GAME</button>
       </div>
       <div style="margin-top:14px;font-size:8px;color:#5f574f">
         Budget: $${this.state.money.toLocaleString()} \u2022 Rep: ${Math.floor(this.state.reputation)}%
@@ -355,6 +383,9 @@ export class MenuManager {
         this.hide();
         this.eventBus.emit('game:resume');
         this.eventBus.emit('ui:toggleHelp');
+      } else if (action === 'new-game') {
+        this._newGamePending = true;
+        this._showDifficultySelect();
       }
     });
 

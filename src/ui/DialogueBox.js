@@ -252,7 +252,6 @@ export class DialogueBox {
     for (const choice of this._choices) {
       const btn = document.createElement('button');
       btn.dataset.choiceId = choice.id;
-      btn.textContent = choice.text;
       btn.style.cssText = `
         background: rgba(41, 173, 255, 0.1);
         color: #29adff; border: 1px solid #3a5a8a;
@@ -260,6 +259,31 @@ export class DialogueBox {
         font-size: 10px; cursor: pointer;
         transition: background 0.15s;
       `;
+
+      // Choice text
+      const textSpan = document.createElement('span');
+      textSpan.textContent = choice.text;
+      btn.appendChild(textSpan);
+
+      // Effect preview spans (small colored hints below choice text)
+      if (choice.effects && Array.isArray(choice.effects)) {
+        const previews = this._buildEffectPreviews(choice.effects);
+        if (previews.length > 0) {
+          const previewWrap = document.createElement('div');
+          previewWrap.style.cssText = 'margin-top:2px;';
+          for (const pv of previews) {
+            const pvSpan = document.createElement('span');
+            pvSpan.style.cssText = `
+              font-size: 8px; margin-right: 4px;
+              color: ${pv.color};
+            `;
+            pvSpan.textContent = pv.label;
+            previewWrap.appendChild(pvSpan);
+          }
+          btn.appendChild(previewWrap);
+        }
+      }
+
       btn.addEventListener('mouseenter', () => {
         btn.style.background = 'rgba(41, 173, 255, 0.25)';
         btn.style.color = '#fff';
@@ -275,6 +299,43 @@ export class DialogueBox {
       });
       container.appendChild(btn);
     }
+  }
+
+  /**
+   * Build effect preview labels from a choice's effects array.
+   * Returns array of { label, color } for display.
+   */
+  _buildEffectPreviews(effects) {
+    const previews = [];
+    for (const effect of effects) {
+      // Skip flag effects (no numeric delta to preview)
+      if (effect.type === 'flag') continue;
+
+      const delta = effect.delta ?? effect.value ?? 0;
+      if (delta === 0) continue;
+
+      const sign = delta > 0 ? '+' : '';
+      const isPositive = delta > 0;
+      const color = isPositive ? '#00e436' : '#ff004d';
+
+      switch (effect.type) {
+        case 'relationship': {
+          // Show NPC first name from npc id (capitalize first letter)
+          const name = effect.npc ? effect.npc.charAt(0).toUpperCase() + effect.npc.slice(1) : '?';
+          previews.push({ label: `${sign}${delta} ${name}`, color });
+          break;
+        }
+        case 'reputation':
+          previews.push({ label: `${sign}${delta} Rep`, color });
+          break;
+        case 'money':
+          previews.push({ label: `${sign}$${Math.abs(delta)}`, color });
+          break;
+        default:
+          break;
+      }
+    }
+    return previews;
   }
 
   // ── Advance / Skip ──────────────────────────────

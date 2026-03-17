@@ -196,22 +196,78 @@ function renderCharactersTab(container, state, sprites) {
     return result;
   }
 
+  // Determine current relationship tier index for each NPC
+  function getCurrentTier(npc, relValue) {
+    const tiers = npc.relationshipTiers ?? [];
+    let current = 0;
+    for (let i = 0; i < tiers.length; i++) {
+      if (relValue >= (tiers[i].threshold ?? 0)) current = i;
+    }
+    return current;
+  }
+
+  // Format bonus ID into readable label
+  function formatBonus(bonusId) {
+    return bonusId
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, c => c.toUpperCase())
+      .trim();
+  }
+
   let html = '<div style="display:flex;flex-direction:column;gap:8px">';
 
   for (const npcId of npcIds) {
     const npc = npcDefs[npcId];
     const rel = relationships[npcId] ?? 0;
     const tier = getTierName(rel);
+    const currentTier = getCurrentTier(npc, rel);
     const name = npc.name ?? npcId;
     const role = npc.role ?? '';
     const themeColor = npc.themeColor ?? '#888';
-    const portrait = npc.portrait ?? `portrait_${npcId}`;
 
     // Create a small portrait canvas
     const portraitId = `portrait-${npcId}`;
 
+    // Progressive reveal content
+    let detailsHtml = '';
+
+    // Tier 1+: Show bio
+    if (currentTier >= 1 && npc.bio) {
+      detailsHtml += `
+        <div style="font-size:9px;color:#aaa;margin-top:3px;line-height:1.4;font-style:italic">
+          ${npc.bio}
+        </div>
+      `;
+    }
+
+    // Tier 2+: Show active bonuses
+    const currentBonuses = npc.relationshipTiers?.[currentTier]?.bonuses ?? [];
+    if (currentTier >= 2 && currentBonuses.length > 0) {
+      detailsHtml += `
+        <div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:3px">
+          ${currentBonuses.map(b => `
+            <span style="font-size:8px;padding:1px 5px;background:rgba(255,255,255,0.06);
+              border:1px solid ${themeColor}44;color:${themeColor};border-radius:2px">
+              ${formatBonus(b)}
+            </span>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // Max tier: Show lore
+    const maxTier = (npc.relationshipTiers?.length ?? 1) - 1;
+    if (currentTier >= maxTier && npc.lore) {
+      detailsHtml += `
+        <div style="font-size:9px;color:#d4aa40;margin-top:4px;padding:3px 6px;
+          background:rgba(212,170,64,0.06);border-left:2px solid #d4aa4044;line-height:1.4">
+          ${npc.lore}
+        </div>
+      `;
+    }
+
     html += `
-      <div style="display:flex;gap:8px;align-items:center;padding:4px 6px;
+      <div style="display:flex;gap:8px;align-items:flex-start;padding:4px 6px;
         background:rgba(255,255,255,0.02);border-left:3px solid ${themeColor}">
         <canvas id="${portraitId}" width="64" height="64"
           style="width:64px;height:64px;image-rendering:pixelated;flex-shrink:0"></canvas>
@@ -225,6 +281,7 @@ function renderCharactersTab(container, state, sprites) {
             <div style="background:${tier.color};height:100%;width:${Math.min(rel, 100)}%;border-radius:2px;
               transition:width 0.3s"></div>
           </div>
+          ${detailsHtml}
         </div>
       </div>
     `;
@@ -236,7 +293,7 @@ function renderCharactersTab(container, state, sprites) {
   // Draw portraits after DOM insertion
   for (const npcId of npcIds) {
     const npc = npcDefs[npcId];
-    const portraitName = npc.portrait ?? `portrait_${npcId}`;
+    const portraitName = npc.portraits?.neutral ?? `portrait_${npcId}_neutral`;
     const canvas = container.querySelector(`#portrait-${npcId}`);
     if (canvas) {
       drawPortraitToCanvas(canvas, portraitName, sprites);

@@ -265,6 +265,45 @@ export const NPC_CASUAL_DIALOGUE = {
         { text: '"Sometimes reliability beats the bottom line."', effects: [] },
       ],
     },
+
+    // --- Cross-reference dialogue ---
+    {
+      id: 'maggie_about_rusty',
+      minRelationship: 15,
+      context: 'any',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'maggie', portrait: 'neutral', text: "Rusty's been here longer than the scoreboard." },
+        { speaker: 'maggie', portrait: 'neutral', text: "He and my father used to argue about pipe gauges over coffee." },
+        { speaker: 'maggie', portrait: 'happy', text: "I wouldn't trust anyone else with this building's guts." },
+      ],
+    },
+    {
+      id: 'maggie_about_fiona',
+      minRelationship: 20,
+      context: 'normal',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'maggie', portrait: 'neutral', text: "Fiona says the sponsors want a tour of the facility." },
+        { speaker: 'maggie', portrait: 'neutral', text: "Make sure nothing's dripping when they walk through." },
+        { speaker: 'maggie', portrait: 'neutral', text: "First impressions aren't Fiona's department. They're yours." },
+      ],
+      choices: [
+        { text: '"I\'ll have everything spotless."', effects: [{ type: 'relationship', npc: 'maggie', delta: 1 }] },
+        { text: '"Define \'dripping.\'"', effects: [] },
+      ],
+    },
+    {
+      id: 'maggie_about_priya',
+      minRelationship: 15,
+      context: 'normal',
+      portrait: 'worried',
+      lines: [
+        { speaker: 'maggie', portrait: 'worried', text: "Priya called my office again." },
+        { speaker: 'maggie', portrait: 'neutral', text: "She's fair, I'll give her that. But fair doesn't mean friendly." },
+        { speaker: 'maggie', portrait: 'neutral', text: "Just... don't give her any ammunition, okay?" },
+      ],
+    },
   ],
 
   // ===========================================================================
@@ -522,6 +561,42 @@ export const NPC_CASUAL_DIALOGUE = {
         { speaker: 'rusty', portrait: 'neutral', text: "Keep those drain filters clean, kid. It matters." },
       ],
     },
+
+    // --- Cross-reference dialogue ---
+    {
+      id: 'rusty_about_diego',
+      minRelationship: 15,
+      context: 'normal',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'rusty', portrait: 'neutral', text: "That Ramirez kid asked me to explain the drainage system." },
+        { speaker: 'rusty', portrait: 'neutral', text: "Spent an hour with me in the tunnels, taking notes on his phone." },
+        { speaker: 'rusty', portrait: 'happy', text: "Most players don't care how the water gets to the fountain. He does." },
+      ],
+    },
+    {
+      id: 'rusty_about_bea',
+      minRelationship: 20,
+      context: 'normal',
+      portrait: 'skeptical',
+      lines: [
+        { speaker: 'rusty', portrait: 'skeptical', text: "Thornton was down here last week with her clipboard." },
+        { speaker: 'rusty', portrait: 'neutral', text: "Walked every inch of the mechanical room." },
+        { speaker: 'rusty', portrait: 'neutral', text: "Didn't say a word. Just wrote things down and left." },
+        { speaker: 'rusty', portrait: 'skeptical', text: "That woman terrifies me. And I respect that." },
+      ],
+    },
+    {
+      id: 'rusty_about_maggie',
+      minRelationship: 15,
+      context: 'any',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'rusty', portrait: 'neutral', text: "Maggie's got her father's stubbornness." },
+        { speaker: 'rusty', portrait: 'neutral', text: "Old Chen would've rather patched a pipe with his bare hands than call a contractor." },
+        { speaker: 'rusty', portrait: 'happy', text: "Apple didn't fall far from the tree." },
+      ],
+    },
   ],
 
   // ===========================================================================
@@ -766,6 +841,34 @@ export const NPC_CASUAL_DIALOGUE = {
         { speaker: 'priya', portrait: 'curious', text: "Something to think about for the press coverage." },
       ],
     },
+
+    // --- Cross-reference dialogue ---
+    {
+      id: 'priya_about_victor',
+      minRelationship: 15,
+      context: 'normal',
+      portrait: 'curious',
+      lines: [
+        { speaker: 'priya', portrait: 'curious', text: "My sources at Glendale say Victor's been making calls." },
+        { speaker: 'priya', portrait: 'curious', text: "City council, league officials, a few real estate lawyers." },
+        { speaker: 'priya', portrait: 'excited', text: "Whatever he's planning, it's bigger than a stadium rivalry." },
+      ],
+      choices: [
+        { text: '"Keep me posted?"', effects: [{ type: 'relationship', npc: 'priya', delta: 1 }] },
+        { text: '"Victor always has an angle."', effects: [] },
+      ],
+    },
+    {
+      id: 'priya_about_bea',
+      minRelationship: 15,
+      context: 'any',
+      portrait: 'curious',
+      lines: [
+        { speaker: 'priya', portrait: 'curious', text: "I tried to interview Bea for a profile piece." },
+        { speaker: 'priya', portrait: 'curious', text: "She gave me a three-word quote: 'Standards were met.'" },
+        { speaker: 'priya', portrait: 'excited', text: "Classic Thornton. My editor loved it, actually." },
+      ],
+    },
   ],
 
   // ===========================================================================
@@ -992,6 +1095,31 @@ export const NPC_CASUAL_DIALOGUE = {
       choices: [
         { text: '"I\'ll check the HVAC filters today."', effects: [{ type: 'relationship', npc: 'bea', delta: 1 }] },
         { text: '"Borderline still passes, right?"', effects: [] },
+      ],
+    },
+
+    // --- Cross-reference dialogue ---
+    {
+      id: 'bea_about_rusty',
+      minRelationship: 15,
+      context: 'normal',
+      portrait: 'noting',
+      lines: [
+        { speaker: 'bea', portrait: 'noting', text: "I ran into Rusty in the mechanical room." },
+        { speaker: 'bea', portrait: 'noting', text: "He was lecturing a pipe. A literal pipe." },
+        { speaker: 'bea', portrait: 'stern', text: "I chose not to comment." },
+        { speaker: null, text: "(You could swear Bea almost smiled.)" },
+      ],
+    },
+    {
+      id: 'bea_about_diego',
+      minRelationship: 20,
+      context: 'any',
+      portrait: 'stern',
+      lines: [
+        { speaker: 'bea', portrait: 'stern', text: "That ballplayer -- Ramirez -- asked me about water quality standards." },
+        { speaker: 'bea', portrait: 'noting', text: "Polite. Genuinely curious. I gave him a pamphlet." },
+        { speaker: 'bea', portrait: 'stern', text: "If only the rest of this facility showed that level of interest." },
       ],
     },
   ],
@@ -1225,6 +1353,34 @@ export const NPC_CASUAL_DIALOGUE = {
       choices: [
         { text: '"I\'ll check the water filters right away."', effects: [{ type: 'relationship', npc: 'diego', delta: 1 }] },
         { text: '"Probably just the minerals. It\'s safe."', effects: [] },
+      ],
+    },
+
+    // --- Cross-reference dialogue ---
+    {
+      id: 'diego_about_rusty',
+      minRelationship: 15,
+      context: 'normal',
+      portrait: 'happy',
+      lines: [
+        { speaker: 'diego', portrait: 'happy', text: "Rusty taught me how to read a pressure gauge yesterday." },
+        { speaker: 'diego', portrait: 'happy', text: "Said if I can read a pitch, I can read a gauge." },
+        { speaker: 'diego', portrait: 'happy', text: "He's grumpy, but he's kind of like a baseball uncle, you know?" },
+      ],
+    },
+    {
+      id: 'diego_about_priya',
+      minRelationship: 15,
+      context: 'any',
+      portrait: 'nervous',
+      lines: [
+        { speaker: 'diego', portrait: 'nervous', text: "Priya wants to do a feature on me." },
+        { speaker: 'diego', portrait: 'nervous', text: "Like, a real profile. My childhood, the minors, everything." },
+        { speaker: 'diego', portrait: 'happy', text: "She's cool. She actually listens when you talk." },
+      ],
+      choices: [
+        { text: '"She\'ll write a great piece."', effects: [{ type: 'relationship', npc: 'diego', delta: 1 }] },
+        { text: '"Just be careful what you say on the record."', effects: [] },
       ],
     },
   ],
@@ -1463,6 +1619,251 @@ export const NPC_CASUAL_DIALOGUE = {
         { speaker: 'fiona', portrait: 'evaluating', text: "The soda machines use tap water for mixing. If the water's off, the drinks taste off." },
         { speaker: 'fiona', portrait: 'interested', text: "And when the drinks taste off, the concession revenue drops." },
         { speaker: 'fiona', portrait: 'evaluating', text: "Everything connects back to those filters of yours." },
+      ],
+    },
+
+    // --- Cross-reference dialogue ---
+    {
+      id: 'fiona_about_diego',
+      minRelationship: 15,
+      context: 'normal',
+      portrait: 'interested',
+      lines: [
+        { speaker: 'fiona', portrait: 'interested', text: "Diego's jersey sales are up 40% this quarter." },
+        { speaker: 'fiona', portrait: 'interested', text: "That kid is a walking brand partnership." },
+        { speaker: 'fiona', portrait: 'evaluating', text: "If we keep him happy and the stadium looking good, sponsors line up themselves." },
+      ],
+    },
+    {
+      id: 'fiona_about_maggie',
+      minRelationship: 20,
+      context: 'normal',
+      portrait: 'interested',
+      lines: [
+        { speaker: 'fiona', portrait: 'interested', text: "Maggie turned down another buyout offer." },
+        { speaker: 'fiona', portrait: 'interested', text: "Most owners would've taken that number and retired." },
+        { speaker: 'fiona', portrait: 'impressed', text: "Say what you will, but that woman has conviction." },
+      ],
+      choices: [
+        { text: '"That\'s why Ridgemont is still standing."', effects: [{ type: 'relationship', npc: 'fiona', delta: 1 }] },
+        { text: '"Conviction doesn\'t pay the bills."', effects: [] },
+      ],
+    },
+    {
+      id: 'fiona_about_priya',
+      minRelationship: 15,
+      context: 'any',
+      portrait: 'evaluating',
+      lines: [
+        { speaker: 'fiona', portrait: 'evaluating', text: "Priya's latest article drove a 15% spike in our web traffic." },
+        { speaker: 'fiona', portrait: 'evaluating', text: "I don't love reporters, but I love free publicity." },
+        { speaker: 'fiona', portrait: 'interested', text: "Keep her writing nice things about us." },
+      ],
+    },
+  ],
+
+  // ===========================================================================
+  // VICTOR SALAZAR — Rival Owner
+  // Portrait moods: neutral, smug, angry, defeated
+  // ===========================================================================
+  victor: [
+    // --- Tier 0 (0+): Adversarial/business ---
+    {
+      id: 'victor_plumbing_check',
+      minRelationship: 0,
+      context: 'normal',
+      portrait: 'smug',
+      lines: [
+        { speaker: 'victor', portrait: 'smug', text: "Just checking if the plumbing is holding up." },
+        { speaker: 'victor', portrait: 'smug', text: "I have contractors on speed dial. For when it doesn't." },
+      ],
+    },
+    {
+      id: 'victor_land_value',
+      minRelationship: 0,
+      context: 'normal',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'victor', portrait: 'neutral', text: "You know what this lot is worth, Peralta?" },
+        { speaker: 'victor', portrait: 'smug', text: "More than the franchise. More than the memories." },
+        { speaker: 'victor', portrait: 'neutral', text: "Numbers don't lie. Nostalgia does." },
+      ],
+      choices: [
+        { text: '"This place is worth more than you think."', effects: [{ type: 'relationship', npc: 'victor', delta: 1 }] },
+        { text: '"Get off my field, Salazar."', effects: [{ type: 'relationship', npc: 'victor', delta: -2 }] },
+      ],
+    },
+    {
+      id: 'victor_business_card',
+      minRelationship: 0,
+      context: 'normal',
+      portrait: 'smug',
+      lines: [
+        { speaker: null, text: "(Victor slides a business card across the railing.)" },
+        { speaker: 'victor', portrait: 'smug', text: "In case you come to your senses." },
+        { speaker: 'victor', portrait: 'neutral', text: "My offer has an expiration date, by the way." },
+      ],
+    },
+    {
+      id: 'victor_inspection_dig',
+      minRelationship: 0,
+      context: 'normal',
+      portrait: 'smug',
+      lines: [
+        { speaker: 'victor', portrait: 'smug', text: "I heard the inspector paid you a visit." },
+        { speaker: 'victor', portrait: 'smug', text: "Glendale passed with flying colors, naturally." },
+        { speaker: 'victor', portrait: 'neutral', text: "But I'm sure yours went... fine." },
+      ],
+    },
+    {
+      id: 'victor_crisis_vulture',
+      minRelationship: 0,
+      context: 'crisis',
+      portrait: 'neutral',
+      lines: [
+        { speaker: null, text: "(Victor surveys the damage with barely concealed interest.)" },
+        { speaker: 'victor', portrait: 'neutral', text: "Rough day." },
+        { speaker: 'victor', portrait: 'smug', text: "You know, Glendale has redundant systems for this sort of thing." },
+        { speaker: 'victor', portrait: 'neutral', text: "Just saying." },
+      ],
+      choices: [
+        { text: '"We\'ll handle it."', effects: [] },
+        { text: '"Any advice, actually?"', effects: [{ type: 'relationship', npc: 'victor', delta: 2 }, { type: 'reputation', delta: -1 }] },
+      ],
+    },
+    {
+      id: 'victor_losing_pity',
+      minRelationship: 0,
+      context: 'losing',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'victor', portrait: 'neutral', text: "I'm not here to gloat, Peralta." },
+        { speaker: null, text: "(He is clearly here to gloat.)" },
+        { speaker: 'victor', portrait: 'smug', text: "I just think it's important to know when a project has run its course." },
+      ],
+    },
+    {
+      id: 'victor_winning_grudge',
+      minRelationship: 0,
+      context: 'winning',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'victor', portrait: 'neutral', text: "Impressive numbers lately." },
+        { speaker: 'victor', portrait: 'smug', text: "Enjoy the peak. Peaks don't last." },
+        { speaker: 'victor', portrait: 'neutral', text: "Ask me how I know." },
+      ],
+    },
+
+    // --- Tier 1 (20+): Grudging respect ---
+    {
+      id: 'victor_respect_admission',
+      minRelationship: 20,
+      context: 'normal',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'victor', portrait: 'neutral', text: "I'll admit, you've surprised me." },
+        { speaker: 'victor', portrait: 'neutral', text: "Most people in your position fold by now." },
+        { speaker: 'victor', portrait: 'smug', text: "Doesn't mean you'll win. Just means you're stubborn." },
+      ],
+    },
+    {
+      id: 'victor_old_days',
+      minRelationship: 20,
+      context: 'normal',
+      portrait: 'neutral',
+      lines: [
+        { speaker: null, text: "(Victor stares at the scoreboard for a long moment.)" },
+        { speaker: 'victor', portrait: 'neutral', text: "My grandfather built three stadiums." },
+        { speaker: 'victor', portrait: 'neutral', text: "He said the ones that survive aren't the biggest. They're the ones people refuse to let die." },
+        { speaker: 'victor', portrait: 'smug', text: "He also went bankrupt. So." },
+      ],
+      choices: [
+        { text: '"Sounds like he understood something you don\'t."', effects: [{ type: 'relationship', npc: 'victor', delta: -1 }] },
+        { text: '"Maybe there\'s a lesson in both outcomes."', effects: [{ type: 'relationship', npc: 'victor', delta: 2 }] },
+      ],
+    },
+    {
+      id: 'victor_rivalry_compliment',
+      minRelationship: 20,
+      context: 'winning',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'victor', portrait: 'neutral', text: "Your attendance is up. I noticed." },
+        { speaker: 'victor', portrait: 'neutral', text: "Competition is supposed to sharpen both sides." },
+        { speaker: 'victor', portrait: 'smug', text: "So thanks for keeping me on my toes, I guess." },
+      ],
+    },
+    {
+      id: 'victor_crisis_offer',
+      minRelationship: 20,
+      context: 'crisis',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'victor', portrait: 'neutral', text: "Look, I know a guy who does emergency HVAC work." },
+        { speaker: 'victor', portrait: 'neutral', text: "He's not cheap, but he's fast." },
+        { speaker: 'victor', portrait: 'smug', text: "Consider it professional courtesy." },
+      ],
+      choices: [
+        { text: '"I appreciate that, Victor."', effects: [{ type: 'relationship', npc: 'victor', delta: 2 }, { type: 'reputation', delta: -1 }] },
+        { text: '"We don\'t need your charity."', effects: [{ type: 'relationship', npc: 'victor', delta: -1 }] },
+      ],
+    },
+
+    // --- Tier 2 (40+): Truce/cooperation hints ---
+    {
+      id: 'victor_truce_talk',
+      minRelationship: 40,
+      context: 'normal',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'victor', portrait: 'neutral', text: "What if we stopped pretending this is a zero-sum game?" },
+        { speaker: 'victor', portrait: 'neutral', text: "Two strong stadiums in one metro area. That's good for the whole league." },
+        { speaker: 'victor', portrait: 'neutral', text: "I'm not saying we become friends." },
+        { speaker: 'victor', portrait: 'smug', text: "I'm saying we become strategic." },
+      ],
+      choices: [
+        { text: '"I\'m listening."', effects: [{ type: 'relationship', npc: 'victor', delta: 3 }] },
+        { text: '"I\'ll believe it when I see it."', effects: [] },
+      ],
+    },
+    {
+      id: 'victor_winning_acknowledge',
+      minRelationship: 40,
+      context: 'winning',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'victor', portrait: 'neutral', text: "You've built something real here, Peralta." },
+        { speaker: null, text: "(He says it like it costs him something.)" },
+        { speaker: 'victor', portrait: 'neutral', text: "My board is asking what you're doing differently." },
+        { speaker: 'victor', portrait: 'smug', text: "I told them it's stubbornness. They weren't satisfied." },
+      ],
+    },
+    {
+      id: 'victor_league_meeting',
+      minRelationship: 40,
+      context: 'normal',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'victor', portrait: 'neutral', text: "There's a league owners' meeting next month." },
+        { speaker: 'victor', portrait: 'neutral', text: "They want to discuss shared maintenance standards." },
+        { speaker: 'victor', portrait: 'neutral', text: "Your name came up as someone who knows filtration." },
+        { speaker: 'victor', portrait: 'smug', text: "I didn't correct them." },
+      ],
+    },
+    {
+      id: 'victor_losing_restrained',
+      minRelationship: 40,
+      context: 'losing',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'victor', portrait: 'neutral', text: "Tough stretch." },
+        { speaker: null, text: "(He pauses, choosing his words carefully.)" },
+        { speaker: 'victor', portrait: 'neutral', text: "If you need a short-term equipment loan, off the books..." },
+        { speaker: 'victor', portrait: 'neutral', text: "My people can arrange something." },
+      ],
+      choices: [
+        { text: '"That\'s... actually decent of you."', effects: [{ type: 'relationship', npc: 'victor', delta: 2 }] },
+        { text: '"No strings attached?"', effects: [{ type: 'relationship', npc: 'victor', delta: 1 }] },
       ],
     },
   ],

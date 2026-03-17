@@ -16,6 +16,12 @@ export class SaveLoad {
     this.eventBus = eventBus;
 
     this.eventBus.on('game:newDay', () => this.autoSave());
+
+    // Periodic auto-save every 15 seconds
+    this._autoSaveInterval = setInterval(() => this.autoSave(), 15000);
+
+    // Save on page unload (browser close/refresh)
+    window.addEventListener('beforeunload', () => this.autoSave());
   }
 
   /**

@@ -120,6 +120,12 @@ export class RivalSystem {
     // Rival insight cooldown (Victor relationship bonus)
     this._lastInsightDay = 0;
 
+    // Victor full dialogue limit: 1 per day
+    this._victorDialogueToday = false;
+
+    // Sabotage delayed by Priya tip (executes next day instead)
+    this._sabotageDelayed = null;
+
     // Season tracking for end-of-season awards
     this._lastSeason = state.season ?? 1;
 
@@ -131,6 +137,8 @@ export class RivalSystem {
     this.eventBus.on('state:loaded', () => {
       this._lastSeason = this.state.season ?? 1;
       this._lastComparedDay = this.state.gameDay ?? 0;
+      this._victorDialogueToday = false;
+      this._sabotageDelayed = null;
       this._ensureRivalDefenses();
     });
     // UI-driven defense purchases
@@ -157,6 +165,16 @@ export class RivalSystem {
   // -- Day-based updates -----------------------------------------------
 
   _onNewDay(data) {
+    // Reset daily Victor dialogue flag
+    this._victorDialogueToday = false;
+
+    // Execute delayed sabotage from previous day's Priya tip
+    if (this._sabotageDelayed) {
+      const delayed = this._sabotageDelayed;
+      this._sabotageDelayed = null;
+      this._executeSabotage([delayed], this.state._rivalDefenses);
+    }
+
     this._driftRivalRep();
     this._checkWeeklyStandings(data);
     this._checkSeasonEnd();
@@ -328,7 +346,8 @@ export class RivalSystem {
 
   /**
    * Random Victor encounter: 10% daily chance in chapter 2+.
-   * Every 5th encounter uses frustrated taunts instead.
+   * 50% of encounters trigger a full casual dialogue instead of a toast taunt.
+   * Full dialogue limited to 1 per day via _victorDialogueToday flag.
    */
   _checkVictorEncounter() {
     const chapter = this.state.storyChapter ?? 1;
@@ -338,6 +357,15 @@ export class RivalSystem {
     const encounters = (this.state.victorEncounters ?? 0) + 1;
     this.state.set('victorEncounters', encounters);
 
+    // 50% chance to trigger full dialogue (max 1 per day)
+    if (!this._victorDialogueToday && Math.random() < 0.5) {
+      this._victorDialogueToday = true;
+      this.eventBus.emit('rival:victorEncounter', { encounters, dialogue: true });
+      this.eventBus.emit('npc:startChat', { npcId: 'victor' });
+      return;
+    }
+
+    // Otherwise, toast taunt as before
     // Every 5th encounter, Victor is more frustrated
     const pool = (encounters % 5 === 0) ? VICTOR_FRUSTRATIONS : VICTOR_TAUNTS;
     const text = pool[Math.floor(Math.random() * pool.length)];
@@ -383,6 +411,17 @@ export class RivalSystem {
         type: 'info',
       });
       this.eventBus.emit('rival:sabotageRevealed', { type: revealed.id, name: revealed.name });
+      return;
+    }
+
+    // victorTips: Priya warns about sabotage, delaying it by 1 day
+    if (this.state.storyFlags?.victorTips && Math.random() < 0.4) {
+      const tipped = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+      this.eventBus.emit('ui:message', {
+        text: `Priya tips: "My sources say Victor is planning something. Watch for ${tipped.name}."`,
+        type: 'info',
+      });
+      this._sabotageDelayed = tipped;
       return;
     }
 

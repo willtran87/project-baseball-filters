@@ -15,6 +15,30 @@ import { NPC_MINI_PORTRAITS } from '../assets/npcSprites.js';
 /** NPC display order (friendly contacts only -- NOT victor) */
 const NPC_ORDER = ['maggie', 'rusty', 'diego', 'priya', 'bea', 'fiona'];
 
+/** Human-readable bonus descriptions (independent copy -- contacts panel) */
+const BONUS_DESCRIPTIONS = {
+  budgetVisibility:    'See full budget breakdown',
+  emergencyFunds:      'Emergency $2k bailout/season',
+  investmentPartner:   '+5% contract revenue',
+  repairHints:         'Warns about failing filters',
+  repairSpeedBoost:    '+10% repair speed',
+  failureWarnings:     'Alerts for critical filters',
+  moraleBoost:         'Game-day morale boost',
+  vipIntros:           '+1 staff hire candidate',
+  attendanceBoost:     '+5% base attendance',
+  favorableHeadlines:  'Positive press coverage',
+  victorTips:          'Intel on Victor\'s plans',
+  crisisSpinControl:   'Halves negative headlines',
+  inspectionHints:     '2-day inspection warning',
+  oneDayWarning:       '1-day inspection warning',
+  victorSchemeReveal:  'Reveals Victor\'s schemes',
+  betterTerms:         '+10% sponsor payouts',
+  exclusiveContracts:  'Unlocks premium contracts',
+  emergencySponsorship:'Emergency $3k bailout/season',
+  rivalInsight:        'Weekly rival intel reports',
+  reducedSabotage:     '-30% sabotage damage',
+};
+
 export class NPCContactsPanel {
   constructor(container, state, eventBus) {
     this.container = container;
@@ -147,7 +171,19 @@ export class NPCContactsPanel {
     info.style.cssText = 'flex: 1; min-width: 0;';
 
     const relValue = this.state.npcRelationships?.[npcId] ?? 0;
-    const { tierName, progress } = this._getTierInfo(npc, relValue);
+    const { tierName, progress, nextTierName, nextThreshold, newBonuses } = this._getTierInfo(npc, relValue);
+
+    // Build next-tier preview line
+    let nextTierHtml;
+    if (!nextTierName) {
+      nextTierHtml = `<div style="color:#ffd700;font-size:8px;margin-top:2px">Max tier reached</div>`;
+    } else {
+      const bonusText = newBonuses.length > 0
+        ? newBonuses.map(b => BONUS_DESCRIPTIONS[b] ?? b).join(', ')
+        : '';
+      const bonusPart = bonusText ? ` — ${bonusText}` : '';
+      nextTierHtml = `<div style="color:#777;font-size:8px;margin-top:2px">Next: ${nextTierName} (${nextThreshold})${bonusPart}</div>`;
+    }
 
     info.innerHTML = `
       <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:1px">
@@ -157,6 +193,7 @@ export class NPCContactsPanel {
       <div style="background:#222;height:4px;border-radius:2px;overflow:hidden;border:1px solid #333">
         <div style="width:${progress}%;height:100%;background:${npc.themeColor};transition:width 0.3s"></div>
       </div>
+      ${nextTierHtml}
     `;
     row.appendChild(info);
 
@@ -204,17 +241,17 @@ export class NPCContactsPanel {
   }
 
   /**
-   * Determine the current relationship tier name and the progress percentage
-   * toward the next tier for the given NPC.
+   * Determine the current relationship tier name, progress percentage toward
+   * the next tier, and next tier preview info for the given NPC.
    *
    * @param {object} npc        - NPC definition from NPC_DATA
    * @param {number} relValue   - Current relationship score (-100 to 100)
-   * @returns {{ tierName: string, progress: number }}
+   * @returns {{ tierName: string, progress: number, nextTierName: string|null, nextThreshold: number|null, newBonuses: string[] }}
    */
   _getTierInfo(npc, relValue) {
     const tiers = npc.relationshipTiers;
     if (!tiers || tiers.length === 0) {
-      return { tierName: 'Unknown', progress: 0 };
+      return { tierName: 'Unknown', progress: 0, nextTierName: null, nextThreshold: null, newBonuses: [] };
     }
 
     // Find the highest tier whose threshold <= relValue
@@ -234,7 +271,7 @@ export class NPCContactsPanel {
     const nextTier = tiers[currentIndex + 1];
     if (!nextTier) {
       // Already at max tier -- show full bar
-      return { tierName, progress: 100 };
+      return { tierName, progress: 100, nextTierName: null, nextThreshold: null, newBonuses: [] };
     }
 
     const rangeStart = currentTier.threshold;
@@ -245,6 +282,10 @@ export class NPCContactsPanel {
       ? Math.max(0, Math.min(100, Math.floor((progressValue / range) * 100)))
       : 100;
 
-    return { tierName, progress };
+    // Determine new bonuses in the next tier (not present in current tier)
+    const currentBonuses = new Set(currentTier.bonuses ?? []);
+    const newBonuses = (nextTier.bonuses ?? []).filter(b => !currentBonuses.has(b));
+
+    return { tierName, progress, nextTierName: nextTier.name, nextThreshold: nextTier.threshold, newBonuses };
   }
 }

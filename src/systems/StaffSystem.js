@@ -112,7 +112,11 @@ export class StaffSystem {
     this._earlyWarningInterval = 30; // check every 30 seconds
     this._warnedFilters = new Set(); // track which filters we already warned about
 
-    // Generate initial candidates
+    // Refresh cost tracking (first refresh each day is free)
+    this._refreshCount = -1;
+    this._refreshBaseCost = 50;
+
+    // Generate initial candidates (doesn't count toward daily refreshes)
     this.refreshCandidates();
 
     // Listen for events that grant XP
@@ -216,16 +220,35 @@ export class StaffSystem {
   }
 
   /**
+   * Get the cost of the next candidate refresh (first per day is free).
+   */
+  getRefreshCost() {
+    if (this._refreshCount <= 0) return 0;
+    return this._refreshBaseCost * this._refreshCount;
+  }
+
+  /**
    * Refresh the candidate pool with 3 new random workers.
+   * First refresh each day is free; subsequent ones cost increasing money.
    */
   refreshCandidates() {
+    const cost = this.getRefreshCost();
+    if (cost > 0) {
+      if (this.state.money < cost) {
+        this.eventBus.emit('ui:message', { text: `Not enough money to refresh ($${cost})`, type: 'warning' });
+        return;
+      }
+      this.state.set('money', this.state.money - cost);
+    }
+
+    this._refreshCount++;
     this.candidates = [];
     // Diego vipIntros bonus: 1 extra candidate in the hire pool
     const candidateCount = this.state.storyFlags?.vipIntros ? 4 : 3;
     for (let i = 0; i < candidateCount; i++) {
       this.candidates.push(this._generateStaff());
     }
-    this.eventBus.emit('staff:candidatesRefreshed', { candidates: this.candidates });
+    this.eventBus.emit('staff:candidatesRefreshed', { candidates: this.candidates, cost });
   }
 
   /**
@@ -384,6 +407,7 @@ export class StaffSystem {
    * New day processing: morale, wages, quit checks, XP for day worked.
    */
   _onNewDay() {
+    this._refreshCount = 0;
     const quitters = [];
 
     for (const member of this.staff) {

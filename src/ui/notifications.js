@@ -335,6 +335,37 @@ export class TutorialManager {
   }
 }
 
+// Bonus descriptions for all 20 NPC relationship tier bonuses
+const BONUS_DESCRIPTIONS = {
+  // Maggie Chen
+  budgetVisibility:     'Full financial breakdown visible in Economy panel',
+  emergencyFunds:       'Maggie provides a $2,000 bailout once per season when funds run low',
+  investmentPartner:    '5% bonus on all contract revenue',
+  // Rusty Flanagan
+  repairHints:          'Rusty warns you about the filter closest to breaking',
+  repairSpeedBoost:     '10% faster repairs across the board',
+  failureWarnings:      'Urgent alerts when filters drop below 20% condition',
+  // Victor Harrison
+  rivalInsight:         'Reveals Victor\'s next sabotage target',
+  reducedSabotage:      'Sabotage damage reduced by 30%',
+  // Priya Sharma
+  favorableHeadlines:   'Media coverage skews positive',
+  victorTips:           'Priya shares intel on Victor\'s schemes',
+  crisisSpinControl:    'Negative headlines cut in half during crises',
+  // Bea Thornton
+  inspectionHints:      'Bea tips you off 2 days before an inspection',
+  oneDayWarning:        '1-day advance warning before inspections',
+  victorSchemeReveal:   'Bea uncovers irregularities in Victor\'s reports',
+  // Diego Reyes
+  moraleBoost:          'Game day morale boost for staff',
+  vipIntros:            'Extra hire candidate appears in the Crew panel',
+  attendanceBoost:      '5% increase in base attendance',
+  // Fiona Park
+  betterTerms:          '10% higher payouts on all sponsor contracts',
+  exclusiveContracts:   'Access to an exclusive premium contract',
+  emergencySponsorship: 'Fiona secures a $3,000 emergency sponsorship once per season',
+};
+
 export class NotificationManager {
   constructor(container, eventBus) {
     this.eventBus = eventBus;
@@ -399,6 +430,23 @@ export class NotificationManager {
       this.show(text, 'story');
     });
 
+    // NPC relationship change toasts and tier-up celebrations
+    this.eventBus.on('npc:relationshipChange', (data) => {
+      this.showRelationshipChange(data.npcName, data.delta, data.newValue, data.themeColor);
+      if (data.tierChanged) {
+        // Find the new bonuses unlocked at this tier
+        const bonusKey = this._findNewTierBonus(data);
+        const bonusDesc = bonusKey ? (BONUS_DESCRIPTIONS[bonusKey] ?? '') : '';
+        const subtitle = bonusDesc
+          ? `${bonusDesc}`
+          : '';
+        this.showCelebration(
+          `${data.npcName}: ${data.newTier}!`,
+          subtitle
+        );
+      }
+    });
+
     this._storyPortrait = null;
     this._sprites = null; // set via setSprites()
   }
@@ -408,6 +456,98 @@ export class NotificationManager {
    */
   setSprites(sprites) {
     this._sprites = sprites;
+  }
+
+  /**
+   * Show a relationship change toast with NPC theme color.
+   * e.g. "Maggie Chen +2 (27/100)"
+   */
+  showRelationshipChange(npcName, delta, newValue, themeColor) {
+    const sign = delta > 0 ? '+' : '';
+    const text = `${npcName} ${sign}${delta} (${newValue}/100)`;
+    // Use a custom-colored relationship toast
+    this._showRelationshipToast(text, delta, themeColor);
+  }
+
+  /**
+   * Show a relationship toast with the NPC's theme color as the border.
+   */
+  _showRelationshipToast(text, delta, themeColor) {
+    while (this._toasts.length >= this._maxToasts) {
+      this._removeOldest();
+    }
+
+    const toast = document.createElement('div');
+    const isPositive = delta > 0;
+    const textColor = isPositive ? '#80ff80' : '#ff8080';
+    const bgColor = isPositive ? 'rgba(0,228,54,0.12)' : 'rgba(255,0,77,0.12)';
+
+    toast.style.cssText = `
+      padding: 4px 8px;
+      background: ${bgColor};
+      border-left: 3px solid ${themeColor ?? '#ab82ff'};
+      color: ${textColor};
+      font-family: monospace;
+      font-size: 9px;
+      line-height: 1.3;
+      opacity: 1;
+      transition: opacity 0.5s ease;
+      pointer-events: auto;
+      cursor: default;
+    `;
+    toast.textContent = text;
+
+    this._el.appendChild(toast);
+    const entry = { el: toast, timer: null };
+    this._toasts.push(entry);
+
+    entry.timer = setTimeout(() => {
+      this._fadeAndRemove(entry);
+    }, this._defaultDuration);
+  }
+
+  /**
+   * Find the newest bonus unlocked at the current tier for celebration display.
+   */
+  _findNewTierBonus(data) {
+    // The newTier name is NPC-specific; we need to find what bonus was just unlocked.
+    // We look for the bonus that exists in the new tier's bonuses but not in the old tier's.
+    // Since we don't have direct access to NPC_DATA here, we rely on the bonus names
+    // from the event data. Fall back to a heuristic based on known NPC bonus progression.
+    // The simplest approach: map NPC + tier name to the latest bonus.
+    const npcBonusProgression = {
+      maggie:  ['budgetVisibility', 'emergencyFunds', 'investmentPartner'],
+      rusty:   ['repairHints', 'repairSpeedBoost', 'failureWarnings'],
+      victor:  ['rivalInsight', 'reducedSabotage'],
+      priya:   ['favorableHeadlines', 'victorTips', 'crisisSpinControl'],
+      bea:     ['inspectionHints', 'oneDayWarning', 'victorSchemeReveal'],
+      diego:   ['moraleBoost', 'vipIntros', 'attendanceBoost'],
+      fiona:   ['betterTerms', 'exclusiveContracts', 'emergencySponsorship'],
+    };
+
+    const progression = npcBonusProgression[data.npcId];
+    if (!progression) return null;
+
+    // Tier index heuristic: count how many tier-ups have happened
+    // based on the new tier name position in the NPC's tier list
+    const tierNames = {
+      maggie: ['Probationary', 'Trusted Employee', 'Right Hand', 'Family'],
+      rusty:  ['Greenhorn', 'Apprentice', 'Friend', 'Like a Son'],
+      victor: ['Target', 'Respected Rival', 'Wary Truce'],
+      priya:  ['Source', 'Friendly Contact', 'Ally', 'Confidant'],
+      bea:    ['Under Watch', 'Compliant', 'Respected', 'Exemplary'],
+      diego:  ['Stadium Staff', 'Dugout Buddy', 'Teammate', 'MVP Duo'],
+      fiona:  ['Prospect', 'Partner', 'Preferred Vendor', 'Strategic Ally'],
+    };
+
+    const names = tierNames[data.npcId];
+    if (!names) return null;
+    const tierIdx = names.indexOf(data.newTier);
+    // Tier 0 has no bonus, tier 1 = progression[0], etc.
+    if (tierIdx > 0 && tierIdx - 1 < progression.length) {
+      return progression[tierIdx - 1];
+    }
+    return null;
   }
 
   /**
@@ -445,11 +585,53 @@ export class NotificationManager {
   }
 
   /**
-   * Show a toast notification.
+   * Show a toast notification (rate-limited to prevent flooding).
    * @param {string} text - Message text
    * @param {string} type - One of: info, success, warning, danger, event, achievement
    */
   show(text, type = 'info') {
+    // Rate limiting: max 3 toasts per 2-second window; queue the rest
+    const now = Date.now();
+    if (!this._recentTimestamps) this._recentTimestamps = [];
+    if (!this._queue) this._queue = [];
+    if (!this._drainTimer) this._drainTimer = null;
+
+    // Clean old timestamps outside the window
+    this._recentTimestamps = this._recentTimestamps.filter(t => now - t < 2000);
+
+    if (this._recentTimestamps.length >= 3) {
+      // Queue it for later — but cap queue so it doesn't grow forever
+      if (this._queue.length < 10) {
+        this._queue.push({ text, type });
+      }
+      if (!this._drainTimer) {
+        this._drainTimer = setInterval(() => this._drainQueue(), 800);
+      }
+      return;
+    }
+
+    this._recentTimestamps.push(now);
+    this._showImmediate(text, type);
+  }
+
+  /** @private Drain one queued notification at a time. */
+  _drainQueue() {
+    if (!this._queue || this._queue.length === 0) {
+      clearInterval(this._drainTimer);
+      this._drainTimer = null;
+      return;
+    }
+    const now = Date.now();
+    this._recentTimestamps = (this._recentTimestamps ?? []).filter(t => now - t < 2000);
+    if (this._recentTimestamps.length >= 3) return; // still saturated
+
+    const next = this._queue.shift();
+    this._recentTimestamps.push(now);
+    this._showImmediate(next.text, next.type);
+  }
+
+  /** @private Show a toast immediately (no rate check). */
+  _showImmediate(text, type = 'info') {
     // Remove oldest if at capacity
     while (this._toasts.length >= this._maxToasts) {
       this._removeOldest();
@@ -465,6 +647,7 @@ export class NotificationManager {
       achievement: { bg: 'rgba(255,236,39,0.15)', border: '#ffec27', text: '#fff0a0' },
       celebration: { bg: 'rgba(0,228,54,0.20)', border: '#00e436', text: '#a0ffa0' },
       story:       { bg: 'rgba(255,200,60,0.18)', border: '#ffc83c', text: '#ffe0a0' },
+      relationship:{ bg: 'rgba(171,130,255,0.15)', border: '#ab82ff', text: '#d0b8ff' },
     };
     const c = colors[type] ?? colors.info;
 
