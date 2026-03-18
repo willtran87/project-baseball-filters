@@ -153,6 +153,28 @@ export const NPC_DATA = {
       { tier: 3, name: 'Strategic Ally', threshold: 55, bonuses: ['betterTerms', 'exclusiveContracts', 'emergencySponsorship'] },
     ],
   },
+
+  sully: {
+    id: 'sully',
+    name: 'Sullivan "Sully" McCrankshaw',
+    role: 'Underground Fixer',
+    themeColor: '#cc5500',
+    bio: 'Retired minor-league umpire fired for "creative interpretation of the rulebook." Lives in Ridgemont\'s utility tunnels. Loud, conspiratorial, and wildly unreliable in execution.',
+    lore: 'Sully umpired in the Coastal League for twelve years before a controversial call at the Millhaven Mudcats championship got him banned. When Victor Salazar demolished the Mudcats stadium a year later, Sully took it personally. He\'s been living in Ridgemont\'s underground tunnels ever since, waiting for a chance to settle the score.',
+    portraits: {
+      neutral: 'portrait_sully_neutral',
+      scheming: 'portrait_sully_scheming',
+      excited: 'portrait_sully_excited',
+      caught: 'portrait_sully_caught',
+    },
+    relationshipTiers: [
+      { tier: 0, name: 'Suspicious Stranger', threshold: 0, bonuses: [] },
+      { tier: 1, name: 'Dugout Acquaintance', threshold: 12, bonuses: ['schemeAccess'] },
+      { tier: 2, name: 'Bench Coach', threshold: 30, bonuses: ['schemeAccess', 'betterOdds'] },
+      { tier: 3, name: 'Battery Mate', threshold: 50, bonuses: ['schemeAccess', 'betterOdds', 'grandSlam'] },
+      { tier: 4, name: 'Hall of Famer', threshold: 75, bonuses: ['schemeAccess', 'betterOdds', 'grandSlam', 'sullyInsurance'] },
+    ],
+  },
 };
 
 // ─── HANK'S HIDDEN NOTES ────────────────────────────────────────────────────
@@ -584,6 +606,40 @@ export const STORY_EVENTS = [
       },
     ],
     onComplete: [],
+  },
+
+  {
+    id: 'ch2_meet_sully',
+    trigger: { type: 'day', value: 14, chapter: 2, requireFlags: ['victorThreatRevealed'] },
+    delivery: 'dialogue',
+    pauseGame: true,
+    dialogue: [
+      { speaker: null, portrait: null, text: '(Deep in the underground tunnels, behind a tangle of old pipes, you hear someone muttering...)', emotion: null },
+      { speaker: 'sully', portrait: 'neutral', text: 'Hey! HEY! You — the kid with the wrench. Yeah, you. Don\'t move.', emotion: 'neutral' },
+      { speaker: 'casey', portrait: null, text: '...Who are you? How did you get down here?', emotion: null },
+      { speaker: 'sully', portrait: 'scheming', text: 'Name\'s Sullivan McCrankshaw. Sully. Former umpire, current... let\'s call it "independent operations consultant." I\'ve been living in these tunnels since Ridgemont stopped locking the maintenance hatches. Which was never.', emotion: 'scheming' },
+      { speaker: 'sully', portrait: 'excited', text: 'I heard you\'re the one giving Victor Salazar heartburn. Is that true? Because if so, you and I need to talk.', emotion: 'excited' },
+      { speaker: 'sully', portrait: 'neutral', text: 'That man demolished the Millhaven Mudcats stadium. My home park. The place I called balls and strikes for twelve years. Turned it into a PARKING LOT.', emotion: 'neutral' },
+      { speaker: 'sully', portrait: 'scheming', text: 'I\'ve been waiting for someone with the guts to fight back. You keep doing what you\'re doing, and when you\'re ready to go on offense... come find me. I\'ll be down here. I\'m always down here.', emotion: 'scheming' },
+    ],
+    choices: [
+      {
+        text: '"You\'re living in our tunnels? That\'s... a lot to process."',
+        effects: [
+          { type: 'relationship', npc: 'sully', delta: 2 },
+        ],
+      },
+      {
+        text: '"Tell me more about what happened to the Mudcats."',
+        effects: [
+          { type: 'relationship', npc: 'sully', delta: 3 },
+        ],
+      },
+    ],
+    onComplete: [
+      { type: 'flag', id: 'sullyUnlocked', value: true },
+      { type: 'flag', id: 'metSully', value: true },
+    ],
   },
 
   {

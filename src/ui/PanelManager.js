@@ -75,7 +75,7 @@ export class PanelManager {
       position: absolute; bottom: 22px; left: 0; right: 0;
       max-height: 45%; overflow-y: auto;
       background: rgba(10, 10, 30, 0.92);
-      border-top: 2px solid #8b4513;
+      border-top: 2px solid #1a2a4a;
       padding: 8px 12px; font-family: monospace;
       color: #e0e0e0; font-size: 14px;
       z-index: 30;
@@ -107,11 +107,13 @@ export class PanelManager {
     const panel = this._activePanel;
     this._activePanel = null;
     this._activePanelName = null;
+    this._closingPanel = panel;
 
     panel.classList.remove('panel-opening');
     panel.classList.add('panel-closing');
     panel.addEventListener('animationend', () => {
       panel.remove();
+      if (this._closingPanel === panel) this._closingPanel = null;
       this._closing = false;
     }, { once: true });
 
@@ -120,6 +122,7 @@ export class PanelManager {
       if (panel.parentNode) {
         panel.remove();
       }
+      if (this._closingPanel === panel) this._closingPanel = null;
       this._closing = false;
     }, 200);
   }
@@ -129,12 +132,17 @@ export class PanelManager {
    * when opening a new panel to avoid overlapping animations.
    */
   _removePanel() {
+    // Also remove any panel mid-close animation to prevent DOM orphans
+    if (this._closingPanel) {
+      this._closingPanel.remove();
+      this._closingPanel = null;
+    }
     if (this._activePanel) {
       this._activePanel.remove();
       this._activePanel = null;
       this._activePanelName = null;
-      this._closing = false;
     }
+    this._closing = false;
   }
 
   /**

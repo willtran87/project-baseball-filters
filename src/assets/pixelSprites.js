@@ -326,6 +326,12 @@ export const PIXEL_SPRITES = {
   portrait_fiona_frustrated: NPC_PORTRAITS.fiona.evaluating,     // alias: storyData 'frustrated' -> evaluating
   portrait_fiona_calculating: NPC_PORTRAITS.fiona.interested,    // alias: storyData 'calculating' -> interested
 
+  // Sully (64x64)
+  portrait_sully_neutral: NPC_PORTRAITS.sully.neutral,
+  portrait_sully_scheming: NPC_PORTRAITS.sully.scheming,
+  portrait_sully_excited: NPC_PORTRAITS.sully.excited,
+  portrait_sully_caught: NPC_PORTRAITS.sully.caught,
+
   // ── NPC Mini-Portraits (8x8) ──
   mini_maggie: NPC_MINI_PORTRAITS.maggie,
   mini_rusty: NPC_MINI_PORTRAITS.rusty,
@@ -334,6 +340,7 @@ export const PIXEL_SPRITES = {
   mini_bea: NPC_MINI_PORTRAITS.bea,
   mini_diego: NPC_MINI_PORTRAITS.diego,
   mini_fiona: NPC_MINI_PORTRAITS.fiona,
+  mini_sully: NPC_MINI_PORTRAITS.sully,
 
   // ── 32x32 Equipment Sprites ──
   airFilter32_good: EQUIPMENT_SPRITES_32.airFilter32.good,

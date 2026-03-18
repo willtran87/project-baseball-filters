@@ -64,6 +64,7 @@ export const PALETTE = {
   NAVY:        '#1a2a4a',
   TEAL:        '#2a8a8a',
   CRIMSON:     '#b01030',
+  RAPTORS_RED: '#cc2244',
   WARM_WHITE:  '#f5ead0',
 
   // ── Wood / leather tones ──
@@ -127,6 +128,7 @@ export const P = {
   NV:  PALETTE.NAVY,
   TL:  PALETTE.TEAL,
   CR:  PALETTE.CRIMSON,
+  RR:  PALETTE.RAPTORS_RED,
   WW:  PALETTE.WARM_WHITE,
   DBR: PALETTE.DARK_BROWN,
   LR:  PALETTE.LEATHER,

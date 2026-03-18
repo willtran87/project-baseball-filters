@@ -13,7 +13,7 @@ import { NPC_DATA } from '../data/storyData.js';
 import { NPC_MINI_PORTRAITS } from '../assets/npcSprites.js';
 
 /** NPC display order (friendly contacts only -- NOT victor) */
-const NPC_ORDER = ['maggie', 'rusty', 'diego', 'priya', 'bea', 'fiona'];
+const NPC_ORDER_BASE = ['maggie', 'rusty', 'diego', 'priya', 'bea', 'fiona'];
 
 /** Human-readable bonus descriptions (independent copy -- contacts panel) */
 const BONUS_DESCRIPTIONS = {
@@ -37,6 +37,11 @@ const BONUS_DESCRIPTIONS = {
   emergencySponsorship:'Emergency $3k bailout/season',
   rivalInsight:        'Weekly rival intel reports',
   reducedSabotage:     '-30% sabotage damage',
+  // Sully McCrankshaw
+  schemeAccess:        'Sully\'s Schemes panel unlocks',
+  betterOdds:          '+15% success rate on all schemes',
+  grandSlam:           'Tier 3 "Grand Slam" schemes unlock',
+  sullyInsurance:      'Scheme fail effects halved',
 };
 
 export class NPCContactsPanel {
@@ -79,14 +84,14 @@ export class NPCContactsPanel {
       overflow-y: auto;
       z-index: 35;
       background: rgba(10, 10, 30, 0.94);
-      border: 2px solid #8b4513;
+      border: 2px solid #1a2a4a;
       border-radius: 4px;
       font-family: monospace;
       color: #d0d0e0;
       font-size: 14px;
-      box-shadow: 0 0 16px rgba(139,69,19,0.25);
+      box-shadow: 0 0 16px rgba(26,42,74,0.25);
       scrollbar-width: thin;
-      scrollbar-color: #8b4513 #111;
+      scrollbar-color: #1a2a4a #111;
     `;
     this._render();
     this.container.appendChild(this._el);
@@ -113,13 +118,13 @@ export class NPCContactsPanel {
     header.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
       padding: 8px 10px;
-      border-bottom: 1px solid #8b4513;
+      border-bottom: 1px solid #1a2a4a;
       background: rgba(139, 69, 19, 0.1);
     `;
     header.innerHTML = `
       <span style="color:#ffec27;font-size:14px;letter-spacing:2px">\u{1f4fb} STADIUM RADIO</span>
       <div style="display:flex;align-items:center;gap:6px">
-        <span data-action="giftshop" style="cursor:pointer;color:#c8a84e;font-size:12px;padding:0 2px;border:1px solid #8b4513;border-radius:2px;padding:4px 5px" title="Gift Shop">\u{1f381} Gifts</span>
+        <span data-action="giftshop" style="cursor:pointer;color:#c8a84e;font-size:12px;padding:0 2px;border:1px solid #1a2a4a;border-radius:2px;padding:4px 5px" title="Gift Shop">\u{1f381} Gifts</span>
         <span data-action="close" style="cursor:pointer;color:#888;font-size:14px;padding:0 2px" title="Close">\u2715</span>
       </div>
     `;
@@ -142,6 +147,10 @@ export class NPCContactsPanel {
     // NPC rows
     const list = document.createElement('div');
     list.style.cssText = 'padding: 6px 0;';
+
+    // Build NPC order: add Sully conditionally
+    const NPC_ORDER = [...NPC_ORDER_BASE];
+    if (this.state.storyFlags?.sullyUnlocked) NPC_ORDER.push('sully');
 
     for (const npcId of NPC_ORDER) {
       const npc = NPC_DATA[npcId];
@@ -227,6 +236,21 @@ export class NPCContactsPanel {
     }
 
     row.appendChild(btn);
+
+    // Sully: add "Schemes" button when schemeAccess is active
+    if (npcId === 'sully' && this.state.storyFlags?.schemeAccess) {
+      const schemeBtn = document.createElement('button');
+      schemeBtn.style.cssText = 'flex-shrink:0;background:#1a2a4a;color:#fff;border:1px solid #a0522d;padding:5px 6px;font-family:monospace;font-size:10px;cursor:pointer;border-radius:2px;white-space:nowrap;margin-left:3px';
+      schemeBtn.textContent = '\u{1f3af}';
+      schemeBtn.title = 'Sully\'s Schemes';
+      schemeBtn.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        this.eventBus.emit('ui:click');
+        this.eventBus.emit('ui:toggleSchemes');
+      });
+      row.appendChild(schemeBtn);
+    }
+
     return row;
   }
 

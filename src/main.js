@@ -19,6 +19,7 @@ import { ProgressionSystem } from './systems/ProgressionSystem.js';
 import { StorySystem } from './systems/StorySystem.js';
 import { StaffSystem } from './systems/StaffSystem.js';
 import { RivalSystem } from './systems/RivalSystem.js';
+import { SchemesSystem } from './systems/SchemesSystem.js';
 import { MediaSystem } from './systems/MediaSystem.js';
 import { ResearchSystem } from './systems/ResearchSystem.js';
 import { ConsequenceSystem } from './systems/ConsequenceSystem.js';
@@ -44,6 +45,7 @@ import { EconomyPanel } from './ui/EconomyPanel.js';
 import { ObjectivesPanel } from './ui/ObjectivesPanel.js';
 import { NPCContactsPanel } from './ui/NPCContactsPanel.js';
 import { GiftShopPanel } from './ui/GiftShopPanel.js';
+import { SchemesPanel } from './ui/SchemesPanel.js';
 import { MiniGame } from './ui/MiniGame.js';
 import { SettingsPanel } from './ui/SettingsPanel.js';
 import { HelpPanel } from './ui/HelpPanel.js';
@@ -90,10 +92,10 @@ function init() {
   const consequenceRenderer = new ConsequenceRenderer();
   tileMap.setConsequenceRenderer(consequenceRenderer);
   const particles = new ParticleSystem();
-  const floatingText = new FloatingTextSystem();
+  const floatingText = new FloatingTextSystem(uiOverlay, PIXEL_SCALE);
   const screenShake = new ScreenShake();
   const screenFlash = new ScreenFlash();
-  const incomeBreakdown = new IncomeBreakdown(eventBus);
+  const incomeBreakdown = new IncomeBreakdown(eventBus, uiOverlay, PIXEL_SCALE);
   const eventBanner = new EventBanner(eventBus, uiOverlay);
 
   // Crowd system (walking characters in each zone)
@@ -154,6 +156,7 @@ function init() {
   const staffSystem = new StaffSystem(state, eventBus);
   const rival = new RivalSystem(state, eventBus);
   state._rivalSystem = rival;
+  const schemes = new SchemesSystem(state, eventBus);
   const media = new MediaSystem(state, eventBus);
   const research = new ResearchSystem(state, eventBus);
   const consequences = new ConsequenceSystem(state, eventBus);
@@ -201,6 +204,7 @@ function init() {
   const objectivesPanel = new ObjectivesPanel(uiOverlay, state, eventBus);
   const contactsPanel = new NPCContactsPanel(uiOverlay, state, eventBus);
   const giftShopPanel = new GiftShopPanel(uiOverlay, state, eventBus);
+  const schemesPanel = new SchemesPanel(uiOverlay, state, eventBus, schemes);
   const statsPanel = new StatsPanel(uiOverlay, state, eventBus);
   const achievementPanel = new AchievementPanel(uiOverlay, state, eventBus);
   const seasonSummaryPanel = new SeasonSummaryPanel(uiOverlay, state, eventBus);
@@ -478,7 +482,7 @@ function init() {
     }
   });
 
-  const systems = [filtration, consequences, economy, events, progression, story, staffSystem, rival, media, research, marketSystem];
+  const systems = [filtration, consequences, economy, events, progression, story, staffSystem, rival, schemes, media, research, marketSystem];
 
   // Game loop callbacks
   function update(dt) {
@@ -580,7 +584,8 @@ function init() {
     if (health) {
       const worstScore = Math.min(
         health.air ?? 100, health.water ?? 100,
-        health.hvac ?? 100, health.drainage ?? 100
+        health.hvac ?? 100, health.drainage ?? 100,
+        health.electrical ?? 100, health.pest ?? 100
       );
       if (worstScore < 25) {
         // Critical: pulsing red vignette border
@@ -779,7 +784,7 @@ function init() {
   });
 
   // Expose core references for debugging
-  window.__game = { state, eventBus, loop, saveLoad, menus, particles, floatingText, screenShake, screenFlash, tileMap, staffSystem, rival, media, story, research, zoneManager, consequences, prestige, filtration };
+  window.__game = { state, eventBus, loop, saveLoad, menus, particles, floatingText, screenShake, screenFlash, tileMap, staffSystem, rival, schemes, media, story, research, zoneManager, consequences, prestige, filtration };
 
   eventBus.emit('game:init', { config: GAME_CONFIG });
   loop.start();

@@ -69,8 +69,8 @@ function renderJournal(el, state, eventBus, sprites, data) {
   header.style.cssText = `
     display: flex; justify-content: space-between; align-items: center;
     margin: -8px -12px 8px; padding: 8px 12px;
-    border-bottom: 2px solid #8b4513;
-    background: linear-gradient(180deg,rgba(139,69,19,0.15),rgba(0,0,0,0.3));
+    border-bottom: 2px solid #1a2a4a;
+    background: linear-gradient(180deg,rgba(26,42,74,0.15),rgba(0,0,0,0.3));
   `;
   header.innerHTML = `
     <strong style="color:#ff77a8;letter-spacing:1px">\u{1f4d3} HANK'S JOURNAL</strong>

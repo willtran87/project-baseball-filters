@@ -132,7 +132,7 @@ export class GuidedTutorial {
     this._bannerEl.id = 'guided-tutorial-banner';
     this._bannerEl.style.cssText = `
       position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.85); border: 1px solid #8b4513; border-radius: 3px;
+      background: rgba(0,0,0,0.85); border: 1px solid #1a2a4a; border-radius: 3px;
       padding: 6px 16px; font: 10px monospace; color: #d0d0e0; z-index: 45;
       text-align: center; pointer-events: auto;
       transition: opacity 0.3s ease;
@@ -160,7 +160,7 @@ export class GuidedTutorial {
 
     const step = STEPS[this._currentStep];
     this._bannerEl.style.opacity = '1';
-    this._bannerEl.style.borderColor = '#8b4513';
+    this._bannerEl.style.borderColor = '#1a2a4a';
     const isLast = this._currentStep >= STEPS.length - 1;
     this._bannerEl.innerHTML = `
       <div style="color:#ffec27;font-size:11px;margin-bottom:3px;letter-spacing:1px">${step.title}</div>
@@ -249,7 +249,7 @@ export class GuidedTutorial {
     `;
 
     setTimeout(() => {
-      this._bannerEl.style.borderColor = '#8b4513';
+      this._bannerEl.style.borderColor = '#1a2a4a';
       onDone();
     }, 800);
   }

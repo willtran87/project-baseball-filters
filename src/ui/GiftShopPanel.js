@@ -12,7 +12,7 @@ import { GIFT_ITEMS, GIFT_COOLDOWN_DEFAULT } from '../data/giftData.js';
 import { NPC_DATA } from '../data/storyData.js';
 
 /** Friendly NPCs only (same order as NPCContactsPanel). */
-const NPC_ORDER = ['maggie', 'rusty', 'diego', 'priya', 'bea', 'fiona'];
+const NPC_ORDER_BASE = ['maggie', 'rusty', 'diego', 'priya', 'bea', 'fiona'];
 
 /** Simple NPC emoji portraits for the selector cards. */
 const NPC_EMOJIS = {
@@ -22,6 +22,7 @@ const NPC_EMOJIS = {
   priya:  '\uD83D\uDCF0',
   bea:    '\uD83D\uDCCB',
   fiona:  '\uD83D\uDCCA',
+  sully:  '\uD83D\uDD75\uFE0F',
 };
 
 export class GiftShopPanel {
@@ -62,7 +63,7 @@ export class GiftShopPanel {
 
     // Default selection to first NPC
     if (!this._selectedNpc) {
-      this._selectedNpc = NPC_ORDER[0];
+      this._selectedNpc = this._getNpcOrder()[0];
     }
 
     this._el = document.createElement('div');
@@ -77,14 +78,14 @@ export class GiftShopPanel {
       overflow-y: auto;
       z-index: 35;
       background: rgba(10, 10, 30, 0.96);
-      border: 2px solid #8b4513;
+      border: 2px solid #1a2a4a;
       border-radius: 4px;
       font-family: monospace;
       color: #d0d0e0;
       font-size: 14px;
-      box-shadow: 0 0 24px rgba(139,69,19,0.3);
+      box-shadow: 0 0 24px rgba(26,42,74,0.3);
       scrollbar-width: thin;
-      scrollbar-color: #8b4513 #111;
+      scrollbar-color: #1a2a4a #111;
     `;
     this._render();
     this.container.appendChild(this._el);
@@ -113,7 +114,7 @@ export class GiftShopPanel {
     header.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
       padding: 8px 12px;
-      border-bottom: 1px solid #8b4513;
+      border-bottom: 1px solid #1a2a4a;
       background: rgba(139, 69, 19, 0.1);
     `;
     header.innerHTML = `
@@ -149,7 +150,7 @@ export class GiftShopPanel {
     col.style.cssText = `
       width: 160px;
       flex-shrink: 0;
-      border-right: 1px solid #8b4513;
+      border-right: 1px solid #1a2a4a;
       padding: 8px 0;
       overflow-y: auto;
     `;
@@ -159,7 +160,7 @@ export class GiftShopPanel {
     label.textContent = 'Give gift to...';
     col.appendChild(label);
 
-    for (const npcId of NPC_ORDER) {
+    for (const npcId of this._getNpcOrder()) {
       const npc = NPC_DATA[npcId];
       if (!npc) continue;
       const card = this._buildNpcCard(npcId, npc);
@@ -167,6 +168,12 @@ export class GiftShopPanel {
     }
 
     return col;
+  }
+
+  _getNpcOrder() {
+    const order = [...NPC_ORDER_BASE];
+    if (this.state.storyFlags?.sullyUnlocked) order.push('sully');
+    return order;
   }
 
   _buildNpcCard(npcId, npc) {

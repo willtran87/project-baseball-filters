@@ -74,7 +74,7 @@ export class HelpPanel {
       <div style="display:flex;gap:24px;flex-wrap:wrap">
         <!-- Controls Section -->
         <div style="flex:1;min-width:220px">
-          <div style="color:#8b4513;font-size:11px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">KEYBOARD SHORTCUTS</div>
+          <div style="color:#1a2a4a;font-size:11px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">KEYBOARD SHORTCUTS</div>
           <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 0;font-size:12px;line-height:1.6">
             ${shortcutRows}
           </div>
@@ -82,7 +82,7 @@ export class HelpPanel {
 
         <!-- Quick Reference Section -->
         <div style="flex:1;min-width:200px">
-          <div style="color:#8b4513;font-size:11px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">QUICK REFERENCE</div>
+          <div style="color:#1a2a4a;font-size:11px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">QUICK REFERENCE</div>
           <div style="font-size:12px;color:#c0c0d0;line-height:1.8">
             <div style="margin-bottom:6px">
               <span style="color:#29adff;font-weight:bold">Filtration Domains</span><br>

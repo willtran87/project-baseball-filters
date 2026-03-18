@@ -240,7 +240,7 @@ export class MobileAdapter {
       bottom: 0; left: 0; right: 0;
       height: 40px;
       background: linear-gradient(0deg, #0d0d1a 0%, #1a1a2e 100%);
-      border-top: 2px solid #8b4513;
+      border-top: 2px solid #1a2a4a;
       display: flex;
       justify-content: space-evenly;
       align-items: center;

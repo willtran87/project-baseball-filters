@@ -381,10 +381,12 @@ export class ParticleSystem {
  * FloatingText — Rising text popups for +$, -$, +rep, damage numbers.
  *
  * Text floats upward and fades out over its lifetime.
- * Rendered on the canvas at world coordinates.
+ * Rendered as HTML overlays for crisp text at any zoom level.
  */
 export class FloatingTextSystem {
-  constructor() {
+  constructor(container, scale) {
+    this._container = container;
+    this._scale = scale;
     this._texts = [];
     this._maxTexts = 20;
   }
@@ -392,23 +394,30 @@ export class FloatingTextSystem {
   /**
    * Spawn a floating text popup.
    * @param {string} text - Text to display (e.g. "+$500", "-3 REP")
-   * @param {number} x - World X position
-   * @param {number} y - World Y position
+   * @param {number} x - World X position (canvas coords)
+   * @param {number} y - World Y position (canvas coords)
    * @param {string} color - Text color
    * @param {number} [life=1.5] - Duration in seconds
    */
   add(text, x, y, color = '#fff', life = 1.5) {
     if (this._texts.length >= this._maxTexts) {
-      this._texts.shift();
+      const removed = this._texts.shift();
+      removed.el.remove();
     }
+    const el = document.createElement('div');
+    el.textContent = text;
+    el.style.cssText = `
+      position:absolute;pointer-events:none;z-index:15;white-space:nowrap;
+      font-family:'Press Start 2P',monospace;font-size:9px;
+      color:${color};
+      text-shadow:-1px 0 #000,1px 0 #000,0 -1px #000,0 1px #000;
+      transform:translateX(-50%);
+    `;
+    this._container.appendChild(el);
     this._texts.push({
-      text,
-      x: x + (Math.random() - 0.5) * 8, // slight random offset to prevent overlap
-      y,
-      color,
-      life,
-      maxLife: life,
-      vy: -18, // float upward speed
+      x: x + (Math.random() - 0.5) * 8,
+      y, color, life, maxLife: life,
+      vy: -18, el,
     });
   }
 
@@ -417,9 +426,9 @@ export class FloatingTextSystem {
       const t = this._texts[i];
       t.y += t.vy * dt;
       t.life -= dt;
-      // Decelerate upward movement
       t.vy *= 0.97;
       if (t.life <= 0) {
+        t.el.remove();
         this._texts[i] = this._texts[this._texts.length - 1];
         this._texts.pop();
       }
@@ -427,26 +436,19 @@ export class FloatingTextSystem {
   }
 
   render(renderer) {
+    const cx = renderer.cameraX;
+    const cy = renderer.cameraY;
+    const s = this._scale;
     for (const t of this._texts) {
       const alpha = Math.max(0, t.life / t.maxLife);
-      renderer.save();
-      renderer.setAlpha(alpha);
-      // Solid black background rect for crisp readability
-      const ctx = renderer.ctx;
-      ctx.font = '8px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      const w = ctx.measureText(t.text).width;
-      const tx = Math.floor(t.x);
-      const ty = Math.floor(t.y);
-      renderer.drawRect(tx - Math.ceil(w / 2) - 1, ty - 1, w + 2, 10, '#000');
-      // Main text
-      renderer.drawText(t.text, tx, ty, { color: t.color, size: 8, align: 'center' });
-      renderer.restore();
+      t.el.style.left = `${(t.x - cx) * s}px`;
+      t.el.style.top = `${(t.y - cy) * s}px`;
+      t.el.style.opacity = alpha;
     }
   }
 
   clear() {
+    for (const t of this._texts) t.el.remove();
     this._texts.length = 0;
   }
 }
@@ -568,20 +570,21 @@ export class ScreenShake {
  *
  * On `economy:inningEnd`, displays a vertical cascade of income/expense items
  * near the HUD area for a few seconds.
+ * Rendered as HTML overlays for crisp text.
  */
 export class IncomeBreakdown {
-  constructor(eventBus) {
-    this._items = []; // { text, color, x, y, life, maxLife, delay }
+  constructor(eventBus, container, scale) {
+    this._items = [];
     this._eventBus = eventBus;
+    this._container = container;
+    this._scale = scale;
 
     eventBus.on('economy:inningEnd', (data) => this._onInningEnd(data));
   }
 
   _onInningEnd(data) {
-    // Build line items from economy data for detailed floating breakdown
     const lines = [];
 
-    // Income lines (green) — show specific revenue sources
     const ticketIncome = data.ticketIncome ?? 0;
     const concessionIncome = data.concessionIncome ?? 0;
     if (ticketIncome > 0) {
@@ -590,12 +593,10 @@ export class IncomeBreakdown {
     if (concessionIncome > 0) {
       lines.push({ text: `+$${concessionIncome.toLocaleString()} Concessions`, color: '#00e436' });
     }
-    // Fallback: if specific breakdowns not available, show total income
     if (lines.length === 0 && data.income > 0) {
       lines.push({ text: `+$${Math.floor(data.income).toLocaleString()} Income`, color: '#00e436' });
     }
 
-    // Expense line (red) — combined maintenance/staff/energy as "Maintenance"
     const maintenance = (data.maintenance ?? 0) + (data.staffCost ?? 0) + (data.energyCost ?? 0);
     if (maintenance > 0) {
       lines.push({ text: `-$${maintenance.toLocaleString()} Maintenance`, color: '#ff004d' });
@@ -603,19 +604,28 @@ export class IncomeBreakdown {
       lines.push({ text: `-$${Math.floor(data.expenses).toLocaleString()} Expenses`, color: '#ff004d' });
     }
 
-    // Position as vertical cascade starting near top of screen
-    const baseX = 70;  // screen-space X (left area, clear of HUD)
-    const baseY = 26;  // below the top HUD bar
+    const baseX = 70;
+    const baseY = 26;
     for (let i = 0; i < lines.length; i++) {
+      const el = document.createElement('div');
+      el.textContent = lines[i].text;
+      el.style.cssText = `
+        position:absolute;pointer-events:none;z-index:15;white-space:nowrap;
+        font-family:'Press Start 2P',monospace;font-size:8px;
+        color:${lines[i].color};
+        text-shadow:-1px 0 #000,1px 0 #000,0 -1px #000,0 1px #000;
+        opacity:0;
+      `;
+      this._container.appendChild(el);
       this._items.push({
-        text: lines[i].text,
         color: lines[i].color,
         x: baseX,
         y: baseY + i * 11,
         life: 2.8,
         maxLife: 2.8,
-        delay: i * 0.2, // stagger each line by 200ms
+        delay: i * 0.2,
         vy: -6,
+        el,
       });
     }
   }
@@ -631,6 +641,7 @@ export class IncomeBreakdown {
       item.vy *= 0.98;
       item.life -= dt;
       if (item.life <= 0) {
+        item.el.remove();
         this._items[i] = this._items[this._items.length - 1];
         this._items.pop();
       }
@@ -638,26 +649,18 @@ export class IncomeBreakdown {
   }
 
   render(renderer) {
+    const s = this._scale;
     for (const item of this._items) {
       if (item.delay > 0) continue;
       const alpha = Math.max(0, item.life / item.maxLife);
-      renderer.save();
-      renderer.setAlpha(alpha);
-      // Solid black background rect for crisp readability
-      const ctx = renderer.ctx;
-      ctx.font = '7px monospace';
-      ctx.textAlign = 'left';
-      ctx.textBaseline = 'top';
-      const w = ctx.measureText(item.text).width;
-      const ix = Math.floor(item.x);
-      const iy = Math.floor(item.y);
-      renderer.drawRect(ix - 1, iy - 1, w + 2, 9, '#000');
-      renderer.drawText(item.text, ix, iy, { color: item.color, size: 7, align: 'left' });
-      renderer.restore();
+      item.el.style.left = `${item.x * s}px`;
+      item.el.style.top = `${item.y * s}px`;
+      item.el.style.opacity = alpha;
     }
   }
 
   clear() {
+    for (const item of this._items) item.el.remove();
     this._items.length = 0;
   }
 }
@@ -704,7 +707,7 @@ export class EventBanner {
 
   _getDomainColor(domain) {
     const colors = { air: '#cccccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44', electrical: '#ffcc00', pest: '#cc44cc' };
-    return colors[domain] ?? '#8b4513';
+    return colors[domain] ?? '#1a2a4a';
   }
 
   /**

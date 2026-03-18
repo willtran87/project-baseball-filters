@@ -38,13 +38,13 @@ export class PrestigeMenu {
     this._el.style.cssText = `
       position: absolute; top: 24px; left: 8%; right: 8%; bottom: 24px;
       background: linear-gradient(180deg, rgba(15,10,5,0.97), rgba(8,8,24,0.97));
-      border: 2px solid #8b4513;
+      border: 2px solid #1a2a4a;
       border-radius: 4px;
       font-family: monospace; color: #e0e0e0;
       font-size: 14px; z-index: 30;
       display: flex; flex-direction: column;
       overflow: hidden;
-      box-shadow: 0 0 20px rgba(139,69,19,0.2);
+      box-shadow: 0 0 20px rgba(26,42,74,0.2);
     `;
     this._render();
     this.container.appendChild(this._el);
@@ -123,11 +123,11 @@ export class PrestigeMenu {
       <div style="
         display:flex;justify-content:space-between;align-items:center;
         padding:8px 12px;border-bottom:1px solid #333;
-        background:rgba(139,69,19,0.08);flex-shrink:0;
+        background:rgba(26,42,74,0.08);flex-shrink:0;
       ">
         <div>
           <span style="color:#ffec27;font-size:14px;letter-spacing:2px;font-weight:bold">LEGACY HALL</span>
-          <span style="color:#8b4513;font-size:10px;margin-left:6px;letter-spacing:1px">PRESTIGE</span>
+          <span style="color:#1a2a4a;font-size:10px;margin-left:6px;letter-spacing:1px">PRESTIGE</span>
         </div>
         <button data-action="close" style="
           background:transparent;color:#888;border:1px solid #444;
@@ -141,7 +141,7 @@ export class PrestigeMenu {
 
         <!-- Section 1: Legacy Points -->
         <div style="text-align:center;margin-bottom:14px;padding:8px;background:rgba(0,0,0,0.3);border-radius:3px;border:1px solid #333">
-          <div style="font-size:10px;color:#8b4513;letter-spacing:2px;margin-bottom:4px">LEGACY POINTS</div>
+          <div style="font-size:10px;color:#1a2a4a;letter-spacing:2px;margin-bottom:4px">LEGACY POINTS</div>
           <div style="font-size:22px;color:#ffec27;letter-spacing:1px">${data.legacyPoints}</div>
           <div style="font-size:10px;color:#666;margin-top:2px">
             Career Total: ${careerGames} game${careerGames !== 1 ? 's' : ''} played
@@ -150,7 +150,7 @@ export class PrestigeMenu {
 
         <!-- Section 2: Active Perks -->
         <div style="margin-bottom:14px">
-          <div style="color:#8b4513;font-size:11px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #2a2a2a;padding-bottom:5px">
+          <div style="color:#1a2a4a;font-size:11px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #2a2a2a;padding-bottom:5px">
             ACTIVE PERKS (${activePerks.length})
           </div>
           ${activePerksHtml}
@@ -158,7 +158,7 @@ export class PrestigeMenu {
 
         <!-- Section 3: Available Unlocks -->
         <div style="margin-bottom:14px">
-          <div style="color:#8b4513;font-size:11px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #2a2a2a;padding-bottom:5px">
+          <div style="color:#1a2a4a;font-size:11px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #2a2a2a;padding-bottom:5px">
             AVAILABLE UNLOCKS
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
@@ -168,7 +168,7 @@ export class PrestigeMenu {
 
         <!-- Section 4: Career Stats -->
         <div style="margin-bottom:8px">
-          <div style="color:#8b4513;font-size:11px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #2a2a2a;padding-bottom:5px">
+          <div style="color:#1a2a4a;font-size:11px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #2a2a2a;padding-bottom:5px">
             CAREER STATS
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:11px">

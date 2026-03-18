@@ -57,13 +57,13 @@ export class TechTreePanel {
       el.style.cssText = `
         position: absolute; top: 20px; left: 5%; right: 5%; bottom: 20px;
         background: linear-gradient(180deg, rgba(10,8,20,0.97), rgba(8,8,24,0.97));
-        border: 2px solid #8b4513;
+        border: 2px solid #1a2a4a;
         border-radius: 4px;
         font-family: monospace; color: #e0e0e0;
         font-size: 11px; z-index: 30;
         display: flex; flex-direction: column;
         overflow: hidden;
-        box-shadow: 0 0 20px rgba(139,69,19,0.2);
+        box-shadow: 0 0 20px rgba(26,42,74,0.2);
       `;
       el._techStyled = true;
     }
@@ -74,8 +74,8 @@ export class TechTreePanel {
     html += `
       <div style="
         display: flex; justify-content: space-between; align-items: center;
-        padding: 8px 12px; border-bottom: 2px solid #8b4513;
-        background: linear-gradient(180deg,rgba(139,69,19,0.15),rgba(0,0,0,0.3));
+        padding: 8px 12px; border-bottom: 2px solid #1a2a4a;
+        background: linear-gradient(180deg,rgba(26,42,74,0.15),rgba(0,0,0,0.3));
       ">
         <strong style="color: #cc44cc; letter-spacing: 1px">\u{1f52c} STADIUM R&amp;D LAB</strong>
         <span style="color: #888">Balance: <span style="color: #00e436">$${state.money.toLocaleString()}</span></span>

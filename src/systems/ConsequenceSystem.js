@@ -549,6 +549,11 @@ export class ConsequenceSystem {
       teamPerf -= 0.1;
     }
 
+    // Apply sabotage penalties (stored separately so they survive recalculation)
+    revenueModifier *= (this.state._sabotageRevenueMod ?? 1.0);
+    attendanceModifier *= (this.state._sabotageAttendanceMod ?? 1.0);
+    teamPerf *= (this.state._sabotageTeamPerfMod ?? 1.0);
+
     // Clamp modifiers
     this.state.set('consequenceRevenueModifier', Math.max(0.5, Math.min(1.5, revenueModifier)));
     this.state.set('consequenceAttendanceModifier', Math.max(0.5, Math.min(1.5, attendanceModifier)));

@@ -759,8 +759,11 @@ export class FiltrationSystem {
       // Steam Forge: 15% reduced degradation for hvac and air domain filters
       const steamForgeMult = (hasSteamForge && (filter.domain === 'hvac' || filter.domain === 'air')) ? 0.85 : 1.0;
 
+      // Rival sabotage: hot dog flood accelerates degradation
+      const hotdogMult = this.state._hotdogDegradeMultiplier ?? 1.0;
+
       // Degrade condition over time (baseRate ensures filter lasts its intended lifespan)
-      filter.condition -= dt * baseRate * combinedDegradeMultiplier * weatherMult * staffSpecMult * weatherDomainStress * criticalSlowdown * contaminationMult * steamForgeMult;
+      filter.condition -= dt * baseRate * combinedDegradeMultiplier * weatherMult * staffSpecMult * weatherDomainStress * criticalSlowdown * contaminationMult * steamForgeMult * hotdogMult;
 
       const conditionRatio = filter.maxCondition > 0
         ? filter.condition / filter.maxCondition

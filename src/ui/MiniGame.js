@@ -159,12 +159,12 @@ export class MiniGame {
     const panel = document.createElement('div');
     panel.style.cssText = `
       background: linear-gradient(180deg, rgba(15,10,5,0.97), rgba(8,8,24,0.97));
-      border: 2px solid #8b4513;
+      border: 2px solid #1a2a4a;
       border-radius: 4px;
       padding: 8px;
       display: flex; flex-direction: column;
       align-items: center;
-      box-shadow: 0 0 20px rgba(139,69,19,0.3);
+      box-shadow: 0 0 20px rgba(26,42,74,0.3);
     `;
 
     // Title bar

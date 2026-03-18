@@ -33,7 +33,7 @@ export const GIFT_ITEMS = [
     cost: 250,
     relationshipBonus: 3,
     icon: '\u2615',
-    npcPreferences: { maggie: 1.5, rusty: 1.3 },
+    npcPreferences: { maggie: 1.5, rusty: 1.3, sully: 1.5 },
     cooldownDays: 3,
   },
   {
@@ -43,7 +43,7 @@ export const GIFT_ITEMS = [
     cost: 350,
     relationshipBonus: 3,
     icon: '\uD83C\uDCCF',
-    npcPreferences: { diego: 2.0, rusty: 1.5 },
+    npcPreferences: { diego: 2.0, rusty: 1.5, sully: 2.0 },
     cooldownDays: 3,
   },
   {
@@ -53,7 +53,7 @@ export const GIFT_ITEMS = [
     cost: 300,
     relationshipBonus: 2,
     icon: '\uD83D\uDCD3',
-    npcPreferences: { priya: 1.5, bea: 1.3 },
+    npcPreferences: { priya: 1.5, bea: 1.3, sully: 0.5 },
     cooldownDays: 3,
   },
   {
@@ -63,7 +63,7 @@ export const GIFT_ITEMS = [
     cost: 200,
     relationshipBonus: 2,
     icon: '\uD83C\uDF7F',
-    npcPreferences: { diego: 1.3 },
+    npcPreferences: { diego: 1.3, sully: 1.3 },
     cooldownDays: 3,
   },
 
@@ -87,7 +87,7 @@ export const GIFT_ITEMS = [
     cost: 1000,
     relationshipBonus: 6,
     icon: '\uD83C\uDF9F\uFE0F',
-    npcPreferences: { priya: 2.0, fiona: 1.3 },
+    npcPreferences: { priya: 2.0, fiona: 1.3, sully: 0.3 },
     reputationReq: 30,
     cooldownDays: 5,
   },
@@ -110,6 +110,18 @@ export const GIFT_ITEMS = [
     relationshipBonus: 8,
     icon: '\uD83C\uDF77',
     npcPreferences: { bea: 1.5, fiona: 1.5 },
+    reputationReq: 30,
+    cooldownDays: 5,
+  },
+
+  {
+    id: 'walkie_talkie',
+    name: 'Surplus Walkie-Talkie',
+    description: 'A ruggedized two-way radio from a military surplus store. Perfect for covert operations.',
+    cost: 500,
+    relationshipBonus: 5,
+    icon: '\uD83D\uDCFB',
+    npcPreferences: { sully: 2.5 },
     reputationReq: 30,
     cooldownDays: 5,
   },

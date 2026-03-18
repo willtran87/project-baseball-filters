@@ -130,13 +130,13 @@ export class AchievementPanel {
     this._el.style.cssText = `
       position: absolute; top: 24px; left: 8%; right: 8%; bottom: 24px;
       background: linear-gradient(180deg, rgba(15,10,5,0.97), rgba(8,8,24,0.97));
-      border: 2px solid #8b4513;
+      border: 2px solid #1a2a4a;
       border-radius: 4px;
       font-family: monospace; color: #e0e0e0;
       font-size: 14px; z-index: 30;
       display: flex; flex-direction: column;
       overflow: hidden;
-      box-shadow: 0 0 20px rgba(139,69,19,0.2);
+      box-shadow: 0 0 20px rgba(26,42,74,0.2);
     `;
     this._render();
     this.container.appendChild(this._el);
@@ -180,13 +180,13 @@ export class AchievementPanel {
 
     // Header
     let html = `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #8b4513;background:rgba(139,69,19,0.08)">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #1a2a4a;background:rgba(26,42,74,0.08)">
         <span style="color:#ffec27;font-size:16px;letter-spacing:2px">ACHIEVEMENT GALLERY</span>
         <span data-action="close" style="cursor:pointer;color:#888;font-size:14px;padding:0 6px" title="Close">&#10005;</span>
       </div>
     `;
 
-    html += `<div style="flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#8b4513 #111;padding:8px 12px;">`;
+    html += `<div style="flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#1a2a4a #111;padding:8px 12px;">`;
 
     // Completion bar
     const barColor = pct >= 80 ? '#00e436' : pct >= 50 ? '#ffec27' : '#29adff';
@@ -224,7 +224,7 @@ export class AchievementPanel {
             <div style="padding:6px 8px;margin-bottom:3px;background:rgba(255,236,39,0.06);border-left:3px solid #ffec27;border-radius:2px">
               <div style="display:flex;justify-content:space-between;align-items:center">
                 <span style="color:#ffec27;font-size:12px">${m.name}</span>
-                <span style="color:#8b4513;font-size:10px">DAY ${s.gameDay ?? '?'}</span>
+                <span style="color:#1a2a4a;font-size:10px">DAY ${s.gameDay ?? '?'}</span>
               </div>
               <div style="color:#aaa;font-size:11px;margin-top:2px;font-style:italic">${m.description}</div>
             </div>

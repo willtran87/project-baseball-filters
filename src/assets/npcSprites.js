@@ -16,6 +16,7 @@ import { priya_curious, priya_excited, priya_concerned } from './portraits/priya
 import { bea_stern, bea_noting, bea_rare_smile } from './portraits/bea.js';
 import { diego_happy, diego_nervous, diego_pumped } from './portraits/diego.js';
 import { fiona_evaluating, fiona_interested, fiona_impressed } from './portraits/fiona.js';
+import { sully_neutral, sully_scheming, sully_excited, sully_caught } from './portraits/sully.js';
 
 // Palette shorthands for mini-portraits
 const _ = P._;
@@ -109,6 +110,17 @@ const mini_fiona = [
   [_,_,LG,LG,LG,LG,_,_],
 ];
 
+const mini_sully = [
+  [_,GY,GY,GY,GY,GY,GY,_],
+  [GY,GY,O,O,O,O,GY,GY],
+  [K,O,K,O,O,K,O,K],
+  [K,O,O,O,O,O,O,K],
+  [_,K,O,BR,BR,O,K,_],
+  [_,O,O,O,O,O,O,_],
+  [_,BR,BR,O,O,BR,BR,_],
+  [_,_,BR,BR,BR,BR,_,_],
+];
+
 // ================================================================
 // EXPORTS
 // ================================================================
@@ -152,6 +164,12 @@ export const NPC_PORTRAITS = {
     interested: fiona_interested,
     impressed: fiona_impressed,
   },
+  sully: {
+    neutral: sully_neutral,
+    scheming: sully_scheming,
+    excited: sully_excited,
+    caught: sully_caught,
+  },
 };
 
 export const NPC_MINI_PORTRAITS = {
@@ -162,6 +180,7 @@ export const NPC_MINI_PORTRAITS = {
   bea: mini_bea,
   diego: mini_diego,
   fiona: mini_fiona,
+  sully: mini_sully,
 };
 
 export default NPC_PORTRAITS;

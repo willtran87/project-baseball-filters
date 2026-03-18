@@ -64,13 +64,13 @@ export class ObjectivesPanel {
     this._el.style.cssText = `
       position: absolute; top: 24px; left: 8%; right: 8%; bottom: 24px;
       background: linear-gradient(180deg, rgba(15,10,5,0.97), rgba(8,8,24,0.97));
-      border: 2px solid #8b4513;
+      border: 2px solid #1a2a4a;
       border-radius: 4px;
       font-family: monospace; color: #e0e0e0;
       font-size: 14px; z-index: 30;
       display: flex; flex-direction: column;
       overflow: hidden;
-      box-shadow: 0 0 20px rgba(139,69,19,0.2);
+      box-shadow: 0 0 20px rgba(26,42,74,0.2);
     `;
     this._render();
     this.container.appendChild(this._el);
@@ -91,8 +91,8 @@ export class ObjectivesPanel {
 
     // --- Header ---
     const header = `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #8b4513;background:rgba(139,69,19,0.08)">
-        <span style="color:#ffec27;font-size:16px;letter-spacing:2px">\u{1f3c6} OBJECTIVES</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #1a2a4a;background:rgba(26,42,74,0.08)">
+        <span style="color:#ffec27;font-size:16px;letter-spacing:2px">\u{1f3c6} GAME PLAN</span>
         <span data-action="close" style="cursor:pointer;color:#888;font-size:14px;padding:0 6px" title="Close (O)">\u2715</span>
       </div>
     `;
@@ -340,7 +340,7 @@ export class ObjectivesPanel {
     if (rivalrySection) normalSections.push(rivalrySection);
 
     this._el.innerHTML = header + `
-      <div style="flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#8b4513 #111">
+      <div style="flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#1a2a4a #111">
         ${ultimateGoal}
         ${milestoneSection}
         ${urgentSections.join('')}

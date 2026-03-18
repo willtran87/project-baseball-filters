@@ -55,13 +55,13 @@ export class StaffPanel {
     this._el.style.cssText = `
       position: absolute; top: 24px; left: 8%; right: 8%; bottom: 24px;
       background: linear-gradient(180deg, rgba(10,15,25,0.97), rgba(8,8,24,0.97));
-      border: 2px solid #8b4513;
+      border: 2px solid #1a2a4a;
       border-radius: 4px;
       font-family: monospace; color: #e0e0e0;
       font-size: 14px; z-index: 30;
       display: flex; flex-direction: column;
       overflow: hidden;
-      box-shadow: 0 0 20px rgba(139,69,19,0.2);
+      box-shadow: 0 0 20px rgba(26,42,74,0.2);
     `;
     this._render();
     this.container.appendChild(this._el);
@@ -88,8 +88,8 @@ export class StaffPanel {
     if (!this._el) return;
 
     const header = `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #8b4513;background:linear-gradient(180deg,rgba(139,69,19,0.15),rgba(0,0,0,0.3))">
-        <strong style="color:#ffa300;letter-spacing:1px">\u{1f477} GROUNDS CREW ROSTER</strong>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #1a2a4a;background:linear-gradient(180deg,rgba(26,42,74,0.15),rgba(0,0,0,0.3))">
+        <strong style="color:#ffa300;letter-spacing:1px">\u{1f477} RAPTORS GROUNDS CREW</strong>
         <span style="color:#888">Staff: ${this.staffSystem.staff.length} | Wages: <span style="color:#ffa300">$${this.staffSystem.getTotalDailyWages()}/day</span></span>
         <span data-action="close-staff" style="cursor:pointer;color:#888;font-size:14px">\u2715</span>
       </div>

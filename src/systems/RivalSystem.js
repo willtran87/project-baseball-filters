@@ -20,8 +20,8 @@ import { VICTOR_TAUNTS, VICTOR_FRUSTRATIONS, RIVAL_SEASON_AWARDS, NPC_DATA } fro
 const SABOTAGE_TYPES = [
   {
     id: 'supplyDisruption',
-    name: 'Supply Chain Disruption',
-    description: 'Victor disrupted your supply chain -- filter costs increased!',
+    name: 'The Great Filter Heist',
+    description: 'Victor hijacked your filter deliveries — costs are through the roof!',
     repRange: [30, 100],
     effect: (state) => {
       state._supplyCostDays = 5;
@@ -30,8 +30,8 @@ const SABOTAGE_TYPES = [
   },
   {
     id: 'bribeInspector',
-    name: 'Inspector Bribe',
-    description: 'Victor bribed the health inspector -- next inspection will be stricter!',
+    name: 'Umpire\'s Bad Call',
+    description: 'Victor wined and dined the health inspector — expect a brutal visit!',
     repRange: [40, 100],
     effect: (state) => {
       state._nextInspectionPenalty = 0.7;
@@ -39,22 +39,21 @@ const SABOTAGE_TYPES = [
   },
   {
     id: 'poachStaff',
-    name: 'Staff Poaching',
-    description: 'Victor is trying to recruit one of your staff members!',
+    name: 'Free Agent Tampering',
+    description: 'Victor is sweet-talking your crew with promises of greener dugouts!',
     repRange: [50, 100],
     effect: (state) => {
       const staffList = state.staffList ?? [];
       if (staffList.length === 0) return;
-      // Find lowest morale staff member
       let target = staffList[0];
       for (const s of staffList) {
         if ((s.morale ?? 50) < (target.morale ?? 50)) target = s;
       }
-      // 50% chance they leave
       if (Math.random() < 0.5) {
         const idx = staffList.indexOf(target);
         if (idx >= 0) {
           staffList.splice(idx, 1);
+          state.staffCount = staffList.length;
           state._lastPoachedStaff = target.name ?? 'a staff member';
         }
       }
@@ -62,8 +61,8 @@ const SABOTAGE_TYPES = [
   },
   {
     id: 'smearCampaign',
-    name: 'Smear Campaign',
-    description: 'Victor planted negative stories in the press -- reputation taking a hit!',
+    name: 'Dugout Dirt',
+    description: 'Victor planted hit pieces in the press — your name is mud!',
     repRange: [60, 100],
     effect: (state) => {
       state._smearCampaignDays = 3;
@@ -71,12 +70,75 @@ const SABOTAGE_TYPES = [
   },
   {
     id: 'infrastructureStress',
-    name: 'Infrastructure Stress',
-    description: 'Victor sabotaged your infrastructure -- system health declining!',
+    name: 'Mascot Mischief',
+    description: 'Victor\'s goons went to town on your equipment — things are falling apart!',
     repRange: [30, 100],
     effect: (state, targetDomain) => {
       state._infraStressDomain = targetDomain ?? 'water';
       state._infraStressDays = 3;
+    },
+  },
+  {
+    id: 'hotdogFlood',
+    name: 'The Weiner Incident',
+    description: 'Someone crammed ten thousand hot dogs into your drainage system. It\'s... bad.',
+    repRange: [30, 100],
+    effect: (state) => {
+      // All filters degrade 15% faster for 4 days
+      state._hotdogFloodDays = 4;
+      state._hotdogDegradeMultiplier = 1.15;
+    },
+  },
+  {
+    id: 'cursedBobblehead',
+    name: 'The Cursed Bobblehead',
+    description: 'A mysterious bobblehead appeared in the dugout. The team can\'t stop staring at it.',
+    repRange: [40, 100],
+    effect: (state) => {
+      // Team performance tanks for 3 days (stored as separate sabotage mod so ConsequenceSystem doesn't overwrite)
+      state._cursedBobbleDays = 3;
+      state._sabotageTeamPerfMod = 0.85;
+    },
+  },
+  {
+    id: 'sprinklerPrank',
+    name: 'Sprinkler Surprise',
+    description: 'Every sprinkler in the stadium just went off during a sold-out game. Classic Victor.',
+    repRange: [35, 100],
+    effect: (state) => {
+      // Attendance hit for 3 days (stored as separate sabotage mod so ConsequenceSystem doesn't overwrite)
+      state._sprinklerPrankDays = 3;
+      state._sabotageAttendanceMod = 0.88;
+    },
+  },
+  {
+    id: 'organSwap',
+    name: 'Rally Organ Ransom',
+    description: 'Victor stole the rally organ and replaced it with a kazoo. Fan morale is in freefall.',
+    repRange: [50, 100],
+    effect: (state) => {
+      // Revenue hit for 5 days (stored as separate sabotage mod so ConsequenceSystem doesn't overwrite)
+      state._organSwapDays = 5;
+      state._sabotageRevenueMod = 0.90;
+    },
+  },
+  {
+    id: 'baseballGremlins',
+    name: 'Gremlin Infestation',
+    description: 'Tiny creatures in Grizzlies jerseys are chewing through wires and stealing bolts.',
+    repRange: [45, 100],
+    effect: (state) => {
+      // Random filter takes heavy damage
+      const filters = state.filters ?? [];
+      const active = filters.filter(f => f.condition > 0);
+      if (active.length > 0) {
+        const victim = active[Math.floor(Math.random() * active.length)];
+        victim.condition = Math.max(0, victim.condition - victim.maxCondition * 0.4);
+        state._gremlinVictimId = victim.id;
+        state._gremlinVictimDomain = victim.domain ?? 'unknown';
+      }
+      // Also minor all-domain health hit
+      state._gremlinDays = 2;
     },
   },
 ];
@@ -141,16 +203,71 @@ const SABOTAGE_FLAVOR = {
     'Maintenance found a note duct-taped to your {domain} mainline reading: "Sorry about your system. Actually, no I\'m not. — Hugs, Victor."',
     'Every gauge on your {domain} system was replaced with a novelty gauge that only reads "GLENDALE IS BETTER." Actual readings unavailable for days.',
   ],
+  hotdogFlood: [
+    'Maintenance opened the drainage access panel and was immediately hit by an avalanche of ballpark franks. The tunnel is six inches deep in processed meat.',
+    'The hot dog vendor swears he didn\'t do it. Security footage shows a man in a Grizzlies windbreaker backing a U-Haul full of Oscar Mayers up to the service entrance at 4 AM.',
+    'Your drainage system has been declared a biohazard. A plumber took one look, said "absolutely not," and walked to his car. He was last seen driving toward Glendale.',
+    'Fans are reporting a "meaty aroma" in the concourse. The source: 10,000 hot dogs packed into every pipe, vent, and duct Victor\'s guys could access overnight.',
+    'The fire department was called when your sprinklers started shooting mustard. Turns out someone replaced the water main connection with a condiment line from the concession stand.',
+    'A note was found in the mechanical room: "Ridgemont: Where every pipe is a hot dog pipe. You\'re welcome. — V." The plumbing concurs.',
+    'Your filters are clogged with what the lab describes as "a proprietary blend of mystery meat, relish, and stadium-grade hubris." Degradation accelerating.',
+    'An anonymous food delivery of 10,000 hot dogs was addressed to "The Ridgemont Pipes, c/o Nobody Will Ever Find These." Victor was seen at a bulk meat wholesaler yesterday.',
+  ],
+  cursedBobblehead: [
+    'The bobblehead has Victor\'s face, glowing red eyes, and a plaque reading "YOU WILL LOSE." The team refuses to take the field until it stops nodding.',
+    'Three players have reported the bobblehead "moved" overnight. The equipment manager tried to throw it away twice. It keeps coming back. The team is rattled.',
+    'The cursed bobblehead\'s head fell off during batting practice. Inside: a tiny speaker playing Victor whispering "strikeout" on a loop. Team morale plummeting.',
+    'The bobblehead was confiscated and locked in a safe. The safe was found open the next morning with the bobblehead sitting on top, nodding. The team has started a prayer circle.',
+    'A sports psychologist was hired to address the "bobblehead situation." She lasted two hours before requesting a transfer to Glendale. The bobblehead nodded approvingly.',
+    'Someone put a tiny Grizzlies cap on the bobblehead overnight. It now nods 30% faster. The team lost three straight. Coincidence? The bobblehead says no.',
+    'The groundskeeper tried to bury the bobblehead under home plate. It was back on the dugout bench by first pitch. It was wearing sunglasses this time.',
+    'An exorcist was consulted. He took one look at the bobblehead, said "that\'s a Victor Harrison original — I can\'t help you," and left his business card with Glendale.',
+  ],
+  sprinklerPrank: [
+    'Every sprinkler in the stadium activated simultaneously during the 7th inning stretch. 15,000 soaking wet fans are demanding refunds. Victor was seen in the parking lot with binoculars.',
+    'The sprinkler control panel was rewired to a big red button labeled "DO NOT PRESS" left in the mascot\'s dressing room. The mascot pressed it. Of course he pressed it.',
+    'Your field sprinklers spelled out "GO GRIZZLIES" in water before soaking the entire infield. The grounds crew is inconsolable. The visiting team thinks it\'s hilarious.',
+    'Someone set the sprinklers to activate every time your team scores. Your team scored 8 runs. The stadium is now a water park. Fans are using programs as umbrellas.',
+    'The luxury suites got it worst — the sprinklers up there were modified to spray Glendale-branded sports drinks. The carpets are ruined. The drink was grape flavored.',
+    'The outfield sprinklers created a geyser that launched a hot dog vendor\'s cart 15 feet in the air. No injuries, but the mustard stains on the scoreboard are permanent.',
+    'Maintenance found the sprinkler timer set to "Maximum Chaos" — a setting that doesn\'t exist on the original hardware. Someone soldered it in. It has a Glendale logo.',
+    'The press box sprinklers went off during a live broadcast. The commentator\'s review: "And now it\'s raining INDOORS, folks. This is peak Ridgemont baseball."',
+  ],
+  organSwap: [
+    'The rally organ has been replaced with 200 kazoos duct-taped to a box fan. The 7th inning stretch sounded like a swarm of angry bees with school spirit.',
+    'Victor ransomed the organ for "one public admission that Glendale is superior." Instead of paying, your PA announcer has been beatboxing. Fans are divided.',
+    'The organ was found in Glendale\'s parking lot, repainted in Grizzlies colors, with a note: "She\'s happier here. Don\'t call." Fan morale tanking without the rally vibes.',
+    'A ransom video arrived: the organ in a dimly lit room, Victor playing "Taps" on it while the Glendale mascot holds today\'s newspaper. Your fans are demoralized.',
+    'Without the rally organ, your 7th inning stretch is just awkward silence and one guy with a tuba he brought from home. Concession sales down — fans have lost the will to snack.',
+    'Victor replaced the organ with a bluetooth speaker playing a 10-hour loop of "Glendale\'s Greatest Hits." It cannot be unplugged. Maintenance says the speaker is "somehow load-bearing."',
+    'The organist showed up to work, saw the kazoo wall, and immediately filed for emotional distress. He\'s currently performing at Glendale as a "temporary arrangement."',
+    'Fans started a GoFundMe for a new organ. Victor anonymously donated $1 with the note "Every little bit helps. Unlike Ridgemont\'s filtration. — xoxo V."',
+  ],
+  baseballGremlins: [
+    'Security footage shows dozens of tiny figures in Grizzlies jerseys pouring out of a Glendale-branded crate left by the loading dock. They move fast and they\'re organized.',
+    'The gremlins chewed through your best filter\'s power cable and built a tiny fort out of the copper wiring. A flag made from a Glendale pennant flies from the top.',
+    'Maintenance cornered a gremlin behind the boiler. It hissed, threw a bolt at them, and escaped through a vent. It was wearing a tiny Victor Harrison name badge.',
+    'The gremlins have unionized. They left a list of demands on the mechanical room door: "1. More bolts to steal. 2. Warmer vents. 3. Ridgemont surrender." Signed, Local 69.',
+    'Your electrical panel looks like a crime scene. Wires chewed, breakers flipped, and a tiny chalk outline of a bolt drawn on the floor. The gremlins are getting theatrical.',
+    'Animal control arrived, assessed the situation, and said "those aren\'t animals, those are Victor\'s guys in really convincing costumes." On closer inspection: inconclusive.',
+    'A gremlin was spotted riding a mouse through the concourse like a tiny cowboy. It tipped its hat at a security guard before vanishing into a floor drain. Morale is complicated.',
+    'The head gremlin left a Yelp review for your mechanical room: "2 stars. Decent bolt selection but the security is laughable. Would ransack again." It has 47 helpful votes.',
+  ],
 };
 
 // -- Sabotage Impact Descriptions -------------------------------------------
 
 const SABOTAGE_IMPACT = {
-  supplyDisruption: 'Filter costs increased 20% for 5 days',
-  bribeInspector: 'Next health inspection will be 30% stricter',
+  supplyDisruption: 'Filter prices jacked up 20% for 5 days',
+  bribeInspector: 'Next inspection 30% tougher — inspector has a grudge',
   poachStaff: null, // dynamic — handled in code
-  smearCampaign: 'Reputation -1 per day for 3 days',
+  smearCampaign: 'Rep taking -1/day hits for 3 days',
   infrastructureStress: null, // dynamic — includes domain name
+  hotdogFlood: 'All filters degrading 15% faster for 4 days',
+  cursedBobblehead: 'Team performance -15% for 3 days',
+  sprinklerPrank: 'Attendance down 12% for 3 days',
+  organSwap: 'Revenue down 10% for 5 days — fans lost the vibes',
+  baseballGremlins: null, // dynamic — includes damaged filter info
 };
 
 // -- Rival Defense Definitions -----------------------------------------------
@@ -179,10 +296,10 @@ const RIVAL_DEFENSE_DEFS = {
 // -- Escalation Tiers --------------------------------------------------------
 
 const ESCALATION_TIERS = [
-  { minRep: 30, maxRep: 49, chance: 0.08, types: ['supplyDisruption'], doubleChance: 0 },
-  { minRep: 50, maxRep: 64, chance: 0.12, types: ['supplyDisruption', 'bribeInspector'], doubleChance: 0 },
-  { minRep: 65, maxRep: 79, chance: 0.15, types: ['supplyDisruption', 'bribeInspector', 'poachStaff', 'smearCampaign'], doubleChance: 0 },
-  { minRep: 80, maxRep: 100, chance: 0.20, types: ['supplyDisruption', 'bribeInspector', 'poachStaff', 'smearCampaign'], doubleChance: 0.15 },
+  { minRep: 30, maxRep: 49, chance: 0.08, types: ['supplyDisruption', 'hotdogFlood', 'sprinklerPrank'], doubleChance: 0 },
+  { minRep: 50, maxRep: 64, chance: 0.12, types: ['supplyDisruption', 'bribeInspector', 'hotdogFlood', 'cursedBobblehead', 'sprinklerPrank'], doubleChance: 0 },
+  { minRep: 65, maxRep: 79, chance: 0.15, types: ['supplyDisruption', 'bribeInspector', 'poachStaff', 'smearCampaign', 'hotdogFlood', 'cursedBobblehead', 'organSwap', 'baseballGremlins'], doubleChance: 0 },
+  { minRep: 80, maxRep: 100, chance: 0.20, types: ['supplyDisruption', 'bribeInspector', 'poachStaff', 'smearCampaign', 'cursedBobblehead', 'organSwap', 'baseballGremlins', 'sprinklerPrank'], doubleChance: 0.15 },
 ];
 
 export class RivalSystem {
@@ -227,6 +344,10 @@ export class RivalSystem {
     this.eventBus.on('rival:purchaseDefense', (data) => {
       if (data?.type) this.purchaseDefense(data.type);
     });
+    // Scheme-triggered immediate sabotage (scheme failure consequence)
+    this.eventBus.on('scheme:triggerSabotage', () => {
+      this._forceImmediateSabotage();
+    });
   }
 
   _ensureRivalDefenses() {
@@ -270,6 +391,11 @@ export class RivalSystem {
     this._tickSmearCampaign();
     this._tickSupplyCost();
     this._tickInfraStress();
+    this._tickHotdogFlood();
+    this._tickCursedBobblehead();
+    this._tickSprinklerPrank();
+    this._tickOrganSwap();
+    this._tickGremlins();
   }
 
   /**
@@ -535,13 +661,36 @@ export class RivalSystem {
     const chapter = this.state.storyChapter ?? 1;
     if (chapter < 2) return;
 
+    const day = this.state.gameDay ?? 1;
+    const ss = this.state.schemeState;
+
+    // Scheme: sabotage immunity check
+    if (ss?.sabotageImmunityUntil > day) return;
+
+    // Scheme: one-time block next sabotage
+    if (ss?.blockNextSabotage) {
+      ss.blockNextSabotage = false;
+      this.eventBus.emit('ui:message', {
+        text: 'Sully\'s intel blocked Victor\'s sabotage attempt!',
+        type: 'success',
+      });
+      this.eventBus.emit('rival:sabotageBlocked', { type: 'schemeBlock', name: 'Sully\'s Counter-Intel' });
+      return;
+    }
+
     const playerRep = this.state.reputation;
     const tier = ESCALATION_TIERS.find(t => playerRep >= t.minRep && playerRep <= t.maxRep);
     if (!tier) return;
 
     // Momentum affects sabotage chance: baseSabotageChance + (momentum * 2%)
     const momentum = this.state.rivalMomentum ?? 0;
-    const adjustedChance = tier.chance + (momentum * 0.02);
+    let adjustedChance = tier.chance + (momentum * 0.02);
+
+    // Scheme: sabotage chance multiplier
+    if (ss?.sabotageChanceMultiplier != null && ss.sabotageChanceMultiplier !== 1.0) {
+      adjustedChance *= ss.sabotageChanceMultiplier;
+    }
+
     if (Math.random() > adjustedChance) return;
 
     // Adaptive sabotage: 60% chance to target player's weakest domain
@@ -610,22 +759,32 @@ export class RivalSystem {
     }
 
     // Execute first sabotage (pass adaptive domain for infrastructure stress)
-    this._executeSabotage(availableTypes, defenses, adaptiveDomain);
+    const firstType = this._executeSabotage(availableTypes, defenses, adaptiveDomain);
 
-    // Double sabotage chance at rep 80+
+    // Double sabotage chance at rep 80+: pick a different type to avoid stacking
     if (tier.doubleChance > 0 && Math.random() < tier.doubleChance) {
-      this._executeSabotage(availableTypes, defenses, adaptiveDomain);
+      const secondTypes = firstType
+        ? availableTypes.filter(s => s.id !== firstType)
+        : availableTypes;
+      if (secondTypes.length > 0) {
+        this._executeSabotage(secondTypes, defenses, adaptiveDomain);
+      }
     }
   }
 
   /**
    * Execute a single sabotage event, checking defenses first.
+   * @returns {string|null} The picked sabotage type ID, or null if blocked.
    */
   _executeSabotage(availableTypes, defenses, targetDomain) {
     const picked = availableTypes[Math.floor(Math.random() * availableTypes.length)];
 
+    // Scheme: defenses disabled — skip all defense checks
+    const ss = this.state.schemeState;
+    const defensesDisabled = ss?.defensesDisabledUntil > (this.state.gameDay ?? 1);
+
     // Security upgrade blocks sabotage
-    if (defenses?.securityUpgrade?.active) {
+    if (!defensesDisabled && defenses?.securityUpgrade?.active) {
       defenses.securityUpgrade.active = false;
       defenses.securityUpgrade.daysLeft = 0;
       this.eventBus.emit('ui:message', {
@@ -633,7 +792,7 @@ export class RivalSystem {
         type: 'success',
       });
       this.eventBus.emit('rival:sabotageBlocked', { type: picked.id, name: picked.name });
-      return;
+      return null;
     }
 
     // Media response nullifies smear campaigns specifically
@@ -643,7 +802,7 @@ export class RivalSystem {
         type: 'success',
       });
       this.eventBus.emit('rival:sabotageBlocked', { type: picked.id, name: picked.name });
-      return;
+      return null;
     }
 
     // Apply the sabotage effect (pass targetDomain for infrastructureStress)
@@ -672,7 +831,14 @@ export class RivalSystem {
         : 'Your staff held firm — nobody took the bait. This time.';
       this.state._lastPoachedStaff = null;
     } else if (picked.id === 'infrastructureStress' && targetDomain) {
-      impact = `${targetDomain.toUpperCase()} system: -5% health/day for 3 days`;
+      impact = `${targetDomain.toUpperCase()} system: filters degrading for 3 days`;
+    } else if (picked.id === 'baseballGremlins') {
+      const domain = this.state._gremlinVictimDomain ?? 'unknown';
+      impact = this.state._gremlinVictimId
+        ? `Gremlins savaged a ${domain} filter (-40% condition) + minor havoc for 2 days`
+        : 'Gremlins loose in the stadium — minor havoc for 2 days';
+      this.state._gremlinVictimId = null;
+      this.state._gremlinVictimDomain = null;
     }
 
     // Show sabotage notification toast
@@ -687,6 +853,28 @@ export class RivalSystem {
       name: picked.name,
       description: picked.description,
     });
+
+    return picked.id;
+  }
+
+  /**
+   * Force an immediate sabotage (triggered by failed scheme).
+   * Bypasses probability checks but still respects immunity.
+   */
+  _forceImmediateSabotage() {
+    const ss = this.state.schemeState;
+    const day = this.state.gameDay ?? 1;
+    if (ss?.sabotageImmunityUntil > day) return;
+
+    const playerRep = this.state.reputation;
+    const tier = ESCALATION_TIERS.find(t => playerRep >= t.minRep && playerRep <= t.maxRep);
+    if (!tier) return;
+
+    const availableTypes = SABOTAGE_TYPES.filter(s => tier.types.includes(s.id));
+    if (availableTypes.length === 0) return;
+
+    const defenses = this.state._rivalDefenses;
+    this._executeSabotage(availableTypes, defenses, null);
   }
 
   /**
@@ -761,22 +949,26 @@ export class RivalSystem {
   }
 
   /**
-   * Tick infrastructure stress: apply -5% health to targeted domain per day for duration.
+   * Tick infrastructure stress: degrade filters in targeted domain per day for duration.
+   * Degrades filter conditions (source of truth) rather than domainHealth (computed by ConsequenceSystem).
    */
   _tickInfraStress() {
     const days = this.state._infraStressDays ?? 0;
     if (days <= 0) return;
 
     const domain = this.state._infraStressDomain;
-    if (domain && this.state.domainHealth && typeof this.state.domainHealth[domain] === 'number') {
-      this.state.domainHealth[domain] = Math.max(0, this.state.domainHealth[domain] - 5);
+    if (domain) {
+      const domainFilters = (this.state.filters ?? []).filter(f => f.domain === domain && f.condition > 0);
+      for (const f of domainFilters) {
+        f.condition = Math.max(0, f.condition - f.maxCondition * 0.08);
+      }
     }
 
     this.state._infraStressDays = days - 1;
 
     if (days - 1 > 0) {
       this.eventBus.emit('ui:message', {
-        text: `Infrastructure stress on ${domain}: -5% health. ${days - 1} day(s) remaining.`,
+        text: `Infrastructure stress on ${domain}: filters degrading. ${days - 1} day(s) remaining.`,
         type: 'warning',
       });
     } else {
@@ -785,6 +977,128 @@ export class RivalSystem {
         type: 'info',
       });
       this.state._infraStressDomain = null;
+    }
+  }
+
+  /**
+   * Tick hot dog flood: filters degrade faster for duration.
+   */
+  _tickHotdogFlood() {
+    const days = this.state._hotdogFloodDays ?? 0;
+    if (days <= 0) return;
+
+    this.state._hotdogFloodDays = days - 1;
+
+    if (days - 1 > 0) {
+      this.eventBus.emit('ui:message', {
+        text: `Hot dog situation ongoing... filters degrading faster. ${days - 1} day(s) until plumbers finish.`,
+        type: 'warning',
+      });
+    } else {
+      this.state._hotdogDegradeMultiplier = 1.0;
+      this.eventBus.emit('ui:message', {
+        text: 'The last hot dog has been extracted. Filters returning to normal degradation.',
+        type: 'info',
+      });
+    }
+  }
+
+  /**
+   * Tick cursed bobblehead: team performance penalty for duration.
+   */
+  _tickCursedBobblehead() {
+    const days = this.state._cursedBobbleDays ?? 0;
+    if (days <= 0) return;
+
+    this.state._cursedBobbleDays = days - 1;
+
+    if (days - 1 > 0) {
+      this.eventBus.emit('ui:message', {
+        text: `The bobblehead continues to nod menacingly. Team performance still rattled. ${days - 1} day(s) remaining.`,
+        type: 'warning',
+      });
+    } else {
+      this.state._sabotageTeamPerfMod = 1.0;
+      this.eventBus.emit('ui:message', {
+        text: 'Someone finally drop-kicked the bobblehead into the parking lot. Team morale recovering.',
+        type: 'info',
+      });
+    }
+  }
+
+  /**
+   * Tick sprinkler prank: attendance penalty for duration.
+   */
+  _tickSprinklerPrank() {
+    const days = this.state._sprinklerPrankDays ?? 0;
+    if (days <= 0) return;
+
+    this.state._sprinklerPrankDays = days - 1;
+
+    if (days - 1 > 0) {
+      this.eventBus.emit('ui:message', {
+        text: `Fans still talking about the sprinkler incident. Attendance down. ${days - 1} day(s) until they forget.`,
+        type: 'warning',
+      });
+    } else {
+      this.state._sabotageAttendanceMod = 1.0;
+      this.eventBus.emit('ui:message', {
+        text: 'The sprinkler incident has become a "funny story" instead of a "lawsuit." Attendance recovering.',
+        type: 'info',
+      });
+    }
+  }
+
+  /**
+   * Tick organ ransom: revenue penalty for duration.
+   */
+  _tickOrganSwap() {
+    const days = this.state._organSwapDays ?? 0;
+    if (days <= 0) return;
+
+    this.state._organSwapDays = days - 1;
+
+    if (days - 1 > 0) {
+      this.eventBus.emit('ui:message', {
+        text: `Kazoo vibes not cutting it. Concession revenue still down. ${days - 1} day(s) until new organ arrives.`,
+        type: 'warning',
+      });
+    } else {
+      this.state._sabotageRevenueMod = 1.0;
+      this.eventBus.emit('ui:message', {
+        text: 'The replacement organ arrived! Fans can rally again. Revenue normalizing.',
+        type: 'info',
+      });
+    }
+  }
+
+  /**
+   * Tick gremlin infestation: minor all-domain health hit for duration.
+   */
+  _tickGremlins() {
+    const days = this.state._gremlinDays ?? 0;
+    if (days <= 0) return;
+
+    // Gremlins nibble random filters — degrade condition (the source of truth for domain health)
+    const filters = (this.state.filters ?? []).filter(f => f.condition > 0);
+    for (let i = 0; i < 2 && filters.length > 0; i++) {
+      const idx = Math.floor(Math.random() * filters.length);
+      const f = filters.splice(idx, 1)[0];
+      f.condition = Math.max(0, f.condition - f.maxCondition * 0.05);
+    }
+
+    this.state._gremlinDays = days - 1;
+
+    if (days - 1 > 0) {
+      this.eventBus.emit('ui:message', {
+        text: `Gremlins still at large. Minor damage across systems. ${days - 1} day(s) of chaos remaining.`,
+        type: 'warning',
+      });
+    } else {
+      this.eventBus.emit('ui:message', {
+        text: 'The last gremlin was lured out with a trail of peanuts and a tiny "FREE BOLTS" sign. Infestation over.',
+        type: 'info',
+      });
     }
   }
 

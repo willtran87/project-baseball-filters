@@ -26,7 +26,7 @@ export class HUD {
       font-size: 12px; font-family: monospace;
       color: #e0e0e0;
       background: linear-gradient(180deg, #1a1a2e 0%, #0d0d1a 100%);
-      border-bottom: 2px solid #8b4513;
+      border-bottom: 2px solid #cc2244;
       user-select: none;
       z-index: 10;
     `;
@@ -42,7 +42,7 @@ export class HUD {
       font-size: 11px; font-family: monospace;
       color: #c0c0d0;
       background: linear-gradient(0deg, #1a1a2e 0%, #0d0d1a 100%);
-      border-top: 2px solid #8b4513;
+      border-top: 2px solid #cc2244;
       user-select: none;
       z-index: 10;
     `;
@@ -79,12 +79,12 @@ export class HUD {
 
     // Zone display names map
     this._zoneDisplayNames = {
-      field: 'THE FIELD',
-      concourse: 'CONCOURSE',
-      mechanical: 'MECHANICAL',
-      underground: 'UNDERGROUND',
+      field: 'RAPTORS FIELD',
+      concourse: 'THE CONCOURSE',
+      mechanical: 'MECHANICAL ROOM',
+      underground: 'THE TUNNELS',
       luxury: 'LUXURY SUITES',
-      pressbox: 'PRESS BOX',
+      pressbox: 'THE PRESS BOX',
     };
 
     // Listen for zone changes to trigger flash

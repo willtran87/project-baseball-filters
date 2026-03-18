@@ -377,6 +377,14 @@ export class SystemsPanel {
     return Math.floor((filter.maxCondition - filter.condition) * 0.5 * (filter.tier || 1));
   }
 
+  _getFilterTuneUpCost(filter) {
+    const fs = this._getFiltrationSystem();
+    if (fs && typeof fs.getPreventiveRepairCost === 'function') {
+      return fs.getPreventiveRepairCost(filter);
+    }
+    return 0;
+  }
+
   _getDomainRepairInfo(domain) {
     const fs = this._getFiltrationSystem();
     if (fs && typeof fs.getDomainRepairCost === 'function') {
@@ -467,21 +475,21 @@ export class SystemsPanel {
     el.style.cssText = `
       position: absolute; top: 24px; left: 3%; right: 3%; bottom: 24px;
       background: linear-gradient(180deg, rgba(10,8,20,0.97), rgba(8,8,24,0.97));
-      border: 2px solid #8b4513;
+      border: 2px solid #1a2a4a;
       border-radius: 4px;
       font-family: monospace; color: #e0e0e0;
       font-size: 14px; z-index: 30;
       display: flex; flex-direction: column;
       overflow: hidden;
-      box-shadow: 0 0 20px rgba(139,69,19,0.2);
+      box-shadow: 0 0 20px rgba(26,42,74,0.2);
     `;
 
     let html = '';
 
     // Header
     html += `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #8b4513;background:linear-gradient(180deg,rgba(139,69,19,0.15),rgba(0,0,0,0.3));">
-        <strong style="color:#29adff;letter-spacing:1px">STADIUM SYSTEMS OVERVIEW</strong>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #1a2a4a;background:linear-gradient(180deg,rgba(26,42,74,0.15),rgba(0,0,0,0.3));">
+        <strong style="color:#29adff;letter-spacing:1px">RAPTORS STADIUM OPS</strong>
         <span data-action="close-systems" style="cursor:pointer;color:#888;font-size:14px">\u2715</span>
       </div>
     `;
@@ -752,6 +760,17 @@ export class SystemsPanel {
 
       // Build action buttons
       let actionButtons = '';
+      const tuneUpCost = this._getFilterTuneUpCost(f);
+      if (tuneUpCost > 0) {
+        const canAffordTune = this.state.money >= tuneUpCost;
+        actionButtons += `<button data-action="tuneup-filter" data-filter-id="${f.id}"
+            style="background:${canAffordTune ? '#2a2a1a' : '#2a2a2a'};color:${canAffordTune ? '#ffcc00' : '#555'};
+            border:1px solid ${canAffordTune ? '#6a5a2a' : '#333'};padding:2px 8px;font-family:monospace;
+            cursor:${canAffordTune ? 'pointer' : 'not-allowed'};font-size:10px;white-space:nowrap;"
+            title="Preventive maintenance — restore to 100%">
+            TUNE-UP $${tuneUpCost.toLocaleString()}
+          </button>`;
+      }
       if (needsRepair) {
         actionButtons += `<button data-action="repair-filter" data-filter-id="${f.id}"
             style="background:${canAfford ? '#1a3a2a' : '#2a2a2a'};color:${canAfford ? '#00e436' : '#555'};
@@ -1036,6 +1055,16 @@ export class SystemsPanel {
         const filterId = parseInt(repairBtn.dataset.filterId, 10);
         this.eventBus.emit('ui:click');
         this.eventBus.emit('filter:repair', { id: filterId });
+        setTimeout(() => this._rerender(), 50);
+        return;
+      }
+
+      // Tune-up filter (preventive maintenance)
+      const tuneUpBtn = e.target.closest('[data-action="tuneup-filter"]');
+      if (tuneUpBtn) {
+        const filterId = parseInt(tuneUpBtn.dataset.filterId, 10);
+        this.eventBus.emit('ui:click');
+        this.eventBus.emit('filter:preventiveRepair', { id: filterId });
         setTimeout(() => this._rerender(), 50);
         return;
       }

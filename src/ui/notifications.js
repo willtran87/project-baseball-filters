@@ -25,12 +25,12 @@ export function showConfirmDialog(container, message, onConfirm, confirmLabel = 
   const dialog = document.createElement('div');
   dialog.style.cssText = `
     background: linear-gradient(180deg, rgba(15,10,5,0.98), rgba(8,8,24,0.98));
-    border: 2px solid #8b4513;
+    border: 2px solid #1a2a4a;
     border-radius: 4px;
     padding: 16px 20px;
     max-width: 320px;
     text-align: center;
-    box-shadow: 0 0 20px rgba(139,69,19,0.4);
+    box-shadow: 0 0 20px rgba(26,42,74,0.4);
   `;
 
   dialog.innerHTML = `
@@ -99,14 +99,14 @@ export class TutorialManager {
         trigger: 'filter:added',
         condition: () => this.state.filters.length === 1,
         title: 'First Filter Installed!',
-        text: 'You\'re on the board! Filters degrade over time like a pitcher\'s arm — keep an eye on the condition bars. Click a filter to inspect and repair it. Cover all four domains (air, water, HVAC, drainage) to keep the stadium humming.',
+        text: 'You\'re on the board! Filters degrade over time like a pitcher\'s arm — keep an eye on the condition bars. Click a filter to inspect and repair it. Cover all four domains (air, water, HVAC, drainage) to keep the Raptors\' house in order.',
       },
       {
         id: 'zone_hint',
         trigger: 'filter:added',
         condition: () => this.state.filters.length === 3,
         title: 'Explore the Stadium',
-        text: 'Press TAB to visit other stadium zones — the Concourse, Mechanical Room, and Underground all have vent slots waiting for filters. Think of it as covering every base.',
+        text: 'Press TAB to visit other stadium zones — the Concourse, Mechanical Room, and Underground all have vent slots waiting for filters. Cover every base — the Raptors need all systems running.',
       },
       {
         id: 'first_break',
@@ -250,7 +250,7 @@ export class TutorialManager {
         trigger: 'state:reputation',
         condition: () => this.state.reputation >= 25 && this.state.reputation < 50,
         title: 'Reputation Rising!',
-        text: 'Your reputation is growing! Higher reputation unlocks better filters, contracts, and expansions. Keep the stadium clean and the fans will keep coming back.',
+        text: 'Your reputation is growing! Higher reputation unlocks better filters, contracts, and expansions. Keep Ridgemont clean and the Raptors faithful will keep coming back.',
       },
       {
         id: 'tutorial_rep_50',
@@ -264,7 +264,7 @@ export class TutorialManager {
         trigger: 'state:reputation',
         condition: () => this.state.reputation >= 75 && this.state.reputation < 85,
         title: 'Elite Territory!',
-        text: 'Elite territory! The best equipment and most lucrative deals are within reach. Ridgemont Stadium is becoming the jewel of the league.',
+        text: 'Elite territory! The best equipment and most lucrative deals are within reach. Ridgemont Stadium is becoming the jewel of the league. The Raptors are on the rise.',
       },
       {
         id: 'tutorial_minigame',
@@ -371,6 +371,11 @@ const BONUS_DESCRIPTIONS = {
   betterTerms:          '10% higher payouts on all sponsor contracts',
   exclusiveContracts:   'Access to an exclusive premium contract',
   emergencySponsorship: 'Fiona secures a $3,000 emergency sponsorship once per season',
+  // Sully McCrankshaw
+  schemeAccess:        'Sully\'s counter-sabotage Schemes panel unlocks',
+  betterOdds:          '+15% success rate on all schemes against Victor',
+  grandSlam:           'Tier 3 "Grand Slam" high-risk schemes unlock',
+  sullyInsurance:      'Scheme failure effects are halved',
 };
 
 export class NotificationManager {
@@ -420,7 +425,7 @@ export class NotificationManager {
       this.show(`${icon} Health Inspection: Grade ${grade}`, type);
     });
     this.eventBus.on('game:newDay', ({ day }) => {
-      if (day && day % 10 === 0) this.show(`\u26be Game ${day} — Keep the stadium humming through the stretch!`, 'info');
+      if (day && day % 10 === 0) this.show(`\u26be Game ${day} — The Raptors need you through the stretch!`, 'info');
     });
     // Income milestone notifications
     this.eventBus.on('economy:inningEnd', ({ balance }) => {
@@ -791,6 +796,12 @@ export class NotificationManager {
       entry.el.remove();
     }
     this._toasts.length = 0;
+    // Clear drain timer and queue to prevent orphaned interval
+    if (this._drainTimer) {
+      clearInterval(this._drainTimer);
+      this._drainTimer = null;
+    }
+    if (this._queue) this._queue.length = 0;
   }
 }
 

@@ -128,7 +128,7 @@ export class SettingsPanel {
       <div style="display:flex;gap:24px;flex-wrap:wrap">
         <!-- Audio Section -->
         <div style="flex:1;min-width:180px">
-          <div style="color:#8b4513;font-size:9px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">AUDIO</div>
+          <div style="color:#1a2a4a;font-size:9px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">AUDIO</div>
 
           <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:10px">
             <span style="min-width:60px;color:#aaa">Master</span>
@@ -169,7 +169,7 @@ export class SettingsPanel {
 
         <!-- Game Section -->
         <div style="flex:1;min-width:180px">
-          <div style="color:#8b4513;font-size:9px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">GAME</div>
+          <div style="color:#1a2a4a;font-size:9px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">GAME</div>
 
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;font-size:10px">
             <span style="min-width:60px;color:#aaa">Difficulty</span>
@@ -187,7 +187,7 @@ export class SettingsPanel {
 
         <!-- Display Section -->
         <div style="flex:1;min-width:180px">
-          <div style="color:#8b4513;font-size:9px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">DISPLAY</div>
+          <div style="color:#1a2a4a;font-size:9px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">DISPLAY</div>
 
           <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:10px;cursor:pointer">
             <input type="checkbox" data-toggle="showTooltips" ${s.showTooltips ? 'checked' : ''}

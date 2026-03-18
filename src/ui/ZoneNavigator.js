@@ -16,13 +16,13 @@ export class ZoneNavigator {
       position: absolute; bottom: 46px; left: 8px;
       width: 200px; height: 140px;
       background: rgba(10,8,20,0.92);
-      border: 2px solid #8b4513;
+      border: 2px solid #1a2a4a;
       border-radius: 3px;
       font-family: monospace;
       pointer-events: auto;
       z-index: 15;
       cursor: pointer;
-      box-shadow: 0 0 8px rgba(139,69,19,0.3);
+      box-shadow: 0 0 8px rgba(26,42,74,0.3);
       overflow: hidden;
     `;
     container.appendChild(this._el);

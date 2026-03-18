@@ -465,6 +465,9 @@ export class InputManager {
         case 't':
           this.eventBus.emit('ui:toggleTalk');
           break;
+        case 'u':
+          this.eventBus.emit('ui:toggleSchemes');
+          break;
         case 'r':
           this.eventBus.emit('ui:toggleResearch');
           break;

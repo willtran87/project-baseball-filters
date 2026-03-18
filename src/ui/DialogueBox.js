@@ -79,7 +79,7 @@ export class DialogueBox {
       position: absolute; bottom: 0; left: 0; right: 0;
       min-height: 110px; max-height: 170px;
       background: rgba(10, 10, 30, 0.92);
-      border-top: 2px solid #8b4513;
+      border-top: 2px solid #1a2a4a;
       font-family: monospace; color: #e0e0e0;
       font-size: 11px; z-index: 40;
       display: flex; flex-direction: row;

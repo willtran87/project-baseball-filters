@@ -40,7 +40,7 @@ export class TooltipManager {
       display: none;
       padding: 6px 8px;
       background: rgba(0, 0, 0, 0.9);
-      border: 1px solid #8b4513;
+      border: 1px solid #1a2a4a;
       border-radius: 2px;
       font-size: 12px;
       font-family: monospace;

@@ -41,13 +41,13 @@ export class FilterAnalyticsPanel {
     el.style.cssText = `
       position: absolute; top: 24px; left: 3%; right: 3%; bottom: 24px;
       background: linear-gradient(180deg, rgba(10,8,20,0.97), rgba(8,8,24,0.97));
-      border: 2px solid #8b4513;
+      border: 2px solid #1a2a4a;
       border-radius: 4px;
       font-family: monospace; color: #e0e0e0;
       font-size: 14px; z-index: 30;
       display: flex; flex-direction: column;
       overflow: hidden;
-      box-shadow: 0 0 20px rgba(139,69,19,0.2);
+      box-shadow: 0 0 20px rgba(26,42,74,0.2);
     `;
 
     // Count total vent slots per domain across all zones
@@ -145,7 +145,7 @@ export class FilterAnalyticsPanel {
 
     // Header
     html += `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #8b4513;background:linear-gradient(180deg,rgba(139,69,19,0.15),rgba(0,0,0,0.3));">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #1a2a4a;background:linear-gradient(180deg,rgba(26,42,74,0.15),rgba(0,0,0,0.3));">
         <strong style="color:#29adff;letter-spacing:1px">FILTER ANALYTICS</strong>
         <div style="display:flex;align-items:center;gap:12px">
           <span style="color:#888;font-size:11px">[A] to toggle</span>

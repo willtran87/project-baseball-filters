@@ -2115,6 +2115,158 @@ export const NPC_CASUAL_DIALOGUE = {
     },
   ],
 
+  // ===========================================================================
+  // SULLIVAN "SULLY" McCRANKSHAW — Underground Fixer
+  // Portrait moods: neutral, scheming, excited, caught
+  // ===========================================================================
+  sully: [
+    // --- Low tier (0+) ---
+    {
+      id: 'sully_intro_suspicion',
+      minRelationship: 0,
+      context: 'normal',
+      portrait: 'neutral',
+      lines: [
+        { speaker: null, text: "(Sully peers at you from behind a cluster of drainage pipes.)" },
+        { speaker: 'sully', portrait: 'neutral', text: "You again. You're not here to report me to building management, are you?" },
+        { speaker: 'sully', portrait: 'neutral', text: "Because technically I'm a... long-term infrastructure resident. Very different from a squatter." },
+      ],
+    },
+    {
+      id: 'sully_tunnel_life',
+      minRelationship: 0,
+      context: 'normal',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'sully', portrait: 'neutral', text: "You get used to the tunnels. The acoustics are great — I can hear every game. Every crack of the bat, every bad call." },
+        { speaker: 'sully', portrait: 'neutral', text: "I've got a whole setup down here. Camp stove, shortwave radio, surveillance equipment... I mean, a lamp. A regular lamp." },
+        { speaker: null, text: "(It is clearly not a regular lamp.)" },
+      ],
+    },
+    {
+      id: 'sully_victor_grudge',
+      minRelationship: 0,
+      context: 'any',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'sully', portrait: 'neutral', text: "You know what Victor Salazar did to the Millhaven Mudcats? Demolished the whole park. Eighty years of history — gone." },
+        { speaker: 'sully', portrait: 'neutral', text: "I called my last game there. Bottom of the ninth, Mudcats down by two, bases loaded. Perfect night for baseball." },
+        { speaker: 'sully', portrait: 'neutral', text: "Six months later, it was a parking lot. Victor didn't even have the decency to put up a plaque." },
+      ],
+      choices: [
+        { text: '"That\'s terrible. No wonder you want payback."', effects: [{ type: 'relationship', npc: 'sully', delta: 2 }] },
+        { text: '"What exactly is your plan here?"', effects: [{ type: 'relationship', npc: 'sully', delta: 1 }] },
+      ],
+    },
+    {
+      id: 'sully_gameday_excitement',
+      minRelationship: 0,
+      context: 'gameday',
+      portrait: 'excited',
+      lines: [
+        { speaker: 'sully', portrait: 'excited', text: "Game day! I can feel it in the pipes! The vibrations change when the crowd gets going." },
+        { speaker: 'sully', portrait: 'excited', text: "I've got my radio tuned to the play-by-play. Best seat in the house, if you don't mind sitting in a tunnel." },
+        { speaker: 'sully', portrait: 'neutral', text: "Go win one for the good guys, Pipes." },
+      ],
+    },
+
+    // --- Tier 1 (12+) ---
+    {
+      id: 'sully_scheme_hints',
+      minRelationship: 12,
+      context: 'normal',
+      portrait: 'scheming',
+      lines: [
+        { speaker: null, text: "(Sully is hunched over a diagram drawn on the back of a cereal box.)" },
+        { speaker: 'sully', portrait: 'scheming', text: "I've been working on something. A countermove. Victor thinks he can play dirty? He hasn't MET dirty." },
+        { speaker: 'sully', portrait: 'scheming', text: "You ever heard of the infield shift? Same concept, different application. Strategic repositioning of... resources." },
+        { speaker: 'sully', portrait: 'excited', text: "Check the Schemes panel when you're ready. I've got some plays drawn up." },
+      ],
+    },
+    {
+      id: 'sully_after_sabotage',
+      minRelationship: 12,
+      context: 'crisis',
+      portrait: 'excited',
+      lines: [
+        { speaker: 'sully', portrait: 'excited', text: "Victor hit us again? That's it. That's IT." },
+        { speaker: 'sully', portrait: 'scheming', text: "Every sabotage is an at-bat. He's been throwing at our heads all season. Time to crowd the plate and take him deep." },
+        { speaker: 'sully', portrait: 'neutral', text: "Come see me when you're ready to swing." },
+      ],
+    },
+    {
+      id: 'sully_baseball_history',
+      minRelationship: 12,
+      context: 'any',
+      portrait: 'neutral',
+      lines: [
+        { speaker: 'sully', portrait: 'neutral', text: "Did you know the Coastal League championship in '04 came down to a single call? My call." },
+        { speaker: 'sully', portrait: 'neutral', text: "Runner on third, tag play at the plate. I called him out. Replay showed he was safe by a mile." },
+        { speaker: 'sully', portrait: 'neutral', text: "That's why they fired me. 'Creative interpretation of the rulebook,' they said. I called it 'adding drama.'" },
+        { speaker: null, text: "(He does not seem remorseful.)" },
+      ],
+    },
+
+    // --- Tier 2 (30+) ---
+    {
+      id: 'sully_personal_story',
+      minRelationship: 30,
+      context: 'normal',
+      portrait: 'neutral',
+      lines: [
+        { speaker: null, text: "(Sully is sitting quietly for once, looking at a faded photograph.)" },
+        { speaker: 'sully', portrait: 'neutral', text: "My old man was a groundskeeper. Millhaven Mudcats, thirty-two years. Never missed a game." },
+        { speaker: 'sully', portrait: 'neutral', text: "After the demolition, he drove past the empty lot every day for a year. Wouldn't stop. Like visiting a grave." },
+        { speaker: 'sully', portrait: 'neutral', text: "He passed the following spring. I don't think it was unrelated." },
+      ],
+      choices: [
+        { text: '"I\'m sorry, Sully. We won\'t let that happen to Ridgemont."', effects: [{ type: 'relationship', npc: 'sully', delta: 3 }] },
+        { text: '"That\'s why this matters. We\'re not just fighting for a building."', effects: [{ type: 'relationship', npc: 'sully', delta: 2 }] },
+      ],
+    },
+    {
+      id: 'sully_about_rusty',
+      minRelationship: 30,
+      context: 'normal',
+      portrait: 'scheming',
+      lines: [
+        { speaker: 'sully', portrait: 'neutral', text: "Your man Rusty — good guy. Reminds me of the old Millhaven maintenance crew." },
+        { speaker: 'sully', portrait: 'scheming', text: "He caught me borrowing a wrench once. Thought he was gonna call security." },
+        { speaker: 'sully', portrait: 'neutral', text: "Instead he handed me a better wrench and said, 'This one's for lefties.' Didn't ask questions. My kind of people." },
+      ],
+    },
+
+    // --- Tier 3 (50+) ---
+    {
+      id: 'sully_deep_trust',
+      minRelationship: 50,
+      context: 'normal',
+      portrait: 'neutral',
+      lines: [
+        { speaker: null, text: "(Sully is unusually quiet. He sets down his cereal box diagrams.)" },
+        { speaker: 'sully', portrait: 'neutral', text: "You know, I've been running plays against Victor for years. Before you showed up, it was just me yelling at pipes." },
+        { speaker: 'sully', portrait: 'neutral', text: "Nobody ever took the fight seriously. They'd just let Victor do his thing and hope it went away." },
+        { speaker: 'sully', portrait: 'neutral', text: "You're the first person who looked at a busted stadium and said 'I can fix this' and actually meant it." },
+        { speaker: 'sully', portrait: 'excited', text: "Battery mates, kid. That's what we are. I call the plays, you throw the heat. Victor doesn't stand a chance." },
+      ],
+      choices: [
+        { text: '"We make a good team, Sully."', effects: [{ type: 'relationship', npc: 'sully', delta: 3 }] },
+        { text: '"Just don\'t get us arrested."', effects: [{ type: 'relationship', npc: 'sully', delta: 2 }] },
+      ],
+    },
+    {
+      id: 'sully_about_bea',
+      minRelationship: 50,
+      context: 'normal',
+      portrait: 'caught',
+      lines: [
+        { speaker: 'sully', portrait: 'caught', text: "Inspector Thornton almost found my tunnel camp last week. That woman has a sixth sense for unauthorized habitation." },
+        { speaker: 'sully', portrait: 'neutral', text: "Had to hide behind the boiler for forty-five minutes. In August. I lost three pounds." },
+        { speaker: 'sully', portrait: 'scheming', text: "She's thorough, I'll give her that. If she ever applied those skills to Victor's operation, he'd be finished in a week." },
+      ],
+    },
+  ],
+
 };
 
 export default NPC_CASUAL_DIALOGUE;

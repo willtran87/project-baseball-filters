@@ -60,11 +60,27 @@ export class StateManager {
     this.storyChapter = 1;
     this.npcRelationships = {
       maggie: 20, rusty: -5, victor: 0, priya: 0,
-      bea: 0, diego: 0, fiona: 0,
+      bea: 0, diego: 0, fiona: 0, sully: 0,
     };
     this.hanksNotes = [];
     this.storyFlags = {};
     this.storyEventsCompleted = [];
+
+    // Sully's Schemes state
+    this.schemeState = {
+      activeScheme: null,          // { schemeId, launchedDay } or null
+      globalCooldownUntil: 0,      // game day when global cooldown expires
+      schemeCooldowns: {},         // { schemeId: lastUsedDay }
+      sullyCaughtUntil: 0,         // game day when Sully becomes available again
+      schemesThisSeason: 0,        // count of schemes launched this season
+      lastSeason: 1,               // season tracker for resetting cap
+      schemeHistory: [],           // last N outcomes: [{ schemeId, day, success }]
+      sabotageImmunityUntil: 0,    // game day until sabotage immunity expires
+      sabotageChanceMultiplier: 1.0, // multiplier on Victor's sabotage chance
+      sabotageMultiplierUntil: 0,  // game day when multiplier expires
+      blockNextSabotage: false,    // one-time sabotage block flag
+      defensesDisabledUntil: 0,    // game day until defenses are re-enabled
+    };
 
     // Staff RPG state
     this.staffList = [];
@@ -90,6 +106,17 @@ export class StateManager {
     this._supplyCostDays = 0;
     this._supplyCostMultiplier = 1.0;
     this._nextInspectionPenalty = 1.0;
+    this._infraStressDays = 0;
+    this._infraStressDomain = null;
+    this._hotdogFloodDays = 0;
+    this._hotdogDegradeMultiplier = 1.0;
+    this._cursedBobbleDays = 0;
+    this._sprinklerPrankDays = 0;
+    this._organSwapDays = 0;
+    this._gremlinDays = 0;
+    this._sabotageRevenueMod = 1.0;
+    this._sabotageAttendanceMod = 1.0;
+    this._sabotageTeamPerfMod = 1.0;
 
     // Media headlines
     this.mediaHeadlines = [];
@@ -281,9 +308,9 @@ export class StateManager {
   }
 
   set(key, value) {
-    // Guard against NaN corrupting numeric state (especially money)
-    if (key === 'money' && !Number.isFinite(value)) {
-      console.warn(`StateManager: blocked NaN assignment to money, keeping ${this.money}`);
+    // Guard against NaN corrupting numeric state
+    if ((key === 'money' || key === 'reputation') && !Number.isFinite(value)) {
+      console.warn(`StateManager: blocked NaN assignment to ${key}, keeping ${this[key]}`);
       return;
     }
     const old = this[key];
@@ -414,6 +441,21 @@ export class StateManager {
           ? { ...this.researchProgress.activeResearch }
           : null,
       },
+      // Sully's Schemes
+      schemeState: {
+        activeScheme: this.schemeState.activeScheme ? { ...this.schemeState.activeScheme } : null,
+        globalCooldownUntil: this.schemeState.globalCooldownUntil,
+        schemeCooldowns: { ...this.schemeState.schemeCooldowns },
+        sullyCaughtUntil: this.schemeState.sullyCaughtUntil,
+        schemesThisSeason: this.schemeState.schemesThisSeason,
+        lastSeason: this.schemeState.lastSeason,
+        schemeHistory: this.schemeState.schemeHistory.slice(-10).map(h => ({ ...h })),
+        sabotageImmunityUntil: this.schemeState.sabotageImmunityUntil,
+        sabotageChanceMultiplier: this.schemeState.sabotageChanceMultiplier,
+        sabotageMultiplierUntil: this.schemeState.sabotageMultiplierUntil,
+        blockNextSabotage: this.schemeState.blockNextSabotage ?? false,
+        defensesDisabledUntil: this.schemeState.defensesDisabledUntil ?? 0,
+      },
       // Rival
       rivalRep: this.rivalRep,
       victorEncounters: this.victorEncounters,
@@ -423,6 +465,17 @@ export class StateManager {
       _supplyCostDays: this._supplyCostDays ?? 0,
       _supplyCostMultiplier: this._supplyCostMultiplier ?? 1.0,
       _nextInspectionPenalty: this._nextInspectionPenalty ?? 1.0,
+      _infraStressDays: this._infraStressDays ?? 0,
+      _infraStressDomain: this._infraStressDomain ?? null,
+      _hotdogFloodDays: this._hotdogFloodDays ?? 0,
+      _hotdogDegradeMultiplier: this._hotdogDegradeMultiplier ?? 1.0,
+      _cursedBobbleDays: this._cursedBobbleDays ?? 0,
+      _sprinklerPrankDays: this._sprinklerPrankDays ?? 0,
+      _organSwapDays: this._organSwapDays ?? 0,
+      _gremlinDays: this._gremlinDays ?? 0,
+      _sabotageRevenueMod: this._sabotageRevenueMod ?? 1.0,
+      _sabotageAttendanceMod: this._sabotageAttendanceMod ?? 1.0,
+      _sabotageTeamPerfMod: this._sabotageTeamPerfMod ?? 1.0,
       // Media
       mediaHeadlines: this.mediaHeadlines.map(h => ({ ...h })),
       // Contracts
@@ -552,11 +605,29 @@ export class StateManager {
     this.storyChapter = data.storyChapter ?? 1;
     this.npcRelationships = data.npcRelationships ?? {
       maggie: 20, rusty: -5, victor: 0, priya: 0,
-      bea: 0, diego: 0, fiona: 0,
+      bea: 0, diego: 0, fiona: 0, sully: 0,
     };
+    // Ensure sully key exists for old saves
+    if (this.npcRelationships.sully == null) this.npcRelationships.sully = 0;
     this.hanksNotes = Array.isArray(data.hanksNotes) ? data.hanksNotes : [];
     this.storyFlags = data.storyFlags ?? {};
     this.storyEventsCompleted = Array.isArray(data.storyEventsCompleted) ? data.storyEventsCompleted : [];
+    // Sully's Schemes state
+    const ss = data.schemeState ?? {};
+    this.schemeState = {
+      activeScheme: ss.activeScheme ?? null,
+      globalCooldownUntil: ss.globalCooldownUntil ?? 0,
+      schemeCooldowns: ss.schemeCooldowns ?? {},
+      sullyCaughtUntil: ss.sullyCaughtUntil ?? 0,
+      schemesThisSeason: ss.schemesThisSeason ?? 0,
+      lastSeason: ss.lastSeason ?? (this.season ?? 1),
+      schemeHistory: Array.isArray(ss.schemeHistory) ? ss.schemeHistory : [],
+      sabotageImmunityUntil: ss.sabotageImmunityUntil ?? 0,
+      sabotageChanceMultiplier: ss.sabotageChanceMultiplier ?? 1.0,
+      sabotageMultiplierUntil: ss.sabotageMultiplierUntil ?? 0,
+      blockNextSabotage: ss.blockNextSabotage ?? false,
+      defensesDisabledUntil: ss.defensesDisabledUntil ?? 0,
+    };
     // Staff RPG
     this.staffList = Array.isArray(data.staffList) ? data.staffList : [];
     this.lastTeamBuilding = data.lastTeamBuilding ?? 0;
@@ -581,6 +652,17 @@ export class StateManager {
     this._supplyCostDays = data._supplyCostDays ?? 0;
     this._supplyCostMultiplier = data._supplyCostMultiplier ?? 1.0;
     this._nextInspectionPenalty = data._nextInspectionPenalty ?? 1.0;
+    this._infraStressDays = data._infraStressDays ?? 0;
+    this._infraStressDomain = data._infraStressDomain ?? null;
+    this._hotdogFloodDays = data._hotdogFloodDays ?? 0;
+    this._hotdogDegradeMultiplier = data._hotdogDegradeMultiplier ?? 1.0;
+    this._cursedBobbleDays = data._cursedBobbleDays ?? 0;
+    this._sprinklerPrankDays = data._sprinklerPrankDays ?? 0;
+    this._organSwapDays = data._organSwapDays ?? 0;
+    this._gremlinDays = data._gremlinDays ?? 0;
+    this._sabotageRevenueMod = data._sabotageRevenueMod ?? 1.0;
+    this._sabotageAttendanceMod = data._sabotageAttendanceMod ?? 1.0;
+    this._sabotageTeamPerfMod = data._sabotageTeamPerfMod ?? 1.0;
     // Media
     this.mediaHeadlines = Array.isArray(data.mediaHeadlines) ? data.mediaHeadlines : [];
     // Contracts

@@ -1046,7 +1046,7 @@ export class EventSystem {
           dh[domain] = Math.max(0, dh[domain] - amount);
         }
       }
-      this.eventBus.emit('consequence:update', this.state.domainHealth);
+      this.eventBus.emit('consequence:update', { scores: this.state.domainHealth });
     }
 
     // Reputation change

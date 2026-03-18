@@ -31,13 +31,13 @@ export class SeasonSummaryPanel {
     this._el.style.cssText = `
       position: absolute; top: 15%; left: 15%; right: 15%; bottom: 15%;
       background: linear-gradient(180deg, rgba(20,15,10,0.98), rgba(10,10,30,0.98));
-      border: 3px solid #8b4513;
+      border: 3px solid #1a2a4a;
       border-radius: 6px;
       font-family: monospace; color: #e0e0e0;
       font-size: 11px; z-index: 35;
       display: flex; flex-direction: column;
       overflow: hidden;
-      box-shadow: 0 0 30px rgba(139,69,19,0.3), inset 0 0 40px rgba(0,0,0,0.3);
+      box-shadow: 0 0 30px rgba(26,42,74,0.3), inset 0 0 40px rgba(0,0,0,0.3);
     `;
     this._render(data);
     this.container.appendChild(this._el);
@@ -80,7 +80,7 @@ export class SeasonSummaryPanel {
 
     // Header
     html += `
-      <div style="text-align:center;padding:12px 16px;border-bottom:2px solid #8b4513;background:rgba(139,69,19,0.1)">
+      <div style="text-align:center;padding:12px 16px;border-bottom:2px solid #1a2a4a;background:rgba(26,42,74,0.1)">
         <div style="color:#ffec27;font-size:16px;letter-spacing:3px;margin-bottom:4px;">SEASON ${data.season} REPORT</div>
         <div style="color:#888;font-size:10px;">End of Season Performance Review</div>
       </div>
@@ -142,7 +142,7 @@ export class SeasonSummaryPanel {
       for (const award of awards) {
         const icon = awardIcons[award.icon] ?? '\u2605';
         html += `
-          <div style="flex:1;min-width:120px;background:linear-gradient(180deg, rgba(200,168,72,0.1), rgba(139,69,19,0.05));border:1px solid #c8a84844;border-radius:4px;padding:8px 8px;text-align:center;">
+          <div style="flex:1;min-width:120px;background:linear-gradient(180deg, rgba(200,168,72,0.1), rgba(26,42,74,0.05));border:1px solid #c8a84844;border-radius:4px;padding:8px 8px;text-align:center;">
             <div style="color:#c8a848;font-size:16px;text-shadow:0 0 6px rgba(200,168,72,0.4);">${icon}</div>
             <div style="color:#c8a848;font-size:9px;font-weight:bold;margin-top:3px;letter-spacing:0.5px;">${award.name}</div>
             <div style="color:#999;font-size:8px;margin-top:2px;">${award.description}</div>
@@ -166,7 +166,7 @@ export class SeasonSummaryPanel {
 
     // Continue button
     html += `
-      <div style="padding:12px 20px;border-top:1px solid #8b4513;text-align:center;background:rgba(0,0,0,0.2);">
+      <div style="padding:12px 20px;border-top:1px solid #1a2a4a;text-align:center;background:rgba(0,0,0,0.2);">
         <button data-action="continue" style="
           background: linear-gradient(180deg, #2a4a2a, #1a3a1a);
           color: #00e436;
@@ -193,7 +193,7 @@ export class SeasonSummaryPanel {
 
   _sectionHeader(label) {
     return `
-      <div style="color:#8b4513;font-size:10px;letter-spacing:1px;margin-top:8px;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid #8b451344;">
+      <div style="color:#1a2a4a;font-size:10px;letter-spacing:1px;margin-top:8px;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid #1a2a4a44;">
         ${label}
       </div>
     `;

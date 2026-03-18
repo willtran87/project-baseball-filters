@@ -899,6 +899,44 @@ export class StorySystem {
         });
       }
     }
+
+    // ── SULLY ─────────────────────────────────────────────────────────────
+
+    // schemeAccess: unlock Sully's Schemes panel (tier 1, threshold 12)
+    if (npcHasBonus('sully', 'schemeAccess')) {
+      if (!flags.schemeAccess) {
+        flags.schemeAccess = true;
+        notifyOnce('_notified_schemeAccess', 'sully',
+          '"Alright, kid. You\'ve earned it. Let me show you the playbook."');
+      }
+    }
+
+    // betterOdds: +15% success rate on all schemes (tier 2, threshold 30)
+    if (npcHasBonus('sully', 'betterOdds')) {
+      if (!flags.betterOdds) {
+        flags.betterOdds = true;
+        notifyOnce('_notified_betterOdds', 'sully',
+          '"I\'ve refined the plays. Better scouting, better execution. Our odds just went up."');
+      }
+    }
+
+    // grandSlam: Tier 3 schemes unlock (tier 3, threshold 50)
+    if (npcHasBonus('sully', 'grandSlam')) {
+      if (!flags.grandSlam) {
+        flags.grandSlam = true;
+        notifyOnce('_notified_grandSlam', 'sully',
+          '"You want the big guns? I\'ve got three plays that\'ll change the game. Grand Slam tier. Buckle up."');
+      }
+    }
+
+    // sullyInsurance: fail effects halved (tier 4, threshold 75)
+    if (npcHasBonus('sully', 'sullyInsurance')) {
+      if (!flags.sullyInsurance) {
+        flags.sullyInsurance = true;
+        notifyOnce('_notified_sullyInsurance', 'sully',
+          '"Listen, I\'ve been doing this long enough to have backup plans for my backup plans. If things go wrong, I\'ll cushion the blow."');
+      }
+    }
   }
 
   _checkRelationshipBonuses() {

@@ -99,7 +99,7 @@ export class MenuManager {
     inner.style.cssText = 'text-align:center;max-width:420px;';
 
     // ASCII baseball
-    const baseballArt = `<pre style="color:#8b4513;font-size:9px;line-height:1.1;margin:8px auto;font-family:monospace;opacity:0.6">
+    const baseballArt = `<pre style="color:#1a2a4a;font-size:9px;line-height:1.1;margin:8px auto;font-family:monospace;opacity:0.6">
     ,---._
   ,'  /   \`.
  /   / ,-. \\
@@ -118,10 +118,10 @@ export class MenuManager {
       <div style="font-size:24px;color:#ffec27;margin-bottom:2px;letter-spacing:2px;text-shadow:2px 2px 0 #4a3a00">
         MINOR LEAGUE MAJOR FILTRATION
       </div>
-      <div style="font-size:10px;color:#8b4513;margin-bottom:12px;letter-spacing:4px">
+      <div style="font-size:10px;color:#1a2a4a;margin-bottom:12px;letter-spacing:4px">
         \u26be FROM THE GROUND UP \u26be
       </div>
-      <div style="font-size:11px;color:#8a7a6a;margin-bottom:18px;max-width:360px;line-height:1.6;text-align:center;font-style:italic;border-left:2px solid #8b4513;border-right:2px solid #8b4513;padding:8px 12px;background:rgba(139,69,19,0.05)">
+      <div style="font-size:11px;color:#8a7a6a;margin-bottom:18px;max-width:360px;line-height:1.6;text-align:center;font-style:italic;border-left:2px solid #1a2a4a;border-right:2px solid #1a2a4a;padding:8px 12px;background:rgba(26,42,74,0.05)">
         You are <span style="color:#ffccaa">Casey "Pipes" Peralta</span>, hired to fix the crumbling
         filtration systems of a minor-league baseball stadium after the
         <span style="color:#ff004d">"Browntide Incident"</span>.<br><br>
@@ -242,7 +242,7 @@ export class MenuManager {
     }
 
     inner.innerHTML = `
-      <div style="font-size:12px;color:#8b4513;letter-spacing:3px;margin-bottom:4px">SELECT DIFFICULTY</div>
+      <div style="font-size:12px;color:#1a2a4a;letter-spacing:3px;margin-bottom:4px">SELECT DIFFICULTY</div>
       <div style="font-size:10px;color:#83769c;margin-bottom:14px">
         Choose your challenge level. This affects income, costs, and filter degradation.
       </div>
@@ -314,7 +314,7 @@ export class MenuManager {
                  this.state.reputation >= 21 ? 'Minor League' : 'Condemned';
 
     inner.innerHTML = `
-      <div style="font-size:12px;color:#8b4513;letter-spacing:3px;margin-bottom:4px">\u26be RAPTORS \u26be</div>
+      <div style="font-size:12px;color:#1a2a4a;letter-spacing:3px;margin-bottom:4px">\u26be RAPTORS \u26be</div>
       <div style="font-size:16px;color:#ffec27;margin-bottom:4px">TIMEOUT</div>
       <div style="font-size:11px;color:#83769c;margin-bottom:14px">
         Game ${this.state.gameDay} \u2022 Inning ${this.state.inning}/9 \u2022 ${tier}
@@ -454,7 +454,7 @@ export class MenuManager {
     }
 
     inner.innerHTML = `
-      <div style="font-size:12px;color:#8b4513;letter-spacing:3px;margin-bottom:4px">\u{1f4be} SAVE GAME</div>
+      <div style="font-size:12px;color:#1a2a4a;letter-spacing:3px;margin-bottom:4px">\u{1f4be} SAVE GAME</div>
       <div style="font-size:10px;color:#83769c;margin-bottom:14px">Select a slot to save your progress.</div>
       <div style="max-width:340px;margin:0 auto">${slotsHtml}</div>
       <button data-action="back-to-pause" style="
@@ -557,7 +557,7 @@ export class MenuManager {
     }
 
     inner.innerHTML = `
-      <div style="font-size:12px;color:#8b4513;letter-spacing:3px;margin-bottom:4px">\u{1f4c2} LOAD GAME</div>
+      <div style="font-size:12px;color:#1a2a4a;letter-spacing:3px;margin-bottom:4px">\u{1f4c2} LOAD GAME</div>
       <div style="font-size:10px;color:#83769c;margin-bottom:14px">Select a save to load. Unsaved progress will be lost.</div>
       <div style="max-width:340px;margin:0 auto">${slotsHtml}</div>
       <button data-action="back-to-pause" style="
@@ -661,7 +661,7 @@ export class MenuManager {
       }).join('<br>');
       recentHtml = `
         <div style="margin-top:6px;padding-top:4px;border-top:1px solid #333">
-          <div style="color:#8b4513;font-size:10px;letter-spacing:1px;margin-bottom:3px">RECENT ACHIEVEMENTS</div>
+          <div style="color:#1a2a4a;font-size:10px;letter-spacing:1px;margin-bottom:3px">RECENT ACHIEVEMENTS</div>
           ${items}
         </div>
       `;
@@ -681,7 +681,7 @@ export class MenuManager {
         ${narrative}
       </div>
       <div style="font-size:11px;color:#888;margin-bottom:16px;background:rgba(0,0,0,0.3);padding:8px 12px;border-radius:3px;border:1px solid #333">
-        <div style="color:#8b4513;font-size:10px;letter-spacing:2px;margin-bottom:4px">\u26be FINAL SCOREBOARD</div>
+        <div style="color:#1a2a4a;font-size:10px;letter-spacing:2px;margin-bottom:4px">\u26be FINAL SCOREBOARD</div>
         Games Played: ${this.state.gameDay} \u2022 Final Rep: ${Math.floor(this.state.reputation)}% \u2022 Budget: $${this.state.money.toLocaleString()}
         <br>Achievements: ${achievementCount} / 18
         ${story.foundNotes ? `<br>Hank's Notes: ${(story.foundNotes ?? []).length}/8` : ''}
@@ -792,7 +792,7 @@ export class MenuManager {
       }
 
       inner.innerHTML = `
-        <div style="font-size:12px;color:#8b4513;letter-spacing:3px;margin-bottom:4px">LEGACY SHOP</div>
+        <div style="font-size:12px;color:#1a2a4a;letter-spacing:3px;margin-bottom:4px">LEGACY SHOP</div>
         <div style="font-size:16px;color:#ffec27;margin-bottom:4px;letter-spacing:1px">
           ${data.legacyPoints} <span style="font-size:11px;color:#888">LEGACY POINTS</span>
         </div>
@@ -806,7 +806,7 @@ export class MenuManager {
           ${gridHtml}
         </div>
         <div style="font-size:11px;color:#888;margin-bottom:12px;background:rgba(0,0,0,0.3);padding:8px 12px;border-radius:3px;border:1px solid #333;display:inline-block">
-          <span style="color:#8b4513;letter-spacing:1px">LIFETIME STATS</span><br>
+          <span style="color:#1a2a4a;letter-spacing:1px">LIFETIME STATS</span><br>
           Games: <span style="color:#c0c0d0">${data.totalGamesPlayed}</span> |
           Wins: <span style="color:#00e436">${data.totalWins}</span> |
           Best Grade: <span style="color:#ffec27">${data.bestGrade ?? '--'}</span>
@@ -872,7 +872,7 @@ export class MenuManager {
     content.style.cssText = 'animation: creditsScroll 12s ease-in-out;opacity:1;';
 
     content.innerHTML = `
-      <div style="font-size:10px;color:#8b4513;letter-spacing:4px;margin-bottom:16px">\u26be \u26be \u26be</div>
+      <div style="font-size:10px;color:#1a2a4a;letter-spacing:4px;margin-bottom:16px">\u26be \u26be \u26be</div>
 
       <div style="font-size:12px;color:#ff004d;letter-spacing:3px;margin-bottom:2px;text-shadow:1px 1px 0 #4a0018">
         RIDGEMONT RAPTORS
@@ -892,7 +892,7 @@ export class MenuManager {
         Achievements: <span style="color:#ff77a8">${(this.state.achievements ?? []).length} / 18</span>
       </div>
 
-      <div style="width:60px;height:1px;background:#8b4513;margin:0 auto 20px"></div>
+      <div style="width:60px;height:1px;background:#1a2a4a;margin:0 auto 20px"></div>
 
       <div style="font-size:12px;color:#ffa300;line-height:1.8;margin-bottom:20px;font-style:italic;max-width:340px;margin-left:auto;margin-right:auto">
         "The invisible work is the work that matters most.<br>

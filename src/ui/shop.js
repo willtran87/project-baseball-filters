@@ -47,13 +47,13 @@ export class Shop {
     this._el.style.cssText = `
       position: absolute; top: 24px; left: 8%; right: 8%; bottom: 24px;
       background: linear-gradient(180deg, rgba(15,10,5,0.97), rgba(8,8,24,0.97));
-      border: 2px solid #8b4513;
+      border: 2px solid #1a2a4a;
       border-radius: 4px;
       font-family: monospace; color: #e0e0e0;
       font-size: 14px; z-index: 30;
       display: flex; flex-direction: column;
       overflow: hidden;
-      box-shadow: 0 0 20px rgba(139,69,19,0.3);
+      box-shadow: 0 0 20px rgba(26,42,74,0.3);
     `;
 
     this._render();
@@ -80,7 +80,7 @@ export class Shop {
 
     // Header — baseball dugout theme
     const header = `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #8b4513;background:linear-gradient(180deg,rgba(139,69,19,0.15),rgba(0,0,0,0.3))">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #1a2a4a;background:linear-gradient(180deg,rgba(26,42,74,0.15),rgba(0,0,0,0.3))">
         <strong style="color:#ffec27;letter-spacing:1px">\u{1f6d2} DUGOUT SUPPLY SHOP</strong>
         <span style="color:#888;font-size:12px">Budget: <span style="color:#00e436;font-weight:bold">$${this.state.money.toLocaleString()}</span></span>
         <span data-action="close-shop" style="cursor:pointer;color:#888;font-size:14px">\u2715</span>
