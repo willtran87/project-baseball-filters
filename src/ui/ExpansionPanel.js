@@ -122,11 +122,106 @@ export class ExpansionPanel {
         if (bonusText) bonusText += ' &middot; ';
         bonusText += `<span style="color:#a78bfa">Media rep boost</span>`;
       }
+      if (exp.specialEventsOnly) {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#ff77a8">Playoff/Championship only</span>`;
+      }
+      // New expansion specific labels
+      if (exp.id === 'groundskeeperGarden') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#4488ff">+10 water health</span> &middot; <span style="color:#44bb44">-50% drainage penalties</span>`;
+      }
+      if (exp.id === 'stadiumBlimp') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#ffec27">+5% sponsor rev</span> &middot; <span style="color:#a78bfa">Bonus headlines</span>`;
+      }
+      if (exp.id === 'weatherStationTower') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#29adff">-20% weather stress</span> &middot; <span style="color:#29adff">+1 forecast day</span>`;
+      }
+      if (exp.id === 'jumbotronUpgrade') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#ffa300">+8% attendance</span> &middot; <span style="color:#ffa300">+3% concessions</span>`;
+      }
+      if (exp.id === 'rallyRaccoon') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#ffa300">+3% attendance</span> &middot; <span style="color:#a78bfa">Raccoon headlines</span>`;
+      }
+      if (exp.id === 'neonFoodCourt') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#ffa300">+8% concessions</span> &middot; <span style="color:#ff77a8">Neon atmosphere</span>`;
+      }
+      if (exp.id === 'foulBallPhysics') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#ffa300">+3% attendance</span> &middot; <span style="color:#ffec27">Ball tracking display</span>`;
+      }
+      if (exp.id === 'staffTrainingCenter') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#29adff">+50% training XP</span> &middot; <span style="color:#29adff">-1 training day</span>`;
+      }
+      if (exp.id === 'marketExchangeTerminal') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#00e436">-30% price volatility</span> &middot; <span style="color:#00e436">Stable market</span>`;
+      }
+      if (exp.id === 'seventhInningStretch') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#ffa300">+6% concessions inn. 7-9</span> &middot; <span style="color:#ff77a8">Entertainment stage</span>`;
+      }
+      if (exp.id === 'oldTimersWall') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#ffec27">+3% revenue</span> &middot; <span style="color:#a78bfa">Hall of fame prestige</span>`;
+      }
+      if (exp.id === 'complianceOffice') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#00e436">+10 inspection score</span> &middot; <span style="color:#29adff">-4% operating costs</span>`;
+      }
+      if (exp.id === 'phantomFrequency') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#a78bfa">Mystery windfalls</span> &middot; <span style="color:#a78bfa">Phantom headlines</span>`;
+      }
+      if (exp.id === 'broadcastDroneRack') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#ffec27">+media rep boost</span> &middot; <span style="color:#ffa300">+3% sponsor revenue</span>`;
+      }
+      if (exp.id === 'steamForge') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#ff8844">-15% HVAC/air degradation</span> &middot; <span style="color:#ff8844">Geothermal power</span>`;
+      }
+      if (exp.id === 'scoutingBureau') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#29adff">-30% sabotage damage</span> &middot; <span style="color:#29adff">Rival intelligence</span>`;
+      }
+      if (exp.id === 'luxuryAquariumWall') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#4488ff">+5 water health</span> &middot; <span style="color:#ffec27">+8% revenue</span>`;
+      }
+      if (exp.id === 'rustysRetirementClock') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#ffa300">+20% veteran staff speed</span> &middot; <span style="color:#a78bfa">Staff tribute</span>`;
+      }
+      if (exp.id === 'emergencyResponseCenter') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#ff004d">-30% event chain risk</span> &middot; <span style="color:#00e436">-25% emergency repair cost</span>`;
+      }
+      if (exp.id === 'winterizationBay') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#29adff">-50% off-season degradation</span> &middot; <span style="color:#29adff">Cold weather protection</span>`;
+      }
+      if (exp.id === 'fireworksLauncherArray') {
+        if (bonusText) bonusText += ' &middot; ';
+        bonusText += `<span style="color:#ff004d">+8% special event attendance</span> &middot; <span style="color:#ffec27">+5% revenue</span>`;
+      }
 
-      // Systems required
-      const sysRequired = (exp.newSystemsRequired ?? []).map(s => {
-        const colors = { air: '#cccccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44' };
-        return `<span style="color:${colors[s] ?? '#888'}">${s.toUpperCase()}</span>`;
+      // Systems required — check for missing filters and show warning badge
+      const sysRequiredDomains = exp.newSystemsRequired ?? [];
+      const missingDomains = isPurchased ? sysRequiredDomains.filter(d => {
+        return !(this.state.filters ?? []).some(f => f.domain === d);
+      }) : [];
+      const sysRequired = sysRequiredDomains.map(s => {
+        const colors = { air: '#cccccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44', electrical: '#ffcc00', pest: '#cc44cc' };
+        const isMissing = missingDomains.includes(s);
+        const icon = isMissing ? ' \u26a0' : '';
+        return `<span style="color:${isMissing ? '#ff8800' : (colors[s] ?? '#888')}">${s.toUpperCase()}${icon}</span>`;
       }).join(', ');
 
       html += `
@@ -161,6 +256,11 @@ export class ExpansionPanel {
               &middot; Rep required: <span style="color:${this.state.reputation >= exp.reputationRequired ? '#00e436' : '#ff004d'}">${exp.reputationRequired}%</span>
               ${sysRequired ? ` &middot; Systems: ${sysRequired}` : ''}
             </div>
+            ${isPurchased && missingDomains.length > 0 ? `
+              <div style="color:#ffe066;font-size:9px;font-weight:bold;margin-top:3px;background:rgba(255,160,0,0.18);padding:3px 8px;border-radius:2px;border:1px solid rgba(255,160,0,0.35);">
+                \u26a0 No ${missingDomains.map(d => d.toUpperCase()).join(', ')} filters \u2014 benefits reduced 50%
+              </div>
+            ` : ''}
             ${!isPurchased && isUnlocked ? `
               <button data-action="purchase" data-id="${id}"
                 style="
@@ -233,8 +333,12 @@ export class ExpansionPanel {
     // Emit purchase event (audio + notification handled by audioManager)
     this.eventBus.emit('expansion:purchased', { id: expansionId, expansion: def });
 
-    // Re-render panel
+    // Re-render panel, preserving scroll position
+    const scrollContainer = el.querySelector('[style*="overflow-y"]');
+    const scrollTop = scrollContainer ? scrollContainer.scrollTop : 0;
     el.innerHTML = '';
     this._render(el);
+    const newScrollContainer = el.querySelector('[style*="overflow-y"]');
+    if (newScrollContainer) newScrollContainer.scrollTop = scrollTop;
   }
 }

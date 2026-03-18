@@ -8,7 +8,7 @@
  * Market pauses during off-season and resets at season start.
  */
 
-const DOMAINS = ['air', 'water', 'hvac', 'drainage'];
+let DOMAINS = ['air', 'water', 'hvac', 'drainage', 'electrical', 'pest'];
 
 const MARKET_EVENTS = [
   {
@@ -79,7 +79,7 @@ export class MarketSystem {
 
       // Apply drift: +/- 1-3%
       const drift = (0.01 + Math.random() * 0.02) * m.trend[domain];
-      m.domainMultipliers[domain] = Math.max(0.75, Math.min(1.35, m.domainMultipliers[domain] + drift));
+      m.domainMultipliers[domain] = Math.max(0.75, Math.min(1.35, (m.domainMultipliers[domain] ?? 1.0) + drift));
     }
 
     // --- Tick active event ---
@@ -136,7 +136,7 @@ export class MarketSystem {
    * @param {number} tier - Filter tier (1-4)
    * @returns {number} Multiplier to apply to base cost
    */
-  static getMarketMultiplier(market, domain, tier) {
+  static getMarketMultiplier(market, domain, tier, purchasedExpansions) {
     if (!market) return 1.0;
     let mult = market.domainMultipliers?.[domain] ?? 1.0;
 
@@ -147,6 +147,14 @@ export class MarketSystem {
       if (domainMatch && tierMatch) {
         mult *= evt.multiplier;
       }
+    }
+
+    // Market Exchange Terminal expansion: reduce deviation from 1.0 by 30%
+    // e.g., 1.3 becomes 1.0 + (0.3 * 0.7) = 1.21; 0.7 becomes 1.0 + (-0.3 * 0.7) = 0.79
+    const hasTerminal = (purchasedExpansions ?? []).some(p => p.key === 'marketExchangeTerminal');
+    if (hasTerminal) {
+      const deviation = mult - 1.0;
+      mult = 1.0 + deviation * 0.7;
     }
 
     return mult;

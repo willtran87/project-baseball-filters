@@ -83,7 +83,7 @@ export class NPCContactsPanel {
       border-radius: 4px;
       font-family: monospace;
       color: #d0d0e0;
-      font-size: 11px;
+      font-size: 14px;
       box-shadow: 0 0 16px rgba(139,69,19,0.25);
       scrollbar-width: thin;
       scrollbar-color: #8b4513 #111;
@@ -112,15 +112,15 @@ export class NPCContactsPanel {
     const header = document.createElement('div');
     header.style.cssText = `
       display: flex; justify-content: space-between; align-items: center;
-      padding: 6px 10px;
+      padding: 8px 10px;
       border-bottom: 1px solid #8b4513;
       background: rgba(139, 69, 19, 0.1);
     `;
     header.innerHTML = `
-      <span style="color:#ffec27;font-size:12px;letter-spacing:2px">\u{1f4fb} STADIUM RADIO</span>
+      <span style="color:#ffec27;font-size:14px;letter-spacing:2px">\u{1f4fb} STADIUM RADIO</span>
       <div style="display:flex;align-items:center;gap:6px">
-        <span data-action="giftshop" style="cursor:pointer;color:#c8a84e;font-size:10px;padding:0 2px;border:1px solid #8b4513;border-radius:2px;padding:2px 5px" title="Gift Shop">\u{1f381} Gifts</span>
-        <span data-action="close" style="cursor:pointer;color:#888;font-size:12px;padding:0 2px" title="Close">\u2715</span>
+        <span data-action="giftshop" style="cursor:pointer;color:#c8a84e;font-size:12px;padding:0 2px;border:1px solid #8b4513;border-radius:2px;padding:4px 5px" title="Gift Shop">\u{1f381} Gifts</span>
+        <span data-action="close" style="cursor:pointer;color:#888;font-size:14px;padding:0 2px" title="Close">\u2715</span>
       </div>
     `;
     this._el.appendChild(header);
@@ -141,7 +141,7 @@ export class NPCContactsPanel {
 
     // NPC rows
     const list = document.createElement('div');
-    list.style.cssText = 'padding: 4px 0;';
+    list.style.cssText = 'padding: 6px 0;';
 
     for (const npcId of NPC_ORDER) {
       const npc = NPC_DATA[npcId];
@@ -186,20 +186,20 @@ export class NPCContactsPanel {
     // Build next-tier preview line
     let nextTierHtml;
     if (!nextTierName) {
-      nextTierHtml = `<div style="color:#ffd700;font-size:8px;margin-top:2px">Max tier reached</div>`;
+      nextTierHtml = `<div style="color:#ffd700;font-size:10px;margin-top:2px">Max tier reached</div>`;
     } else {
       const bonusText = newBonuses.length > 0
         ? newBonuses.map(b => BONUS_DESCRIPTIONS[b] ?? b).join(', ')
         : '';
       const bonusPart = bonusText ? ` — ${bonusText}` : '';
-      nextTierHtml = `<div style="color:#777;font-size:8px;margin-top:2px">Next: ${nextTierName} (${nextThreshold})${bonusPart}</div>`;
+      nextTierHtml = `<div style="color:#777;font-size:10px;margin-top:2px">Next: ${nextTierName} (${nextThreshold})${bonusPart}</div>`;
     }
 
     info.innerHTML = `
       <div style="display:flex;align-items:baseline;gap:4px;margin-bottom:1px">
-        <span style="color:${npc.themeColor};font-size:10px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${npc.name}</span>
+        <span style="color:${npc.themeColor};font-size:12px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${npc.name}</span>
       </div>
-      <div style="color:#888;font-size:9px;margin-bottom:2px">${npc.role} &middot; <span style="color:#aaa">${tierName}</span></div>
+      <div style="color:#888;font-size:11px;margin-bottom:2px">${npc.role} &middot; <span style="color:#aaa">${tierName}</span></div>
       <div style="background:#222;height:4px;border-radius:2px;overflow:hidden;border:1px solid #333">
         <div style="width:${progress}%;height:100%;background:${npc.themeColor};transition:width 0.3s"></div>
       </div>
@@ -211,8 +211,8 @@ export class NPCContactsPanel {
     const chatted = this.state.npcLastChat?.[npcId] === this.state.gameDay;
     const btn = document.createElement('button');
     btn.style.cssText = chatted
-      ? 'flex-shrink:0;background:#3a3a3a;color:#666;border:1px solid #4a4a4a;padding:3px 6px;font-family:monospace;font-size:9px;cursor:default;border-radius:2px;white-space:nowrap;'
-      : 'flex-shrink:0;background:#2a6a2a;color:#fff;border:1px solid #4a4a4a;padding:3px 6px;font-family:monospace;font-size:9px;cursor:pointer;border-radius:2px;white-space:nowrap;';
+      ? 'flex-shrink:0;background:#3a3a3a;color:#666;border:1px solid #4a4a4a;padding:5px 8px;font-family:monospace;font-size:11px;cursor:default;border-radius:2px;white-space:nowrap;'
+      : 'flex-shrink:0;background:#2a6a2a;color:#fff;border:1px solid #4a4a4a;padding:5px 8px;font-family:monospace;font-size:11px;cursor:pointer;border-radius:2px;white-space:nowrap;';
     btn.textContent = chatted ? 'Spoke today' : 'Chat';
     btn.disabled = chatted;
 

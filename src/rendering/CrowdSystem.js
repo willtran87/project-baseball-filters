@@ -12,23 +12,50 @@ import {
   AWAY_TEAM_NAMES, MASCOT_IDENTITY,
 } from '../data/crowdIdentityData.js';
 
+// Field player layouts for top/bottom half-inning
+// Top of inning: away bats (few near plate), home fields (spread across diamond)
+// Bottom of inning: home bats (few near plate), away fields (spread across diamond)
+// Base pixel positions from TileMap.js diamond rendering:
+// Home plate: col 15, y=204 | 1st base: col 18, y=199
+// 2nd base: col 15, y=195  | 3rd base: col 11.5, y=199
+// Entity at row 12 → y=194 (right at base level), row 13 → y=210 (behind plate)
+
+// Fielding positions (always all 8 spawned)
+const FIELDERS = [
+  { rows: [12], xMin: 14, xMax: 16 },      // pitcher (mound)
+  { rows: [12], xMin: 11, xMax: 13 },      // 3B (3rd base)
+  { rows: [12], xMin: 13, xMax: 15 },      // SS (between 2nd-3rd)
+  { rows: [12], xMin: 16, xMax: 18 },      // 2B (between 1st-2nd)
+  { rows: [12], xMin: 18, xMax: 20 },      // 1B (1st base)
+  { rows: [10, 11], xMin: 5,  xMax: 10 },  // LF
+  { rows: [10, 11], xMin: 13, xMax: 17 },  // CF
+  { rows: [10, 11], xMin: 20, xMax: 25 },  // RF
+];
+// Batter + dugout (always spawned for batting team)
+const BATTER_HOME =  { rows: [13], xMin: 14, xMax: 16 }; // home plate
+const DUGOUT_HOME =  { rows: [10], xMin: 3,  xMax: 7 };  // 1B-side dugout
+const DUGOUT_AWAY =  { rows: [10], xMin: 22, xMax: 26 }; // 3B-side dugout
+// Optional baserunner positions (randomly selected each half-inning)
+const RUNNER_1B = { rows: [12], xMin: 17, xMax: 19 }; // 1st base
+const RUNNER_2B = { rows: [12], xMin: 14, xMax: 16 }; // 2nd base
+const RUNNER_3B = { rows: [12], xMin: 11, xMax: 13 }; // 3rd base
+// Probability of a runner being on each base (favors empty bases)
+const RUNNER_CHANCE_1B = 0.30;
+const RUNNER_CHANCE_2B = 0.15;
+const RUNNER_CHANCE_3B = 0.10;
+const FIELD_FANS = [
+  { type: 'fan_red',   rows: [6, 7],  xMin: 2, xMax: 28 },
+  { type: 'fan_navy',  rows: [6, 7],  xMin: 2, xMax: 28 },
+  { type: 'fan_green', rows: [6, 7],  xMin: 2, xMax: 28 },
+  { type: 'fan_white', rows: [6, 7],  xMin: 2, xMax: 28 },
+  { type: 'fan_red',   rows: [7],     xMin: 2, xMax: 28 },
+  { type: 'mascot',    rows: [7, 8],  xMin: 4, xMax: 26 },
+];
+
 // Per-zone crowd definitions
 const ZONE_CROWDS = {
   field: {
-    generics: [
-      { type: 'fan_red',   rows: [6, 7],  xMin: 2, xMax: 28 },
-      { type: 'fan_navy',  rows: [6, 7],  xMin: 2, xMax: 28 },
-      { type: 'fan_green', rows: [6, 7],  xMin: 2, xMax: 28 },
-      { type: 'fan_white', rows: [6, 7],  xMin: 2, xMax: 28 },
-      { type: 'fan_red',   rows: [7],     xMin: 2, xMax: 28 },
-      { type: 'fan_navy',  rows: [7],     xMin: 2, xMax: 28 },
-      { type: 'player',      rows: [11, 12], xMin: 3, xMax: 27 },
-      { type: 'player',      rows: [11, 12], xMin: 3, xMax: 27 },
-      { type: 'player_away', rows: [11, 12], xMin: 3, xMax: 27 },
-      { type: 'player_away', rows: [11, 12], xMin: 3, xMax: 27 },
-      { type: 'player_away', rows: [11, 12], xMin: 3, xMax: 27 },
-      { type: 'mascot',      rows: [7, 8],   xMin: 4, xMax: 26 },
-    ],
+    generics: [...FIELD_FANS],
     avoid: [],
   },
   concourse: {
@@ -108,6 +135,11 @@ export class CrowdSystem {
     this._raptorsRosterIndex = 0;
     this._awayRosterIndex = 0;
 
+    // Half-inning tracking (top = away bats, bottom = home bats)
+    this._topOfInning = true; // start with top of 1st (away bats)
+    this._inningSwapTimer = 0; // countdown for player transition
+    this._inningSwapPhase = null; // 'exit' | 'enter' | null
+
     // Crowd reaction state tracking
     this._reactionTimer = 0;    // seconds remaining for active reaction
     this._reactionType = null;  // 'wave' | 'rush' | 'confetti'
@@ -137,10 +169,22 @@ export class CrowdSystem {
       this._spawnForZone(to ?? state.currentZone);
     });
 
-    // After good inning: random crowd members briefly wave for 3 seconds
+    // Respawn crowd on save load so NPC visibility reflects restored relationships
+    eventBus.on('state:loaded', () => {
+      this._spawnForZone(state.currentZone ?? 'field');
+    });
+
+    // After each half-inning: swap fielders/batters and trigger crowd reaction
     eventBus.on('economy:inningEnd', () => {
       if (this._lastFiltrationQuality > 0.75) {
         this._startReaction('wave', 3.0);
+      }
+      // Start the inning swap transition if we're on the field zone
+      if (this._currentZone === 'field' && !this._inningSwapPhase) {
+        this._beginInningSwap();
+      } else {
+        // If not viewing field, just toggle silently
+        this._topOfInning = !this._topOfInning;
       }
     });
 
@@ -276,6 +320,11 @@ export class CrowdSystem {
       this._spawnEntity(entry, def.avoid, null);
     }
 
+    // Spawn field players at full count (not scaled by attendance)
+    if (zoneId === 'field' && !isOffSeason) {
+      this._spawnFieldPlayers(false);
+    }
+
     // Spawn NPCs in their home zone
     for (const [npcId, homeZone] of Object.entries(NPC_ZONES)) {
       if (homeZone !== zoneId) continue;
@@ -358,6 +407,71 @@ export class CrowdSystem {
       xMin,
       xMax,
     });
+  }
+
+  // ── Inning Swap ───────────────────────────────────────────────────
+
+  /**
+   * Spawn field players based on current half-inning.
+   * @param {boolean} fromEdge - if true, players enter from dugout edges
+   */
+  _spawnFieldPlayers(fromEdge = false) {
+    const avoid = ZONE_CROWDS.field?.avoid ?? [];
+    const fieldType = this._topOfInning ? 'player' : 'player_away';
+    const batType   = this._topOfInning ? 'player_away' : 'player';
+
+    // Always spawn all 8 fielders
+    for (const pos of FIELDERS) {
+      this._spawnEntity({ type: fieldType, ...pos }, avoid, null);
+    }
+
+    // Always spawn batter + dugout
+    this._spawnEntity({ type: batType, ...BATTER_HOME }, avoid, null);
+    const dugout = batType === 'player' ? DUGOUT_HOME : DUGOUT_AWAY;
+    this._spawnEntity({ type: batType, ...dugout }, avoid, null);
+
+    // Randomly place baserunners (favoring fewer)
+    if (Math.random() < RUNNER_CHANCE_1B) {
+      this._spawnEntity({ type: batType, ...RUNNER_1B }, avoid, null);
+    }
+    if (Math.random() < RUNNER_CHANCE_2B) {
+      this._spawnEntity({ type: batType, ...RUNNER_2B }, avoid, null);
+    }
+    if (Math.random() < RUNNER_CHANCE_3B) {
+      this._spawnEntity({ type: batType, ...RUNNER_3B }, avoid, null);
+    }
+
+    if (fromEdge) {
+      // Move newly spawned players to dugout edges so they walk in
+      for (const e of this._entities) {
+        if (e.type !== 'player' && e.type !== 'player_away') continue;
+        const enterFromLeft = e.type === 'player';
+        e.x = enterFromLeft ? 1 * 16 : 28 * 16;
+        e._transitioning = true;
+        e.paused = false;
+        e.speed = 30;
+        e.facing = enterFromLeft ? 1 : -1;
+      }
+    }
+  }
+
+  /**
+   * Start the half-inning swap transition.
+   * Players walk off toward their dugout, then new lineup enters.
+   */
+  _beginInningSwap() {
+    this._inningSwapPhase = 'exit';
+    this._inningSwapTimer = 2.0;
+
+    for (const e of this._entities) {
+      if (e.type !== 'player' && e.type !== 'player_away') continue;
+      e._transitioning = true;
+      e.paused = false;
+      e.pauseTimer = 0;
+      e.speed = 30;
+      // Home team exits left (1st-base dugout), away exits right (3rd-base dugout)
+      e.targetX = e.type === 'player' ? 1 * 16 : 28 * 16;
+    }
   }
 
   // ── Identity Generation ────────────────────────────────────────────
@@ -546,6 +660,20 @@ export class CrowdSystem {
       }
     }
 
+    // Handle inning swap transition
+    if (this._inningSwapPhase === 'exit') {
+      this._inningSwapTimer -= dt;
+      if (this._inningSwapTimer <= 0) {
+        // Remove all player entities, toggle half-inning, spawn new lineup
+        this._entities = this._entities.filter(
+          e => e.type !== 'player' && e.type !== 'player_away'
+        );
+        this._topOfInning = !this._topOfInning;
+        this._spawnFieldPlayers(true);
+        this._inningSwapPhase = null;
+      }
+    }
+
     // Update confetti burst timers (emit particles via event bus)
     for (const burst of this._confettiBursts) {
       burst.timer += dt;
@@ -586,6 +714,11 @@ export class CrowdSystem {
         e.pauseTimer = 1 + Math.random() * 2;
         e.frameIndex = e.type === 'mascot' ? 2 : 0;
         e.frameTimer = 0;
+        // Reset boosted transition speed back to normal walk pace
+        if (e._transitioning) {
+          e.speed = (8 + Math.random() * 12) * this._speedMultiplier();
+          e._transitioning = false;
+        }
         continue;
       }
 
@@ -593,9 +726,11 @@ export class CrowdSystem {
 
       // Sprites pass through each other freely
       e.x += e.facing * e.speed * this._baseSpeedMultiplier * dt;
-      // Clamp
-      if (e.x < e.xMin) e.x = e.xMin;
-      if (e.x > e.xMax) e.x = e.xMax;
+      // Clamp (skip during inning swap transition so entities can walk off/on field)
+      if (!e._transitioning) {
+        if (e.x < e.xMin) e.x = e.xMin;
+        if (e.x > e.xMax) e.x = e.xMax;
+      }
 
       // Animate walk cycle: swap frame 0↔1
       const frameInterval = e.type === 'mascot' ? 0.35 : 0.25;

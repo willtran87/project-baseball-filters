@@ -29,7 +29,7 @@ import { TooltipManager } from './ui/TooltipManager.js';
 import { InputManager } from './ui/InputManager.js';
 import { NotificationManager, TutorialManager, showConfirmDialog, showOffSeasonEventDialog, showDomainPickerDialog } from './ui/notifications.js';
 import { MenuManager } from './ui/menus.js';
-import { Shop } from './ui/shop.js';
+
 import { registerFilterInspectorPanel } from './ui/FilterInspectorPanel.js';
 import { DialogueBox } from './ui/DialogueBox.js';
 import { CutsceneRenderer } from './ui/CutsceneRenderer.js';
@@ -67,7 +67,7 @@ import { GAME_CONFIG } from './data/gameConfig.js';
 
 const CANVAS_WIDTH = 480;
 const CANVAS_HEIGHT = 320;
-const PIXEL_SCALE = 2;
+const PIXEL_SCALE = 3;
 
 function init() {
   const canvas = document.getElementById('game-canvas');
@@ -94,7 +94,7 @@ function init() {
   const screenShake = new ScreenShake();
   const screenFlash = new ScreenFlash();
   const incomeBreakdown = new IncomeBreakdown(eventBus);
-  const eventBanner = new EventBanner(eventBus);
+  const eventBanner = new EventBanner(eventBus, uiOverlay);
 
   // Crowd system (walking characters in each zone)
   const crowd = new CrowdSystem(state, eventBus);
@@ -133,6 +133,17 @@ function init() {
     screenFlash.clear();
   });
 
+  // On save load or new game, sync ZoneManager + TileMap to the restored zone
+  eventBus.on('state:loaded', () => {
+    const targetZone = state.currentZone ?? 'field';
+    const zoneDef = zoneManager.getZone(targetZone);
+    if (zoneDef) {
+      // Force ZoneManager and TileMap to the correct zone without transition
+      zoneManager._activeZone = targetZone;
+      tileMap.setGrid(zoneDef.grid, zoneDef.ventSlots, targetZone);
+    }
+  });
+
   // Game systems
   const filtration = new FiltrationSystem(state, eventBus);
   const economy = new EconomySystem(state, eventBus);
@@ -153,7 +164,6 @@ function init() {
   const tooltips = new TooltipManager(uiOverlay, state, eventBus);
   const panels = new PanelManager(uiOverlay, state, eventBus);
   const hud = new HUD(uiOverlay, state, eventBus, zoneManager);
-  const shop = new Shop(uiOverlay, state, eventBus);
   const menus = new MenuManager(uiOverlay, state, eventBus);
   menus.setSaveLoad(saveLoad);
   menus.setPrestige(prestige);
@@ -209,6 +219,44 @@ function init() {
   const music = new MusicGenerator(audio, eventBus, state);
   // Ensure audio initializes on first touch (mobile devices)
   document.addEventListener('touchstart', () => audio.init(), { once: true });
+
+  // ── Daily event log for Hank's Journal ──
+  eventBus.on('event:started', (evt) => {
+    state.logEvent(evt.description ?? evt.name, evt.isPositive ? 'positive' : 'negative');
+  });
+  eventBus.on('inspection:result', ({ grade, repChange }) => {
+    state.logEvent(`Health inspection: Grade ${grade} (rep ${repChange >= 0 ? '+' : ''}${repChange})`, grade === 'A' || grade === 'B' ? 'positive' : 'negative');
+  });
+  eventBus.on('rival:sabotageAlert', (data) => {
+    state.logEvent(`Sabotage: ${data.title}${data.impact ? ` — ${data.impact}` : ''}`, 'danger');
+  });
+  eventBus.on('rival:sabotageBlocked', (data) => {
+    state.logEvent(`Sabotage blocked: ${data.name}`, 'positive');
+  });
+  eventBus.on('filter:broken', (f) => {
+    state.logEvent(`Equipment #${f.id} broke down (${f.domain ?? 'unknown'})`, 'negative');
+  });
+  eventBus.on('progression:achievement', (m) => {
+    state.logEvent(`Achievement: ${m.name}`, 'positive');
+  });
+  eventBus.on('progression:tierChange', ({ to, promoted }) => {
+    if (to?.name) state.logEvent(promoted ? `Promoted to ${to.name}!` : `Sent down to ${to.name}`, promoted ? 'positive' : 'negative');
+  });
+  eventBus.on('contract:accepted', (c) => {
+    state.logEvent(`Contract signed: ${c.sponsor ?? c.name ?? 'New sponsor'}`, 'positive');
+  });
+  eventBus.on('contract:lost', (c) => {
+    state.logEvent(`Contract lost: ${c.name ?? 'Sponsor'} (${c.reason ?? 'breached'})`, 'negative');
+  });
+  eventBus.on('staff:hired', (s) => {
+    state.logEvent(`Hired: ${s.name} (${s.specialization ?? 'general'})`, 'info');
+  });
+  eventBus.on('staff:fired', (s) => {
+    state.logEvent(`Fired: ${s.name}`, 'info');
+  });
+  eventBus.on('story:dialogue', (evt) => {
+    state.logEvent(`Story: ${evt.title ?? evt.id ?? 'Event'}`, 'story');
+  });
 
   // ── Wire particle effects, floating text, and screen shake to game events ──
 
@@ -312,6 +360,20 @@ function init() {
     if (worst < 15) {
       screenShake.shake(2, 0.2);
     }
+
+    // When electrical domain is critically low, emit sparks near random filter positions
+    if ((scores.electrical ?? 100) < 25) {
+      const elecFilters = state.filters.filter(f => f.domain === 'electrical');
+      if (elecFilters.length > 0) {
+        const f = elecFilters[Math.floor(Math.random() * elecFilters.length)];
+        particles.emit('electricArc', f.x + 8, f.y + 8);
+      }
+    }
+
+    // When pest domain is critically low, occasional scurry effect
+    if ((scores.pest ?? 100) < 25 && Math.random() < 0.3) {
+      particles.emit('pestScurry', 50 + Math.random() * 380, 50 + Math.random() * 200);
+    }
   });
 
   // Game events: shake + flash for negative events
@@ -324,6 +386,20 @@ function init() {
       screenFlash.flash('#ff004d', 0.3, 0.15);
     } else if (evt.degradeMultiplier >= 1.5) {
       screenShake.shake(3, 0.3);
+    }
+
+    // Lightning storm — dramatic flash + shake + lightning particle burst
+    if (evt.name === 'Lightning Storm') {
+      screenFlash.flash('#ffffff', 0.15, 0.4);
+      screenShake.shake(5, 0.4);
+      particles.emit('lightningStrike', 100 + Math.random() * 280, 20);
+    }
+
+    // Pest infestation — swarm particles emerging in waves
+    if (evt.name === 'Pest Infestation') {
+      for (let i = 0; i < 3; i++) {
+        setTimeout(() => particles.emit('pestSwarm', 80 + Math.random() * 320, 80 + Math.random() * 160), i * 300);
+      }
     }
   });
 
@@ -639,10 +715,6 @@ function init() {
   // Wire up audio mute toggle (M key)
   eventBus.on('audio:toggleMute', () => audio.toggleMute());
 
-  // Wire up shop panel open (Shop already self-binds ui:toggleShop in constructor)
-  eventBus.on('ui:openPanel', ({ name }) => {
-    if (name === 'shop') shop.show();
-  });
 
   // Journal toggle is handled inside JournalPanel.js (registerJournalPanel)
 
@@ -707,7 +779,7 @@ function init() {
   });
 
   // Expose core references for debugging
-  window.__game = { state, eventBus, loop, saveLoad, shop, menus, particles, floatingText, screenShake, screenFlash, tileMap, staffSystem, rival, media, story, research, zoneManager, consequences, prestige };
+  window.__game = { state, eventBus, loop, saveLoad, menus, particles, floatingText, screenShake, screenFlash, tileMap, staffSystem, rival, media, story, research, zoneManager, consequences, prestige, filtration };
 
   eventBus.emit('game:init', { config: GAME_CONFIG });
   loop.start();

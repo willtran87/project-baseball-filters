@@ -7,7 +7,7 @@
 
 import { TILES } from '../rendering/TileMap.js';
 
-const PIXEL_SCALE = 2;
+const PIXEL_SCALE = 3;
 
 export class InputManager {
   constructor(canvas, uiOverlay, state, eventBus, tileMap, tooltipManager, zoneManager, interactiveObjects, crowd, mobileAdapter) {
@@ -21,7 +21,10 @@ export class InputManager {
     this.interactiveObjects = interactiveObjects ?? null;
     this.crowd = crowd ?? null;
     this._mobile = mobileAdapter ?? null;
-    this._displayScale = mobileAdapter?.isMobile ? mobileAdapter.getDisplayScale() : PIXEL_SCALE;
+    this._baseScale = mobileAdapter?.isMobile ? mobileAdapter.getDisplayScale() : PIXEL_SCALE;
+    this._zoomLevel = 1.0;           // 1.0 = default, range 0.5–3.0
+    this._displayScale = this._baseScale * this._zoomLevel;
+    this._container = canvas.parentElement;
 
     this._placementMode = null; // { type: 'basic' } when placing a filter
     this._hoveredFilter = null;
@@ -35,6 +38,7 @@ export class InputManager {
     this._bindTouch();
     this._bindKeyboard();
     this._bindEventBus();
+    this._bindZoom();
   }
 
   // -- Mouse -> Canvas Coordinate Conversion --
@@ -143,6 +147,32 @@ export class InputManager {
     });
   }
 
+  // -- Zoom --
+
+  _bindZoom() {
+    // Set initial container size for transform-origin
+    this._container.style.transformOrigin = 'center center';
+    this._container.style.transition = 'transform 0.1s ease-out';
+  }
+
+  _applyZoom() {
+    // Use CSS transform for smooth scaling — keeps container dimensions stable
+    this._container.style.transform = this._zoomLevel === 1.0
+      ? 'none'
+      : `scale(${this._zoomLevel})`;
+
+    // Update display scale for coordinate translation
+    this._displayScale = this._baseScale * this._zoomLevel;
+
+    // Show brief zoom indicator
+    this.eventBus.emit('ui:zoomChanged', { zoom: this._zoomLevel });
+  }
+
+  resetZoom() {
+    this._zoomLevel = 1.0;
+    this._applyZoom();
+  }
+
   // -- Touch Handlers (mobile only) --
 
   _bindTouch() {
@@ -208,7 +238,7 @@ export class InputManager {
       if (tileId !== TILES.VENT_SLOT || !slot) {
         this.eventBus.emit('ui:message', { text: 'Can only place filters on vent slots.', type: 'warning' });
       } else if (this._filterAtSlot(col, row)) {
-        this.eventBus.emit('ui:message', { text: 'This slot already has a filter installed.', type: 'warning' });
+        this.eventBus.emit('ui:message', { text: 'This vent slot is occupied. Remove the existing filter first.', type: 'info' });
       } else if (slot.domain && pm.domain && slot.domain !== pm.domain) {
         const domainNames = { air: 'Air', water: 'Water', hvac: 'HVAC', drainage: 'Drainage' };
         const slotName = domainNames[slot.domain] ?? slot.domain;
@@ -273,15 +303,7 @@ export class InputManager {
       return;
     }
 
-    // Field overview: click regions to navigate into zones
-    if (this.state.currentZone === 'field' && this.zoneManager) {
-      if (row >= 4 && row <= 5) { this.zoneManager.switchZone('concourse'); return; }
-      if (row === 6 && col >= 3 && col <= 7) { this.zoneManager.switchZone('luxury'); return; }
-      if (row === 6 && col >= 8 && col <= 10) { this.zoneManager.switchZone('pressbox'); return; }
-      if (row === 7) { this.zoneManager.switchZone('concourse'); return; }
-      if (row >= 8 && row <= 9) { this.zoneManager.switchZone('mechanical'); return; }
-      if (row >= 13 && row <= 17) { this.zoneManager.switchZone('underground'); return; }
-    }
+    // Field zone: no click-to-navigate — use minimap or Tab to switch zones
 
     // Click on empty space closes panels
     this.eventBus.emit('ui:closePanel');
@@ -401,7 +423,7 @@ export class InputManager {
             this.eventBus.emit('game:quickSave');
             this.eventBus.emit('ui:message', { text: 'Game saved!', type: 'success' });
           } else {
-            this.eventBus.emit('ui:toggleShop');
+            this.eventBus.emit('ui:toggleSystems');
           }
           break;
         case 'l':
@@ -429,7 +451,7 @@ export class InputManager {
           this.eventBus.emit('ui:toggleContracts');
           break;
         case 'g':
-          this.eventBus.emit('ui:toggleSystems');
+          this.eventBus.emit('ui:toggleShop');
           break;
         case 'G':
           if (e.shiftKey) {
@@ -496,6 +518,24 @@ export class InputManager {
           break;
         case '?':
           this.eventBus.emit('ui:toggleHelp');
+          break;
+        case '=':
+        case '+':
+          e.preventDefault();
+          this._zoomLevel = Math.min(3.0, this._zoomLevel + 0.15);
+          this._applyZoom();
+          break;
+        case '-':
+          e.preventDefault();
+          this._zoomLevel = Math.max(0.5, this._zoomLevel - 0.15);
+          this._applyZoom();
+          break;
+        case ')':
+          // Shift+0 → reset zoom
+          if (e.shiftKey) {
+            e.preventDefault();
+            this.resetZoom();
+          }
           break;
       }
     });

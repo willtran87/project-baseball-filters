@@ -1097,7 +1097,7 @@ export class ProgressionSystem {
     if (OFF_SEASON_EVENTS.some(e => e.day === offSeasonDay)) return;
 
     const health = this.state.domainHealth ?? {};
-    const domains = ['air', 'water', 'hvac', 'drainage'];
+    const domains = Object.keys(this.state.config?.filtrationSystems ?? { air: 1, water: 1, hvac: 1, drainage: 1 });
     const staffList = this.state.staffList ?? [];
     const money = this.state.money;
 

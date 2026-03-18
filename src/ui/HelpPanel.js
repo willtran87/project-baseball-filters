@@ -28,13 +28,12 @@ export class HelpPanel {
     const shortcuts = [
       ['Tab / Shift+Tab', 'Cycle zones'],
       ['` (backtick)', 'Return to field'],
-      ['S', 'Shop'],
+      ['S / G', 'Systems overview'],
       ['H', 'Staff / Crew'],
       ['C', 'Contracts / Deals'],
       ['F', 'Finance report'],
       ['R', 'Research lab'],
       ['X', 'Stadium expansions'],
-      ['G', 'Systems overview'],
       ['A', 'Filter analytics'],
       ['O', 'Objectives'],
       ['N', 'Newspaper'],
@@ -53,6 +52,10 @@ export class HelpPanel {
       ['B', 'Next broken filter'],
       ['Shift+B', 'Previous broken filter'],
       ['Shift+E', 'Bulk repair zone'],
+      ['Shift+G', 'Gift shop'],
+      ['+ / Scroll Up', 'Zoom in'],
+      ['- / Scroll Down', 'Zoom out'],
+      ['Shift+0', 'Reset zoom'],
     ];
 
     const shortcutRows = shortcuts.map(([key, desc]) =>
@@ -64,23 +67,23 @@ export class HelpPanel {
 
     el.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <strong style="font-size:12px;color:#ffec27;letter-spacing:1px">HELP &amp; CONTROLS</strong>
-        <span data-action="close" style="cursor:pointer;color:#888;font-size:12px">\u2715</span>
+        <strong style="font-size:14px;color:#ffec27;letter-spacing:1px">HELP &amp; CONTROLS</strong>
+        <span data-action="close" style="cursor:pointer;color:#888;font-size:14px">\u2715</span>
       </div>
 
       <div style="display:flex;gap:24px;flex-wrap:wrap">
         <!-- Controls Section -->
         <div style="flex:1;min-width:220px">
-          <div style="color:#8b4513;font-size:9px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">KEYBOARD SHORTCUTS</div>
-          <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 0;font-size:10px;line-height:1.6">
+          <div style="color:#8b4513;font-size:11px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">KEYBOARD SHORTCUTS</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 0;font-size:12px;line-height:1.6">
             ${shortcutRows}
           </div>
         </div>
 
         <!-- Quick Reference Section -->
         <div style="flex:1;min-width:200px">
-          <div style="color:#8b4513;font-size:9px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">QUICK REFERENCE</div>
-          <div style="font-size:10px;color:#c0c0d0;line-height:1.8">
+          <div style="color:#8b4513;font-size:11px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #333;padding-bottom:3px">QUICK REFERENCE</div>
+          <div style="font-size:12px;color:#c0c0d0;line-height:1.8">
             <div style="margin-bottom:6px">
               <span style="color:#29adff;font-weight:bold">Filtration Domains</span><br>
               4 domains (Air, Water, HVAC, Drainage) each need healthy filters to maintain stadium quality.

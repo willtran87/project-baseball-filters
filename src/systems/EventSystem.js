@@ -66,8 +66,9 @@ const EVENT_CHAINS = [
         title: null,
         resolve: (state) => {
           const dh = state.domainHealth ?? {};
-          const allAbove70 = dh.air >= 70 && dh.water >= 70 && dh.hvac >= 70 && dh.drainage >= 70;
-          const anyBelow50 = dh.air < 50 || dh.water < 50 || dh.hvac < 50 || dh.drainage < 50;
+          const domainKeys = Object.keys(state.config?.filtrationSystems ?? { air: 1, water: 1, hvac: 1, drainage: 1 });
+          const allAbove70 = domainKeys.every(k => (dh[k] ?? 100) >= 70);
+          const anyBelow50 = domainKeys.some(k => (dh[k] ?? 100) < 50);
           if (allAbove70) {
             return { title: 'VIPs Impressed!', description: 'The delegation praised every system. Bonus funding secured!', effects: { rep: 10, cash: 3000 } };
           }
@@ -397,6 +398,17 @@ export class EventSystem {
       this._generateForecast();
     }
 
+    // Phantom Frequency expansion: 8% daily chance of a phantom windfall ($500-$1500)
+    const hasPhantomFrequency = (this.state.purchasedExpansions ?? []).some(p => p.key === 'phantomFrequency');
+    if (hasPhantomFrequency && Math.random() < 0.08) {
+      const windfall = Math.floor(500 + Math.random() * 1001); // $500-$1500
+      this.state.set('money', this.state.money + windfall);
+      this.eventBus.emit('ui:message', {
+        text: `Phantom windfall! A mysterious signal boosted revenue: +$${windfall.toLocaleString()}`,
+        type: 'success',
+      });
+    }
+
     // Research: earlyWarningBonus — show upcoming weather/event warning 1 day earlier
     const earlyWarningBonus = this.state.researchEffects?.earlyWarningBonus ?? 0;
     if (earlyWarningBonus > 0 && this._forecast.length > 0) {
@@ -658,8 +670,49 @@ export class EventSystem {
       isPositive: eventDef.isPositive ?? false,
       specialRisk: eventDef.specialRisk ?? null,
     };
+    // ── Passive ability mitigation ─────────────────────────────
+    // powerBackup: generators mitigate Power Outage events
+    if (active.name === 'Power Outage') {
+      const backupFilters = (this.state.filters ?? []).filter(f =>
+        f.domain === 'electrical' && this._getFilterPassive(f) === 'powerBackup' && f.condition > f.maxCondition * 0.5
+      );
+      if (backupFilters.length > 0) {
+        active.degradeMultiplier *= 0.5;
+        active.revenueMultiplier = Math.min(1.0, (active.revenueMultiplier ?? 1) * 1.3);
+        active.reputationImpact = Math.floor((active.reputationImpact ?? 0) * 0.5);
+        const hasT3 = backupFilters.some(f => (f.tier ?? 1) >= 3);
+        if (hasT3) active.systemStress = {};  // T3+ prevents cascade
+        this.eventBus.emit('ui:message', { text: 'Backup generators kicked in — Power Outage mitigated!', type: 'success' });
+      }
+    }
+    // infestationShield: sanitizers mitigate Pest Infestation events
+    if (active.name === 'Pest Infestation') {
+      const shieldFilters = (this.state.filters ?? []).filter(f =>
+        f.domain === 'pest' && this._getFilterPassive(f) === 'infestationShield' && f.condition > f.maxCondition * 0.5
+      );
+      if (shieldFilters.length > 0) {
+        const hasT3 = shieldFilters.some(f => (f.tier ?? 1) >= 3);
+        if (hasT3 && Math.random() < 0.4) {
+          // T3+ has 40% chance to prevent event entirely
+          this.eventBus.emit('ui:message', { text: 'Pest control systems prevented an infestation!', type: 'success' });
+          return; // Don't start the event
+        }
+        active.degradeMultiplier *= 0.7;
+        this.eventBus.emit('ui:message', { text: 'Sanitation systems activated — infestation reduced!', type: 'success' });
+      }
+    }
+    // Electrical health reduces Power Outage probability (handled pre-trigger)
+    // but if it still fires, electrical health >70% shortens duration
+    let duration = eventDef.durationSec ?? 60;
+    if (active.name === 'Power Outage') {
+      const elecHealth = this.state.domainHealth?.electrical ?? 0;
+      if (elecHealth > 70) {
+        duration = Math.floor(duration * 0.5);
+      }
+    }
+
     this.state.set('activeEvent', active);
-    this._activeTimer = eventDef.durationSec ?? 60;
+    this._activeTimer = duration;
     // Reset pipe freeze flag when a new weather event starts
     if (active.specialRisk === 'pipeFreezeChance') {
       this._pipeFreezeTriggered = false;
@@ -734,7 +787,10 @@ export class EventSystem {
     // Event chaining: difficulty-based chance of a follow-up random event
     // Stop chaining once depth reaches 3 to prevent unfair snowballing
     const difficultyKey = this.state.difficulty ?? 'veteran';
-    const chainChance = this.state.config.difficulty?.[difficultyKey]?.eventChainChance ?? 0.15;
+    let chainChance = this.state.config.difficulty?.[difficultyKey]?.eventChainChance ?? 0.15;
+    // Emergency Response Center expansion: 30% reduction to event chain chance
+    const hasEmergencyResponse = (this.state.purchasedExpansions ?? []).some(p => p.key === 'emergencyResponseCenter');
+    if (hasEmergencyResponse) chainChance *= 0.70;
     if (ended.category !== 'scripted' && this._chainDepth < 3 && Math.random() < chainChance) {
       this._chainDepth++;
       this._checkRandomEvent();
@@ -1156,10 +1212,14 @@ export class EventSystem {
     const baseAccuracy = 0.9 * forecastAccuracy;
 
     // Domain mapping: derive affected domains from systemEffects/systemStress
-    const domainKeys = ['air', 'water', 'hvac', 'drainage'];
+    const domainKeys = Object.keys(this.state.config?.filtrationSystems ?? { air: 1, water: 1, hvac: 1, drainage: 1 });
+
+    // Weather Station Tower: +1 forecast day
+    const hasWeatherStation = (this.state.purchasedExpansions ?? []).some(p => p.key === 'weatherStationTower');
+    const forecastDays = hasWeatherStation ? 4 : 3;
 
     const weatherEvents = this._getWeatherEvents();
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < forecastDays; i++) {
       const possible = weatherEvents.filter(w => w.seasons.includes(season));
       if (possible.length === 0) {
         this._forecast.push({ name: 'Clear', description: 'Clear skies expected.', accuracy: baseAccuracy - i * 0.15, domainsAffected: [], severity: 0 });
@@ -1291,6 +1351,14 @@ export class EventSystem {
     const configEvents = this.state.config?.positiveEvents;
     if (Array.isArray(configEvents) && configEvents.length > 0) return configEvents;
     return FALLBACK_POSITIVE_EVENTS;
+  }
+
+  /** Get the passive ability key for a filter from config. */
+  _getFilterPassive(filter) {
+    const sys = this.state.config?.filtrationSystems?.[filter.domain];
+    const comp = sys?.components?.[filter.componentType];
+    const td = comp?.tiers?.find(t => t.tier === filter.tier);
+    return td?.passive ?? comp?.tiers?.[0]?.passive ?? null;
   }
 
   /** Convert config systemEffects (severity labels) to runtime systemStress (multipliers). */

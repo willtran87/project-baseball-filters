@@ -153,7 +153,8 @@ export class ContractPanel {
       } else if (def.contractType === 'multiDomain') {
         const health = this.state.domainHealth ?? {};
         const threshold = effectiveQualityReq * 100;
-        const domainsAbove = ['air', 'water', 'hvac', 'drainage'].filter(d => (health[d] ?? 0) >= threshold).length;
+        const allDomains = Object.keys(this.state.config?.filtrationSystems ?? { air: 1, water: 1, hvac: 1, drainage: 1 });
+        const domainsAbove = allDomains.filter(d => (health[d] ?? 0) >= threshold).length;
         meetsRequirement = domainsAbove >= (def.domainsRequired ?? 2);
       } else {
         meetsRequirement = this._lastQuality >= effectiveQualityReq;
@@ -190,6 +191,16 @@ export class ContractPanel {
       const fionaMult = this.state.storyFlags?.betterTerms ?? 1.0;
       if (fionaMult > 1.0) {
         effectivePay = Math.floor(effectivePay * fionaMult);
+      }
+      // Stadium Blimp: +5% sponsor/contract revenue
+      const hasBlimp = (this.state.purchasedExpansions ?? []).some(p => p.key === 'stadiumBlimp');
+      if (hasBlimp) {
+        effectivePay = Math.floor(effectivePay * 1.05);
+      }
+      // Broadcast Drone Rack: +3% sponsor/contract revenue
+      const hasDrones = (this.state.purchasedExpansions ?? []).some(p => p.key === 'broadcastDroneRack');
+      if (hasDrones) {
+        effectivePay = Math.floor(effectivePay * 1.03);
       }
       this.state.set('money', this.state.money + effectivePay);
 
@@ -537,6 +548,51 @@ export class ContractPanel {
     );
   }
 
+  // -- Quality Indicator ------------------------------------------------
+
+  _renderQualityIndicator(def, active) {
+    const effectiveQualityReq = (active?.renegotiatedQualityReq ?? def.qualityReq);
+
+    if (def.contractType === 'attendance') {
+      const current = Math.floor(this.state.attendancePercent ?? 0);
+      const required = Math.floor((def.attendanceReq ?? 0.70) * 100);
+      const meets = current >= required;
+      const color = meets ? '#00e436' : '#ff8800';
+      const icon = meets ? '\u2713' : '\u2717';
+      return `<div style="color: ${color}; font-size: 11px; margin-top: 4px;">Attendance: ${current}% / ${required}% required <span style="font-weight:bold">${icon}</span></div>`;
+    }
+
+    if (def.contractType === 'multiDomain') {
+      const health = this.state.domainHealth ?? {};
+      const threshold = Math.floor(effectiveQualityReq * 100);
+      const domainsReq = def.domainsRequired ?? 2;
+      const domainNames = { air: 'Air', water: 'Water', hvac: 'HVAC', drainage: 'Drainage', electrical: 'Electrical', pest: 'Pest Control' };
+      const allDomains = Object.keys(this.state.config?.filtrationSystems ?? domainNames);
+      let lines = '';
+      let aboveCount = 0;
+      for (const d of allDomains) {
+        const val = Math.floor(health[d] ?? 0);
+        const meets = val >= threshold;
+        if (meets) aboveCount++;
+        const color = meets ? '#00e436' : '#ff8800';
+        const icon = meets ? '\u2713' : '\u2717';
+        lines += `<span style="color:${color}">${domainNames[d]}: ${val}%</span> `;
+      }
+      const overallMeets = aboveCount >= domainsReq;
+      const overallColor = overallMeets ? '#00e436' : '#ff8800';
+      const overallIcon = overallMeets ? '\u2713' : '\u2717';
+      return `<div style="font-size: 11px; margin-top: 4px;">${lines}<span style="color:${overallColor}; font-weight:bold">(${aboveCount}/${domainsReq} domains above ${threshold}% ${overallIcon})</span></div>`;
+    }
+
+    // Standard quality contract
+    const currentPct = Math.floor(this._lastQuality * 100);
+    const requiredPct = Math.floor(effectiveQualityReq * 100);
+    const meets = this._lastQuality >= effectiveQualityReq;
+    const color = meets ? '#00e436' : '#ff8800';
+    const icon = meets ? '\u2713' : '\u2717';
+    return `<div style="color: ${color}; font-size: 11px; margin-top: 4px;">Quality: ${currentPct}% / ${requiredPct}% required <span style="font-weight:bold">${icon}</span></div>`;
+  }
+
   // -- Rendering --------------------------------------------------------
 
   _render(el, state, eventBus) {
@@ -572,17 +628,21 @@ export class ContractPanel {
     }
     const activeContracts = state.activeContracts ?? [];
 
-    el.style.cssText = `
-      position: absolute; top: 24px; left: 10%; right: 10%; bottom: 24px;
-      background: linear-gradient(180deg, rgba(10,10,25,0.97), rgba(8,8,24,0.97));
-      border: 2px solid #8b4513;
-      border-radius: 4px;
-      font-family: monospace; color: #e0e0e0;
-      font-size: 11px; z-index: 30;
-      display: flex; flex-direction: column;
-      overflow: hidden;
-      box-shadow: 0 0 20px rgba(139,69,19,0.2);
-    `;
+    // Only set panel styles on first render (avoid resetting styles on refresh)
+    if (!el._contractStyled) {
+      el.style.cssText = `
+        position: absolute; top: 24px; left: 10%; right: 10%; bottom: 24px;
+        background: linear-gradient(180deg, rgba(10,10,25,0.97), rgba(8,8,24,0.97));
+        border: 2px solid #8b4513;
+        border-radius: 4px;
+        font-family: monospace; color: #e0e0e0;
+        font-size: 14px; z-index: 30;
+        display: flex; flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 0 20px rgba(139,69,19,0.2);
+      `;
+      el._contractStyled = true;
+    }
 
     let html = '';
 
@@ -595,20 +655,23 @@ export class ContractPanel {
       ">
         <strong style="color: #29adff; letter-spacing: 1px">\u{1f4dd} SPONSOR CONTRACTS</strong>
         <span style="color: #888">Rep: <span style="color: #29adff">${Math.floor(rep)}%</span></span>
-        <span data-action="close-contracts" style="cursor:pointer;color:#888;font-size:12px">\u2715</span>
+        <span data-action="close-contracts" style="cursor:pointer;color:#888;font-size:14px">\u2715</span>
       </div>
     `;
+
+    // Scrollable content area
+    html += `<div class="panel-content" style="flex: 1; overflow-y: auto;">`;
 
     // Active contracts section
     html += `
       <div style="padding: 8px 12px; border-bottom: 1px solid #3a3a5a;">
-        <div style="color: #00e436; margin-bottom: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px">
+        <div style="color: #00e436; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px">
           Active Contracts (${activeContracts.length})
         </div>
     `;
 
     if (activeContracts.length === 0) {
-      html += `<div style="color: #666; font-style: italic; padding: 4px 0;">No active contracts.</div>`;
+      html += `<div style="color: #666; font-style: italic; padding: 6px 0;">No active contracts.</div>`;
     } else {
       for (const active of activeContracts) {
         const def = this._findContractDef(active.contractId);
@@ -627,60 +690,61 @@ export class ContractPanel {
 
         // Chain level badge
         const chainBadge = chainLevel > 0
-          ? `<span style="color: ${CHAIN_COLORS[chainLevel]}; font-size: 9px; border: 1px solid ${CHAIN_COLORS[chainLevel]}; padding: 0 4px; border-radius: 2px; margin-left: 4px;">${CHAIN_LABELS[chainLevel]}</span>`
+          ? `<span style="color: ${CHAIN_COLORS[chainLevel]}; font-size: 11px; border: 1px solid ${CHAIN_COLORS[chainLevel]}; padding: 0 6px; border-radius: 2px; margin-left: 6px;">${CHAIN_LABELS[chainLevel]}</span>`
           : '';
 
         // Expiring soon badge
         const expiringBadge = isExpiring
-          ? `<span style="color: #ffec27; font-size: 9px; border: 1px solid #ffec27; padding: 0 4px; border-radius: 2px; margin-left: 4px; background: rgba(255,236,39,0.1);">Expiring Soon</span>`
+          ? `<span style="color: #ffec27; font-size: 11px; border: 1px solid #ffec27; padding: 0 6px; border-radius: 2px; margin-left: 6px; background: rgba(255,236,39,0.1);">Expiring Soon</span>`
           : '';
 
         // Renewal count indicator
         const renewCount = (state.contractRenewals ?? {})[active.contractId] ?? 0;
         const renewBadge = renewCount > 0
-          ? `<span style="color: #888; font-size: 9px; margin-left: 4px;">Renewed ${renewCount}/2</span>`
+          ? `<span style="color: #888; font-size: 11px; margin-left: 6px;">Renewed ${renewCount}/2</span>`
           : '';
 
         // Perfect day progress (only show if at least 1 perfect day)
         const perfectBadge = perfectDays > 0
-          ? `<span style="color: #00e436; font-size: 9px; margin-left: 4px;">Perfect: ${perfectDays}/${effectiveDuration}</span>`
+          ? `<span style="color: #00e436; font-size: 11px; margin-left: 6px;">Perfect: ${perfectDays}/${effectiveDuration}</span>`
           : '';
 
         html += `
           <div style="
-            padding: 4px 8px; margin-bottom: 4px;
+            padding: 6px 8px; margin-bottom: 6px;
             background: rgba(255,255,255,0.03);
             border-left: 3px solid ${isBreach ? '#ff004d' : isExpiring ? '#ffec27' : TIER_COLORS[def.tier]};
           ">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="color: ${TIER_COLORS[def.tier]}">${def.name}${chainBadge}${expiringBadge}${renewBadge}</span>
-              <span style="color: #00e436; font-size: 10px">$${effectivePay}/game</span>
+              <span style="color: #00e436; font-size: 12px">$${effectivePay}/game</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 5px;">
               <div style="flex: 1; background: #222; height: 4px; border-radius: 2px;">
                 <div style="background: ${TIER_COLORS[def.tier]}; height: 100%; width: ${progressPct}%; border-radius: 2px;"></div>
               </div>
-              <span style="color: #888; font-size: 9px">${active.gamesPlayed}/${effectiveDuration} (${daysRemaining} left)</span>
+              <span style="color: #888; font-size: 11px">${active.gamesPlayed}/${effectiveDuration} (${daysRemaining} left)</span>
             </div>
-            ${isBreach ? `<div style="color: #ff004d; font-size: 9px; margin-top: 2px;">BREACH WARNING (${active.breachCount}/5)</div>` : ''}
+            ${this._renderQualityIndicator(def, active)}
+            ${isBreach ? `<div style="color: #ff004d; font-size: 11px; margin-top: 4px;">BREACH WARNING (${active.breachCount}/5)</div>` : ''}
             ${(() => {
               const breachDays = state.contractBreachDays ?? {};
               const daysAtRisk = breachDays[active.contractId] ?? 0;
               if (daysAtRisk >= 2 && !isBreach) {
-                return `<div style="color: #ff8800; font-size: 9px; margin-top: 2px; background: rgba(255,136,0,0.1); padding: 2px 4px; border-radius: 2px;">&#9888; Quality dip -- breach risk if not fixed soon (${daysAtRisk} days at risk)</div>`;
+                return `<div style="color: #ff8800; font-size: 11px; margin-top: 4px; background: rgba(255,136,0,0.1); padding: 4px 6px; border-radius: 2px;">&#9888; Quality dip -- breach risk if not fixed soon (${daysAtRisk} days at risk)</div>`;
               }
               return '';
             })()}
-            ${perfectBadge ? `<div style="margin-top: 2px;">${perfectBadge}</div>` : ''}
+            ${perfectBadge ? `<div style="margin-top: 4px;">${perfectBadge}</div>` : ''}
             ${canRenew ? `
-              <div style="display: flex; gap: 6px; margin-top: 4px;">
+              <div style="display: flex; gap: 8px; margin-top: 6px;">
                 <button data-action="renew" data-contract="${active.contractId}" style="
                   background: #1a2a3a; color: #29adff; border: 1px solid #3a5a6a;
-                  padding: 2px 8px; font-family: monospace; cursor: pointer; font-size: 9px;
+                  padding: 4px 8px; font-family: monospace; cursor: pointer; font-size: 11px;
                 ">RENEW</button>
                 <button data-action="renegotiate" data-contract="${active.contractId}" style="
                   background: #2a2a1a; color: #ffec27; border: 1px solid #5a5a3a;
-                  padding: 2px 8px; font-family: monospace; cursor: pointer; font-size: 9px;
+                  padding: 4px 8px; font-family: monospace; cursor: pointer; font-size: 11px;
                 ">RENEGOTIATE</button>
               </div>
             ` : ''}
@@ -690,23 +754,23 @@ export class ContractPanel {
     }
     html += `</div>`;
 
-    // Available contracts section (scrollable)
+    // Available contracts section
     html += `
-      <div style="flex: 1; overflow-y: auto; padding: 8px 12px;">
-        <div style="color: #ffec27; margin-bottom: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px">
+      <div style="padding: 8px 12px;">
+        <div style="color: #ffec27; margin-bottom: 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px">
           Available Contracts
         </div>
     `;
 
     if (available.length === 0) {
-      html += `<div style="color: #666; font-style: italic; padding: 4px 0;">No contracts available at your current reputation.</div>`;
+      html += `<div style="color: #666; font-style: italic; padding: 6px 0;">No contracts available at your current reputation.</div>`;
     } else {
       for (const contract of available) {
         const conflict = this._findCategoryConflict(contract);
         const tierColor = TIER_COLORS[contract.tier];
         const chainLevel = contract.chainLevel ?? 0;
         const chainBadge = chainLevel > 0
-          ? `<span style="color: ${CHAIN_COLORS[chainLevel]}; font-size: 9px; border: 1px solid ${CHAIN_COLORS[chainLevel]}; padding: 0 4px; border-radius: 2px; margin-left: 4px;">${CHAIN_LABELS[chainLevel]}</span>`
+          ? `<span style="color: ${CHAIN_COLORS[chainLevel]}; font-size: 11px; border: 1px solid ${CHAIN_COLORS[chainLevel]}; padding: 0 6px; border-radius: 2px; margin-left: 6px;">${CHAIN_LABELS[chainLevel]}</span>`
           : '';
         const requirementLabel = contract.contractType === 'attendance'
           ? `Min attendance: ${Math.floor((contract.attendanceReq ?? 0.70) * 100)}%`
@@ -716,36 +780,38 @@ export class ContractPanel {
 
         html += `
           <div style="
-            padding: 6px 8px; margin-bottom: 4px;
+            padding: 8px 8px; margin-bottom: 6px;
             background: rgba(255,255,255,0.03);
             border-left: 3px solid ${tierColor};
+            ${conflict ? 'opacity: 0.4;' : ''}
           ">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div>
-                <span style="color: ${tierColor}; font-size: 10px;">[${TIER_LABELS[contract.tier]}]</span>
-                <strong style="margin-left: 4px;">${contract.name}</strong>${chainBadge}
+                <span style="color: ${tierColor}; font-size: 12px;">[${TIER_LABELS[contract.tier]}]</span>
+                <strong style="margin-left: 6px;">${contract.name}</strong>${chainBadge}
               </div>
               <span style="color: #00e436">$${contract.payPerGame}/game</span>
             </div>
-            <div style="color: #888; font-size: 10px; margin: 3px 0;">
+            <div style="color: #888; font-size: 12px; margin: 5px 0;">
               ${contract.description}
             </div>
-            <div style="color: #777; font-size: 9px; margin-bottom: 4px;">
+            <div style="color: #777; font-size: 11px; margin-bottom: 6px;">
               Duration: ${contract.durationGames} games | ${requirementLabel}
               ${conflict ? `| <span style="color:#ff8800">Conflicts with ${conflict.name}</span>` : ''}
             </div>
-            <div style="display: flex; gap: 6px;">
+            ${this._renderQualityIndicator(contract, null)}
+            <div style="display: flex; gap: 8px;">
               <button data-action="accept" data-contract="${contract.id}" style="
-                background: #1a3a2a; color: #00e436; border: 1px solid #3a6a4a;
-                padding: 2px 10px; font-family: monospace; cursor: pointer; font-size: 9px;
+                background: ${conflict ? '#2a2a2a' : '#1a3a2a'}; color: ${conflict ? '#555' : '#00e436'}; border: 1px solid ${conflict ? '#333' : '#3a6a4a'};
+                padding: 4px 10px; font-family: monospace; cursor: ${conflict ? 'not-allowed' : 'pointer'}; font-size: 11px;
               ">ACCEPT</button>
               <button data-action="counter" data-contract="${contract.id}" style="
-                background: #2a2a3a; color: #29adff; border: 1px solid #3a3a6a;
-                padding: 2px 10px; font-family: monospace; cursor: pointer; font-size: 9px;
+                background: ${conflict ? '#2a2a2a' : '#2a2a3a'}; color: ${conflict ? '#555' : '#29adff'}; border: 1px solid ${conflict ? '#333' : '#3a3a6a'};
+                padding: 4px 10px; font-family: monospace; cursor: ${conflict ? 'not-allowed' : 'pointer'}; font-size: 11px;
               ">COUNTER (risk)</button>
               <button data-action="decline" data-contract="${contract.id}" style="
                 background: #3a2a2a; color: #888; border: 1px solid #4a3a3a;
-                padding: 2px 10px; font-family: monospace; cursor: pointer; font-size: 9px;
+                padding: 4px 10px; font-family: monospace; cursor: pointer; font-size: 11px;
               ">DECLINE</button>
             </div>
           </div>
@@ -753,12 +819,27 @@ export class ContractPanel {
       }
     }
 
-    html += `</div>`;
+    html += `</div>`; // close available section
+    html += `</div>`; // close panel-content scrollable wrapper
 
     el.innerHTML = html;
 
-    // Event handlers
-    el.addEventListener('click', (e) => {
+    // Restore scroll position after in-place re-render
+    if (this._savedScrollTop != null) {
+      const scrollEl = el.querySelector('.panel-content');
+      if (scrollEl) scrollEl.scrollTop = this._savedScrollTop;
+      this._savedScrollTop = null;
+    }
+
+    // Re-render in place (no panel destroy/create cycle)
+    const refresh = () => {
+      const scrollEl = el.querySelector('.panel-content');
+      this._savedScrollTop = scrollEl ? scrollEl.scrollTop : 0;
+      this._render(el, state, eventBus);
+    };
+
+    // Single click handler (use onclick to avoid stacking listeners on re-render)
+    el.onclick = (e) => {
       const target = e.target.closest('[data-action]');
       if (!target) return;
 
@@ -769,13 +850,12 @@ export class ContractPanel {
         eventBus.emit('ui:closePanel');
       } else if (action === 'renew' && contractId) {
         this._renewContract(contractId);
-        eventBus.emit('ui:openPanel', { name: 'contracts' });
+        refresh();
       } else if (action === 'renegotiate' && contractId) {
         this._renegotiateContract(contractId, el);
       } else if (action === 'accept' && contractId) {
         this._acceptContract(contractId);
-        // Re-render
-        eventBus.emit('ui:openPanel', { name: 'contracts' });
+        refresh();
       } else if (action === 'counter' && contractId) {
         const def = this._findContractDef(contractId);
         showConfirmDialog(
@@ -783,7 +863,7 @@ export class ContractPanel {
           `Counter-offer to <strong style="color:#29adff">${def?.name ?? 'sponsor'}</strong>?<br>40% chance they reject and walk away!`,
           () => {
             this._counterOffer(contractId);
-            eventBus.emit('ui:openPanel', { name: 'contracts' });
+            refresh();
           },
           'COUNTER'
         );
@@ -793,7 +873,6 @@ export class ContractPanel {
           contractId,
           declinedOnDay: state.gameDay ?? 0,
         });
-        // Also remove from follow-up pool if it was a follow-up
         if (state._followUpContracts) {
           state._followUpContracts = state._followUpContracts.filter(c => c.id !== contractId);
         }
@@ -801,9 +880,8 @@ export class ContractPanel {
           text: `Declined offer from ${this._findContractDef(contractId)?.name ?? 'sponsor'}.`,
           type: 'info',
         });
-        // Re-render to remove declined contract from list
-        eventBus.emit('ui:openPanel', { name: 'contracts' });
+        refresh();
       }
-    });
+    };
   }
 }

@@ -14,6 +14,10 @@ export class StatsTracker {
     // Ensure stats object exists
     if (!this.state.stats) this._initStats();
 
+    // Daily accumulators (reset each game day)
+    this._dayIncome = 0;
+    this._dayExpenses = 0;
+
     // --- Filter events ---
     eventBus.on('filter:added', () => {
       this.state.stats.filtersInstalled++;
@@ -36,6 +40,33 @@ export class StatsTracker {
 
     // --- Daily game tracking ---
     eventBus.on('game:newDay', () => {
+      // Push previous day's financial snapshot to history (before resetting accumulators)
+      if (this.state.stats.totalGamesPlayed > 0) {
+        if (!this.state.stats.dailyHistory) this.state.stats.dailyHistory = [];
+        this.state.stats.dailyHistory.push({
+          day: this.state.gameDay ?? this.state.stats.totalGamesPlayed,
+          income: this._dayIncome,
+          expenses: this._dayExpenses,
+          net: this._dayIncome - this._dayExpenses,
+          reputation: Math.floor(this.state.reputation ?? 0),
+          attendance: this.state.attendancePercent ?? 0,
+          domainHealth: {
+            air: Math.floor(this.state.domainHealth?.air ?? 0),
+            water: Math.floor(this.state.domainHealth?.water ?? 0),
+            hvac: Math.floor(this.state.domainHealth?.hvac ?? 0),
+            drainage: Math.floor(this.state.domainHealth?.drainage ?? 0),
+          },
+          money: this.state.money ?? 0,
+        });
+        // Keep last 30 entries
+        if (this.state.stats.dailyHistory.length > 30) {
+          this.state.stats.dailyHistory.shift();
+        }
+      }
+      // Reset daily accumulators
+      this._dayIncome = 0;
+      this._dayExpenses = 0;
+
       this.state.stats.totalGamesPlayed++;
 
       // Track peak reputation
@@ -56,8 +87,12 @@ export class StatsTracker {
 
       // Accumulate domain health samples for season average calculation
       const health = this.state.domainHealth ?? {};
-      const samples = this.state.stats.seasonDomainHealthSamples ?? { air: [], water: [], hvac: [], drainage: [] };
-      for (const domain of ['air', 'water', 'hvac', 'drainage']) {
+      const defaultSamples = {};
+      const domainKeys = Object.keys(this.state.config?.filtrationSystems ?? { air: 1, water: 1, hvac: 1, drainage: 1 });
+      for (const k of domainKeys) defaultSamples[k] = [];
+      const samples = { ...defaultSamples, ...this.state.stats.seasonDomainHealthSamples };
+      for (const domain of domainKeys) {
+        if (!samples[domain]) samples[domain] = [];
         samples[domain].push(health[domain] ?? 0);
       }
       this.state.stats.seasonDomainHealthSamples = samples;
@@ -70,9 +105,11 @@ export class StatsTracker {
     eventBus.on('economy:inningEnd', (data) => {
       if (data.income > 0) {
         this.state.stats.totalMoneyEarned += data.income;
+        this._dayIncome += data.income;
       }
       if (data.expenses > 0) {
         this.state.stats.totalMoneySpent += data.expenses;
+        this._dayExpenses += data.expenses;
       }
     });
 
@@ -173,6 +210,8 @@ export class StatsTracker {
       expansionsPurchased: 0,
       npcChats: 0,
       seasonsCompleted: 0,
+      // Daily history (last 30 days of snapshots for charts)
+      dailyHistory: [],
       // Per-season counters (reset at season start)
       seasonFiltersInstalled: 0,
       seasonFiltersBroken: 0,
@@ -196,14 +235,15 @@ export class StatsTracker {
     const awards = [];
 
     // -- Best Domain: domain with the highest average health across the season --
-    const samples = stats.seasonDomainHealthSamples ?? { air: [], water: [], hvac: [], drainage: [] };
+    const samples = stats.seasonDomainHealthSamples ?? {};
+    const allDomains = Object.keys(this.state.config?.filtrationSystems ?? { air: 1, water: 1, hvac: 1, drainage: 1 });
     const domainAvgs = [];
-    for (const domain of ['air', 'water', 'hvac', 'drainage']) {
+    for (const domain of allDomains) {
       const arr = samples[domain] ?? [];
       const avg = arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
       domainAvgs.push({ id: domain, avg });
     }
-    const domainNames = { air: 'Air Quality', water: 'Water Filtration', hvac: 'HVAC', drainage: 'Drainage' };
+    const domainNames = { air: 'Air Quality', water: 'Water Filtration', hvac: 'HVAC', drainage: 'Drainage', electrical: 'Electrical Grid', pest: 'Pest Control' };
     const bestDomain = domainAvgs.reduce((a, b) => a.avg >= b.avg ? a : b);
     if (bestDomain.avg > 40) {
       awards.push({

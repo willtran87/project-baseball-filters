@@ -53,17 +53,20 @@ export class TechTreePanel {
     const tracks = Object.values(TECH_TREE);
     const active = this.researchSystem.getActiveResearch();
 
-    el.style.cssText = `
-      position: absolute; top: 20px; left: 5%; right: 5%; bottom: 20px;
-      background: linear-gradient(180deg, rgba(10,8,20,0.97), rgba(8,8,24,0.97));
-      border: 2px solid #8b4513;
-      border-radius: 4px;
-      font-family: monospace; color: #e0e0e0;
-      font-size: 11px; z-index: 30;
-      display: flex; flex-direction: column;
-      overflow: hidden;
-      box-shadow: 0 0 20px rgba(139,69,19,0.2);
-    `;
+    if (!el._techStyled) {
+      el.style.cssText = `
+        position: absolute; top: 20px; left: 5%; right: 5%; bottom: 20px;
+        background: linear-gradient(180deg, rgba(10,8,20,0.97), rgba(8,8,24,0.97));
+        border: 2px solid #8b4513;
+        border-radius: 4px;
+        font-family: monospace; color: #e0e0e0;
+        font-size: 11px; z-index: 30;
+        display: flex; flex-direction: column;
+        overflow: hidden;
+        box-shadow: 0 0 20px rgba(139,69,19,0.2);
+      `;
+      el._techStyled = true;
+    }
 
     let html = '';
 
@@ -190,8 +193,11 @@ export class TechTreePanel {
 
     el.innerHTML = html;
 
-    // Event handlers
-    el.addEventListener('click', (e) => {
+    // In-place refresh helper (avoids panel destroy/recreate cycle)
+    const refresh = () => this._render(el, state, eventBus);
+
+    // Use onclick to avoid stacking listeners on re-render
+    el.onclick = (e) => {
       if (e.target.closest('[data-action="close-tech"]')) {
         eventBus.emit('ui:closePanel');
         return;
@@ -199,8 +205,7 @@ export class TechTreePanel {
 
       if (e.target.closest('[data-action="cancel-research"]')) {
         eventBus.emit('research:cancel');
-        // Re-render
-        eventBus.emit('ui:openPanel', { name: 'techTree' });
+        refresh();
         return;
       }
 
@@ -210,11 +215,10 @@ export class TechTreePanel {
         const status = this.researchSystem.getNodeStatus(nodeId);
         if (status === 'available') {
           eventBus.emit('research:start', { nodeId });
-          // Re-render
-          eventBus.emit('ui:openPanel', { name: 'techTree' });
+          refresh();
         }
       }
-    });
+    };
   }
 
   _findNode(nodeId) {

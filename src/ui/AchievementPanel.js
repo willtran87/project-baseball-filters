@@ -133,7 +133,7 @@ export class AchievementPanel {
       border: 2px solid #8b4513;
       border-radius: 4px;
       font-family: monospace; color: #e0e0e0;
-      font-size: 11px; z-index: 30;
+      font-size: 14px; z-index: 30;
       display: flex; flex-direction: column;
       overflow: hidden;
       box-shadow: 0 0 20px rgba(139,69,19,0.2);
@@ -181,8 +181,8 @@ export class AchievementPanel {
     // Header
     let html = `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #8b4513;background:rgba(139,69,19,0.08)">
-        <span style="color:#ffec27;font-size:13px;letter-spacing:2px">ACHIEVEMENT GALLERY</span>
-        <span data-action="close" style="cursor:pointer;color:#888;font-size:12px;padding:0 4px" title="Close">&#10005;</span>
+        <span style="color:#ffec27;font-size:16px;letter-spacing:2px">ACHIEVEMENT GALLERY</span>
+        <span data-action="close" style="cursor:pointer;color:#888;font-size:14px;padding:0 6px" title="Close">&#10005;</span>
       </div>
     `;
 
@@ -193,8 +193,8 @@ export class AchievementPanel {
     html += `
       <div style="margin-bottom:12px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="color:#c0c0d0;font-size:10px">${count} / ${total} Achievements</span>
-          <span style="color:${barColor};font-size:10px">${pct}%</span>
+          <span style="color:#c0c0d0;font-size:12px">${count} / ${total} Achievements</span>
+          <span style="color:${barColor};font-size:12px">${pct}%</span>
         </div>
         <div style="height:8px;background:#222;border:1px solid #444;border-radius:2px;overflow:hidden">
           <div style="width:${pct}%;height:100%;background:${barColor};transition:width 0.3s"></div>
@@ -211,9 +211,9 @@ export class AchievementPanel {
 
       html += `
         <div style="margin-bottom:10px;">
-          <div style="color:${chInfo.color};font-size:10px;letter-spacing:1px;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid ${chInfo.color}44;display:flex;justify-content:space-between">
+          <div style="color:${chInfo.color};font-size:12px;letter-spacing:1px;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid ${chInfo.color}44;display:flex;justify-content:space-between">
             <span>CH${chInfo.chapter}: ${chInfo.name.toUpperCase()}</span>
-            <span style="color:#888;font-size:9px">${chUnlocked}/${chapterMilestones.length}</span>
+            <span style="color:#888;font-size:11px">${chUnlocked}/${chapterMilestones.length}</span>
           </div>
       `;
 
@@ -221,12 +221,12 @@ export class AchievementPanel {
         const isUnlocked = unlocked.includes(m.id);
         if (isUnlocked) {
           html += `
-            <div style="padding:4px 8px;margin-bottom:3px;background:rgba(255,236,39,0.06);border-left:3px solid #ffec27;border-radius:2px">
+            <div style="padding:6px 8px;margin-bottom:3px;background:rgba(255,236,39,0.06);border-left:3px solid #ffec27;border-radius:2px">
               <div style="display:flex;justify-content:space-between;align-items:center">
-                <span style="color:#ffec27;font-size:10px">${m.name}</span>
-                <span style="color:#8b4513;font-size:8px">DAY ${s.gameDay ?? '?'}</span>
+                <span style="color:#ffec27;font-size:12px">${m.name}</span>
+                <span style="color:#8b4513;font-size:10px">DAY ${s.gameDay ?? '?'}</span>
               </div>
-              <div style="color:#aaa;font-size:9px;margin-top:2px;font-style:italic">${m.description}</div>
+              <div style="color:#aaa;font-size:11px;margin-top:2px;font-style:italic">${m.description}</div>
             </div>
           `;
         } else {
@@ -240,15 +240,15 @@ export class AchievementPanel {
                 <span style="flex:1;height:4px;background:#1a1a1a;border:1px solid #333;border-radius:2px;overflow:hidden">
                   <span style="display:block;width:${progress.pct}%;height:100%;background:${progColor};transition:width 0.3s"></span>
                 </span>
-                <span style="color:${progColor};font-size:8px;min-width:60px;text-align:right">${progress.current} / ${progress.target} (${progress.pct}%)</span>
+                <span style="color:${progColor};font-size:10px;min-width:60px;text-align:right">${progress.current} / ${progress.target} (${progress.pct}%)</span>
               </div>
             `;
 
             // Proximity notification handled by _checkProximityNotifications() on game:newDay
           }
           html += `
-            <div style="padding:4px 8px;margin-bottom:3px;background:rgba(255,255,255,0.02);border-left:3px solid #333;border-radius:2px;opacity:0.7">
-              <div style="color:#777;font-size:10px">${hint}</div>
+            <div style="padding:6px 8px;margin-bottom:3px;background:rgba(255,255,255,0.02);border-left:3px solid #333;border-radius:2px;opacity:0.7">
+              <div style="color:#777;font-size:12px">${hint}</div>
               ${progressHtml}
             </div>
           `;
@@ -264,9 +264,9 @@ export class AchievementPanel {
       const sgCompleted = sandboxGoals.filter(g => g.completed).length;
       html += `
         <div style="margin-top:8px;margin-bottom:10px;">
-          <div style="color:#ff77a8;font-size:10px;letter-spacing:1px;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid #ff77a844;display:flex;justify-content:space-between">
+          <div style="color:#ff77a8;font-size:12px;letter-spacing:1px;margin-bottom:4px;padding-bottom:3px;border-bottom:1px solid #ff77a844;display:flex;justify-content:space-between">
             <span>POST-SEASON CHALLENGES</span>
-            <span style="color:#888;font-size:9px">${sgCompleted}/${sandboxGoals.length}</span>
+            <span style="color:#888;font-size:11px">${sgCompleted}/${sandboxGoals.length}</span>
           </div>
       `;
 
@@ -275,12 +275,12 @@ export class AchievementPanel {
         const iconColor = goal.completed ? '#00e436' : '#888';
         const bgStyle = goal.completed ? 'background:rgba(0,228,54,0.06);border-left:3px solid #00e436' : 'background:rgba(255,255,255,0.02);border-left:3px solid #555';
         html += `
-          <div style="padding:4px 8px;margin-bottom:3px;${bgStyle};border-radius:2px">
+          <div style="padding:6px 8px;margin-bottom:3px;${bgStyle};border-radius:2px">
             <div style="display:flex;align-items:center;gap:6px">
-              <span style="color:${iconColor};font-size:11px">${icon}</span>
-              <span style="color:${goal.completed ? '#00e436' : '#c0c0d0'};font-size:10px">${goal.name}</span>
+              <span style="color:${iconColor};font-size:14px">${icon}</span>
+              <span style="color:${goal.completed ? '#00e436' : '#c0c0d0'};font-size:12px">${goal.name}</span>
             </div>
-            <div style="color:#888;font-size:9px;margin-top:2px;margin-left:17px">${goal.description}</div>
+            <div style="color:#888;font-size:11px;margin-top:2px;margin-left:17px">${goal.description}</div>
           </div>
         `;
       }

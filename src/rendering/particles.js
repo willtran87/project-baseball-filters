@@ -222,6 +222,59 @@ const PRESETS = {
     gravity: -5,
     directionY: -1,
   },
+  // Electrical domain effects
+  electricArc: {
+    count: 8,
+    speed: 80,
+    spread: 20,
+    life: [0.2, 0.4],
+    colors: ['#ffff00', '#ffffff', '#ffcc00', '#88ccff'],
+    size: 1,
+    gravity: -20,
+    directionY: -0.3,
+  },
+  powerDown: {
+    count: 12,
+    speed: 20,
+    spread: 8,
+    life: [0.8, 1.6],
+    colors: ['#444444', '#222222', '#666633', '#333300'],
+    size: 2,
+    gravity: 30,
+    directionY: 1,
+  },
+  // Pest domain effects
+  pestScurry: {
+    count: 6,
+    speed: 60,
+    spread: 15,
+    life: [0.5, 1.1],
+    colors: ['#332211', '#221100', '#443322', '#111111'],
+    size: 1,
+    gravity: 5,
+    directionY: 0.2,
+  },
+  pestSwarm: {
+    count: 15,
+    speed: 40,
+    spread: 25,
+    life: [1.0, 2.0],
+    colors: ['#222200', '#333311', '#111100', '#444422'],
+    size: 1,
+    gravity: -5,
+    directionY: -0.5,
+  },
+  // Dramatic lightning discharge for storm events
+  lightningStrike: {
+    count: 20,
+    speed: 120,
+    spread: 6,
+    life: [0.1, 0.3],
+    colors: ['#ffffff', '#eeeeff', '#ccccff', '#ffff88'],
+    size: 2,
+    gravity: -50,
+    directionY: -1,
+  },
 };
 
 export class ParticleSystem {
@@ -378,7 +431,17 @@ export class FloatingTextSystem {
       const alpha = Math.max(0, t.life / t.maxLife);
       renderer.save();
       renderer.setAlpha(alpha);
-      renderer.drawText(t.text, t.x, t.y, { color: t.color, size: 7, align: 'center' });
+      // Solid black background rect for crisp readability
+      const ctx = renderer.ctx;
+      ctx.font = '8px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      const w = ctx.measureText(t.text).width;
+      const tx = Math.floor(t.x);
+      const ty = Math.floor(t.y);
+      renderer.drawRect(tx - Math.ceil(w / 2) - 1, ty - 1, w + 2, 10, '#000');
+      // Main text
+      renderer.drawText(t.text, tx, ty, { color: t.color, size: 8, align: 'center' });
       renderer.restore();
     }
   }
@@ -580,7 +643,16 @@ export class IncomeBreakdown {
       const alpha = Math.max(0, item.life / item.maxLife);
       renderer.save();
       renderer.setAlpha(alpha);
-      renderer.drawText(item.text, item.x, item.y, { color: item.color, size: 6, align: 'left' });
+      // Solid black background rect for crisp readability
+      const ctx = renderer.ctx;
+      ctx.font = '7px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      const w = ctx.measureText(item.text).width;
+      const ix = Math.floor(item.x);
+      const iy = Math.floor(item.y);
+      renderer.drawRect(ix - 1, iy - 1, w + 2, 9, '#000');
+      renderer.drawText(item.text, ix, iy, { color: item.color, size: 7, align: 'left' });
       renderer.restore();
     }
   }
@@ -591,16 +663,16 @@ export class IncomeBreakdown {
 }
 
 /**
- * EventBanner — Dramatic center-screen banner for major events.
+ * EventBanner — HTML-based center-screen banner for major events.
  *
- * Slides in from top, holds for 2 seconds, slides out upward.
- * Large text with domain-colored background strip.
+ * Fades in, holds for 6 seconds, fades out. Click to dismiss.
+ * Styled as a compact box with domain-colored accent border.
  */
 export class EventBanner {
-  constructor(eventBus) {
+  constructor(eventBus, container) {
     this._eventBus = eventBus;
-    this._banners = []; // { title, subtitle, color, phase, timer }
-    this._bannerDurations = { slideIn: 0.3, hold: 2.0, slideOut: 0.3 };
+    this._container = container ?? document.body;
+    this._activeBanner = null;
 
     // Listen for major event types
     eventBus.on('event:started', (data) => {
@@ -631,99 +703,86 @@ export class EventBanner {
   }
 
   _getDomainColor(domain) {
-    const colors = { air: '#cccccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44' };
+    const colors = { air: '#cccccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44', electrical: '#ffcc00', pest: '#cc44cc' };
     return colors[domain] ?? '#8b4513';
   }
 
   /**
-   * Show a dramatic center-screen event banner.
-   * @param {string} title - Main banner text
-   * @param {string} subtitle - Secondary text
-   * @param {string} color - Background accent color
+   * Show a dramatic center-screen event banner as an HTML box.
    */
   showEventBanner(title, subtitle, color) {
-    this._banners.push({
-      title,
-      subtitle: subtitle || '',
-      color,
-      phase: 'slideIn',
-      timer: 0,
+    // Remove existing banner if any
+    if (this._activeBanner) {
+      this._activeBanner.remove();
+      this._activeBanner = null;
+    }
+    if (this._dismissTimer) { clearTimeout(this._dismissTimer); this._dismissTimer = null; }
+
+    const box = document.createElement('div');
+    box.style.cssText = `
+      position: absolute; top: 28%; left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      padding: 12px 22px;
+      background: #0f0a14;
+      border: 2px solid ${color};
+      border-radius: 5px;
+      font-family: monospace;
+      text-align: center;
+      z-index: 35;
+      pointer-events: auto;
+      cursor: pointer;
+      box-shadow: 0 0 18px ${color}44, inset 0 0 8px ${color}22;
+      opacity: 0;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      max-width: 320px;
+    `;
+
+    box.innerHTML = `
+      <div style="font-size:14px;font-weight:bold;letter-spacing:1px;color:${color};margin-bottom:${subtitle ? '4px' : '0'}">${title}</div>
+      ${subtitle ? `<div style="font-size:11px;color:#b0b0b0;line-height:1.4">${subtitle}</div>` : ''}
+      <div style="font-size:8px;color:#666;margin-top:6px">click to dismiss</div>
+    `;
+
+    this._container.appendChild(box);
+    this._activeBanner = box;
+
+    // Animate in
+    requestAnimationFrame(() => {
+      box.style.opacity = '1';
+      box.style.transform = 'translate(-50%, -50%) scale(1)';
     });
+
+    // Click to dismiss
+    box.addEventListener('click', () => this._dismiss());
+
+    // Auto-dismiss after 6 seconds
+    this._dismissTimer = setTimeout(() => this._dismiss(), 6000);
   }
 
-  update(dt) {
-    for (let i = this._banners.length - 1; i >= 0; i--) {
-      const b = this._banners[i];
-      b.timer += dt;
-
-      const d = this._bannerDurations;
-      if (b.phase === 'slideIn' && b.timer >= d.slideIn) {
-        b.phase = 'hold';
-        b.timer = 0;
-      } else if (b.phase === 'hold' && b.timer >= d.hold) {
-        b.phase = 'slideOut';
-        b.timer = 0;
-      } else if (b.phase === 'slideOut' && b.timer >= d.slideOut) {
-        this._banners.splice(i, 1);
-      }
-    }
+  _dismiss() {
+    if (!this._activeBanner) return;
+    const box = this._activeBanner;
+    this._activeBanner = null;
+    if (this._dismissTimer) { clearTimeout(this._dismissTimer); this._dismissTimer = null; }
+    box.style.opacity = '0';
+    box.style.transform = 'translate(-50%, -50%) scale(1.05)';
+    setTimeout(() => box.remove(), 300);
   }
 
-  render(renderer) {
-    for (const b of this._banners) {
-      const d = this._bannerDurations;
-      const canvasW = renderer.width ?? 480;
-      const canvasH = renderer.height ?? 270;
-      const bannerH = 28;
-      let yOffset;
-
-      if (b.phase === 'slideIn') {
-        // Slide in from top
-        const progress = b.timer / d.slideIn;
-        yOffset = -bannerH + progress * bannerH;
-      } else if (b.phase === 'hold') {
-        yOffset = 0;
-      } else {
-        // Slide out upward
-        const progress = b.timer / d.slideOut;
-        yOffset = -progress * bannerH;
-      }
-
-      const bannerY = Math.floor(canvasH * 0.3 + yOffset);
-
-      // Background strip
-      renderer.save();
-      renderer.setAlpha(0.85);
-      renderer.drawRectScreen(0, bannerY, canvasW, bannerH, '#0a0a0a');
-      // Domain color accent line at top
-      renderer.setAlpha(0.9);
-      renderer.drawRectScreen(0, bannerY, canvasW, 2, b.color);
-      // Domain color accent line at bottom
-      renderer.drawRectScreen(0, bannerY + bannerH - 2, canvasW, 2, b.color);
-      renderer.restore();
-
-      // Title text (large, centered)
-      renderer.drawText(b.title, canvasW / 2, bannerY + 8, {
-        color: '#ffffff', size: 10, align: 'center',
-      });
-      // Subtitle text (smaller)
-      if (b.subtitle) {
-        renderer.save();
-        renderer.setAlpha(0.7);
-        renderer.drawText(b.subtitle, canvasW / 2, bannerY + 19, {
-          color: '#cccccc', size: 6, align: 'center',
-        });
-        renderer.restore();
-      }
-    }
-  }
+  // Keep API compatible — update/render are no-ops now (HTML-driven)
+  update(dt) {}
+  render(renderer) {}
 
   get active() {
-    return this._banners.length > 0;
+    return this._activeBanner !== null;
   }
 
   clear() {
-    this._banners.length = 0;
+    if (this._activeBanner) {
+      this._activeBanner.remove();
+      this._activeBanner = null;
+    }
+    if (this._dismissTimer) { clearTimeout(this._dismissTimer); this._dismissTimer = null; }
   }
 }
 

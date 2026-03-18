@@ -5,7 +5,9 @@
  * Systems read/write state here; the renderer reads it for display.
  */
 
-const SAVE_VERSION = 2;
+import { ALL_ZONES } from '../data/domainZoneMap.js';
+
+const SAVE_VERSION = 3;
 
 export class StateManager {
   constructor(eventBus, config) {
@@ -104,6 +106,9 @@ export class StateManager {
     // Repair tracking (for story triggers)
     this.repairsCompleted = 0;
 
+    // Daily event log for Hank's Journal (array of { day, entries: [{ text, type }] })
+    this.dailyLog = [];
+
     // Tutorial hints already seen
     this.tutorialSeen = [];
 
@@ -115,7 +120,10 @@ export class StateManager {
     this.currentZone = 'field';
 
     // Consequence system state
-    this.domainHealth = { air: 100, water: 100, hvac: 100, drainage: 100 };
+    this.domainHealth = { air: 100, water: 100, hvac: 100, drainage: 100, electrical: 100, pest: 100 };
+    // Zone-specific domain health (source of truth; domainHealth above is computed aggregate)
+    this.zoneDomainHealth = this._buildDefaultZoneDomainHealth();
+    this.zoneConsequences = {};
     this.activeConsequences = [];
     this.consequenceRevenueModifier = 1.0;
     this.consequenceAttendanceModifier = 1.0;
@@ -177,11 +185,14 @@ export class StateManager {
     // Filter zone synergy bonuses cache
     this.filterSynergies = {};
 
+    // Synergy discovery hint (one-time toast)
+    this.synergiesDiscovered = false;
+
     // Dynamic market state
     this.market = {
-      domainMultipliers: { air: 1.0, water: 1.0, hvac: 1.0, drainage: 1.0 },
+      domainMultipliers: { air: 1.0, water: 1.0, hvac: 1.0, drainage: 1.0, electrical: 1.0, pest: 1.0 },
       activeEvent: null,  // { id, name, description, domain, multiplier, daysLeft, tierFilter }
-      trend: { air: 0, water: 0, hvac: 0, drainage: 0 },
+      trend: { air: 0, water: 0, hvac: 0, drainage: 0, electrical: 0, pest: 0 },
     };
 
     // Sandbox goals (post-win challenges, null until win)
@@ -236,9 +247,45 @@ export class StateManager {
   }
 
   /**
+   * Build default zoneDomainHealth with all zones at 100 for each domain.
+   */
+  _buildDefaultZoneDomainHealth() {
+    const domainKeys = Object.keys(this.config?.filtrationSystems ?? { air: 1, water: 1, hvac: 1, drainage: 1, electrical: 1, pest: 1 });
+    const zdh = {};
+    for (const zone of ALL_ZONES) {
+      zdh[zone] = {};
+      for (const d of domainKeys) zdh[zone][d] = 100;
+    }
+    return zdh;
+  }
+
+  /**
    * Update a top-level state property and emit a change event.
    */
+  /**
+   * Append an entry to the daily event log for Hank's Journal.
+   * Keeps max 60 days of history; max 20 entries per day.
+   */
+  logEvent(text, type = 'info') {
+    const day = this.gameDay ?? 1;
+    let dayEntry = this.dailyLog.find(d => d.day === day);
+    if (!dayEntry) {
+      dayEntry = { day, season: this.season ?? 1, entries: [] };
+      this.dailyLog.push(dayEntry);
+      // Trim old days
+      if (this.dailyLog.length > 60) this.dailyLog.shift();
+    }
+    if (dayEntry.entries.length < 20) {
+      dayEntry.entries.push({ text, type });
+    }
+  }
+
   set(key, value) {
+    // Guard against NaN corrupting numeric state (especially money)
+    if (key === 'money' && !Number.isFinite(value)) {
+      console.warn(`StateManager: blocked NaN assignment to money, keeping ${this.money}`);
+      return;
+    }
     const old = this[key];
     this[key] = value;
     this.eventBus.emit(`state:${key}`, { key, value, old });
@@ -382,6 +429,8 @@ export class StateManager {
       activeContracts: this.activeContracts.map(c => ({ ...c })),
       contractBreachDays: { ...(this.contractBreachDays ?? {}) },
       contractRenewals: { ...(this.contractRenewals ?? {}) },
+      // Daily event log
+      dailyLog: this.dailyLog.slice(-60), // keep last 60 days
       // Tutorial
       tutorialSeen: [...this.tutorialSeen],
       // Guided onboarding
@@ -393,6 +442,8 @@ export class StateManager {
       currentZone: this.currentZone,
       // Consequence system
       domainHealth: { ...this.domainHealth },
+      zoneDomainHealth: JSON.parse(JSON.stringify(this.zoneDomainHealth ?? {})),
+      zoneConsequences: JSON.parse(JSON.stringify(this.zoneConsequences ?? {})),
       activeConsequences: this.activeConsequences.map(c => ({ ...c })),
       consequenceRevenueModifier: this.consequenceRevenueModifier,
       consequenceAttendanceModifier: this.consequenceAttendanceModifier,
@@ -447,6 +498,8 @@ export class StateManager {
       filterInventory: (this.filterInventory ?? []).map(f => ({ ...f })),
       // Filter synergies cache
       filterSynergies: { ...(this.filterSynergies ?? {}) },
+      // Synergy discovery hint
+      synergiesDiscovered: this.synergiesDiscovered ?? false,
       // Dynamic market
       market: {
         domainMultipliers: { ...(this.market?.domainMultipliers ?? {}) },
@@ -476,6 +529,8 @@ export class StateManager {
     this.stadiumLevel = data.stadiumLevel ?? 1;
     this.reputation = data.reputation ?? 50;
     this.filters = Array.isArray(data.filters) ? data.filters : [];
+    // Migrate: remove any filters incorrectly assigned to 'field' zone (field has no vent slots)
+    this.filters = this.filters.filter(f => f.zone !== 'field');
     this.nextFilterId = data.nextFilterId ?? 1;
     this.activeEvent = data.activeEvent ?? null;
     this.gameDay = data.gameDay ?? 1;
@@ -532,6 +587,8 @@ export class StateManager {
     this.activeContracts = Array.isArray(data.activeContracts) ? data.activeContracts : [];
     this.contractBreachDays = data.contractBreachDays ?? {};
     this.contractRenewals = data.contractRenewals ?? {};
+    // Daily event log
+    this.dailyLog = Array.isArray(data.dailyLog) ? data.dailyLog : [];
     // Tutorial
     this.tutorialSeen = Array.isArray(data.tutorialSeen) ? data.tutorialSeen : [];
     // Guided onboarding
@@ -542,7 +599,18 @@ export class StateManager {
     // Zone
     this.currentZone = data.currentZone ?? 'field';
     // Consequence system
-    this.domainHealth = data.domainHealth ?? { air: 100, water: 100, hvac: 100, drainage: 100 };
+    this.domainHealth = data.domainHealth ?? { air: 100, water: 100, hvac: 100, drainage: 100, electrical: 100, pest: 100 };
+    // Zone-specific domain health — migrate old saves by copying flat health to all zones
+    if (data.zoneDomainHealth && typeof data.zoneDomainHealth === 'object' && Object.keys(data.zoneDomainHealth).length > 0) {
+      this.zoneDomainHealth = data.zoneDomainHealth;
+    } else {
+      // Migration: spread flat domainHealth into every zone
+      this.zoneDomainHealth = {};
+      for (const zone of ALL_ZONES) {
+        this.zoneDomainHealth[zone] = { ...this.domainHealth };
+      }
+    }
+    this.zoneConsequences = data.zoneConsequences ?? {};
     this.activeConsequences = Array.isArray(data.activeConsequences) ? data.activeConsequences : [];
     this.consequenceRevenueModifier = data.consequenceRevenueModifier ?? 1.0;
     this.consequenceAttendanceModifier = data.consequenceAttendanceModifier ?? 1.0;
@@ -602,12 +670,14 @@ export class StateManager {
     this.filterInventory = Array.isArray(data.filterInventory) ? data.filterInventory : [];
     // Filter synergies cache
     this.filterSynergies = data.filterSynergies ?? {};
+    // Synergy discovery hint
+    this.synergiesDiscovered = data.synergiesDiscovered ?? false;
     // Dynamic market
     const dm = data.market ?? {};
     this.market = {
-      domainMultipliers: dm.domainMultipliers ?? { air: 1.0, water: 1.0, hvac: 1.0, drainage: 1.0 },
+      domainMultipliers: { air: 1.0, water: 1.0, hvac: 1.0, drainage: 1.0, electrical: 1.0, pest: 1.0, ...(dm.domainMultipliers ?? {}) },
       activeEvent: dm.activeEvent ? { ...dm.activeEvent } : null,
-      trend: dm.trend ?? { air: 0, water: 0, hvac: 0, drainage: 0 },
+      trend: { air: 0, water: 0, hvac: 0, drainage: 0, electrical: 0, pest: 0, ...(dm.trend ?? {}) },
     };
     // Market conditions (Stream 1)
     this.marketCondition = data.marketCondition ?? 'normal';

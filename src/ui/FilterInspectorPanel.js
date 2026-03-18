@@ -97,14 +97,19 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
     const repairCost = Math.floor(rawCost * difficultyRepairMult * tempDiscount / staffRepairMult);
     const canRepair = state.money >= repairCost && filter.condition < filter.maxCondition;
 
-    // Build repair cost breakdown tooltip
-    const repairBreakdownParts = [`Base: $${repairCostBase}`];
-    if (isBroken) repairBreakdownParts.push(`× Emergency: ${emergencyMult}`);
-    if (difficultyRepairMult !== 1.0) repairBreakdownParts.push(`× Diff: ${difficultyRepairMult}`);
-    if (tempDiscount !== 1.0) repairBreakdownParts.push(`× Discount: ${tempDiscount}`);
-    if (staffRepairMult !== 1) repairBreakdownParts.push(`÷ Staff: ${staffRepairMult}`);
-    repairBreakdownParts.push(`= $${repairCost}`);
-    const repairTooltip = repairBreakdownParts.join(' ');
+    // Build repair cost breakdown lines (shown inline below repair button)
+    const repairBreakdownLines = [];
+    const hasModifiers = isBroken || difficultyRepairMult !== 1.0 || tempDiscount !== 1.0 || staffRepairMult !== 1;
+    if (hasModifiers) {
+      repairBreakdownLines.push(`Base: $${repairCostBase}`);
+      if (isBroken) repairBreakdownLines.push(`Emergency: \u00d7${emergencyMult} (filter broken)`);
+      if (difficultyRepairMult !== 1.0) repairBreakdownLines.push(`Difficulty: \u00d7${difficultyRepairMult}`);
+      if (tempDiscount !== 1.0) repairBreakdownLines.push(`Story discount: \u00d7${tempDiscount}`);
+      if (staffRepairMult !== 1) repairBreakdownLines.push(`Staff discount: \u00f7${staffRepairMult}`);
+    }
+    const repairTooltip = hasModifiers
+      ? `Base $${repairCostBase}` + (isBroken ? ` × ${emergencyMult} emergency` : '') + ` = $${repairCost}`
+      : '';
 
     // Check if upgrade is available
     const nextTier = compDef?.tiers?.find(t => t.tier === (filter.tier ?? 0) + 1);
@@ -138,43 +143,43 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
     const closeSpan = document.createElement('span');
     closeSpan.textContent = '\u2715';
     closeSpan.dataset.action = 'close';
-    closeSpan.style.cssText = 'position:absolute; top:6px; right:10px; cursor:pointer; color:#888; font-size:12px;';
+    closeSpan.style.cssText = 'position:absolute; top:6px; right:10px; cursor:pointer; color:#888; font-size:14px;';
     closeSpan.addEventListener('click', () => eventBus.emit('ui:closePanel'));
     container.appendChild(closeSpan);
 
     const content = document.createElement('div');
     content.innerHTML = `
       <div style="margin-bottom:6px;">
-        ${brand ? `<span style="color:#ffec27;font-size:10px">${brand}</span> ` : ''}<strong style="color:#9999cc;">${name}</strong>
-        <span style="color:#555; font-size:9px; margin-left:6px;">#${filter.id}</span>
-        ${filter.domain ? `<span style="color:${systemDef?.color ?? '#666'}; font-size:9px; margin-left:6px;">[${systemDef?.name ?? filter.domain}]</span>` : ''}
+        ${brand ? `<span style="color:#ffec27;font-size:12px">${brand}</span> ` : ''}<strong style="color:#9999cc;">${name}</strong>
+        <span style="color:#555; font-size:11px; margin-left:6px;">#${filter.id}</span>
+        ${filter.domain ? `<span style="color:${systemDef?.color ?? '#666'}; font-size:11px; margin-left:6px;">[${systemDef?.name ?? filter.domain}]</span>` : ''}
       </div>
 
       <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px;">
         <div>
-          <div style="color:#777; font-size:9px;">CONDITION</div>
+          <div style="color:#777; font-size:11px;">CONDITION</div>
           <div style="background:#1a1a2a; height:8px; border-radius:2px; margin-top:2px; overflow:hidden;">
             <div style="width:${condPct}%; height:100%; background:${degradeBarColor}; transition:width 0.3s;${degradeStage === 'critical' ? ' animation: condPulse 1s ease-in-out infinite;' : ''}"></div>
           </div>
-          <div style="color:${degradeBarColor}; font-size:10px; margin-top:1px;">${condPct}%</div>
-          ${degradeLabel ? `<div style="color:${degradeBarColor}; font-size:9px; margin-top:1px; font-weight:bold;">${degradeLabel}</div>` : ''}
-          ${degradeEstimate ? `<div style="color:#888; font-size:9px; margin-top:1px;">${degradeEstimate}</div>` : ''}
+          <div style="color:${degradeBarColor}; font-size:12px; margin-top:1px;">${condPct}%</div>
+          ${degradeLabel ? `<div style="color:${degradeBarColor}; font-size:11px; margin-top:1px; font-weight:bold;">${degradeLabel}</div>` : ''}
+          ${degradeEstimate ? `<div style="color:#888; font-size:11px; margin-top:1px;">${degradeEstimate}</div>` : ''}
         </div>
         <div>
-          <div style="color:#777; font-size:9px;">EFFICIENCY</div>
+          <div style="color:#777; font-size:11px;">EFFICIENCY</div>
           <div style="background:#1a1a2a; height:8px; border-radius:2px; margin-top:2px; overflow:hidden;">
             <div style="width:${effPct}%; height:100%; background:${effPct > 50 ? '#4a4' : '#aa4'}; transition:width 0.3s;"></div>
           </div>
-          <div style="color:#aaa; font-size:10px; margin-top:1px;">${effPct}%</div>
+          <div style="color:#aaa; font-size:12px; margin-top:1px;">${effPct}%</div>
         </div>
       </div>
 
-      <div style="color:#666; font-size:9px; margin-bottom:2px;">
+      <div style="color:#666; font-size:11px; margin-bottom:2px;">
         Status: <span style="color:${statusColor}">${status.toUpperCase()}</span>
         ${filter.tier ? ` | Tier ${filter.tier}` : ''}
         ${tierDef ? ` | ${tierDef.lifespanGames} game lifespan` : ''}
       </div>
-      ${tierDef?.domainHealthBonus ? `<div style="color:#4fc; font-size:9px; margin-bottom:2px;">+${tierDef.domainHealthBonus} Domain Health Bonus${(filter.maxCondition > 0 && filter.condition / filter.maxCondition <= 0.5) ? ' <span style="color:#ff004d">(inactive — below 50%)</span>' : ''}</div>` : ''}
+      ${tierDef?.domainHealthBonus ? `<div style="color:#4fc; font-size:11px; margin-bottom:2px;">+${tierDef.domainHealthBonus} Domain Health Bonus${(filter.maxCondition > 0 && filter.condition / filter.maxCondition <= 0.5) ? ' <span style="color:#ff004d">(inactive — below 50%)</span>' : ''}</div>` : ''}
       ${(() => {
         if (!tierDef?.passive) return '';
         const passiveNames = { weatherShield: 'Weather Shield', crossDomain: 'Cross Domain', maintenanceSaver: 'Maintenance Saver', crisisArmor: 'Crisis Armor' };
@@ -184,28 +189,28 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
         const passiveCondThreshold = 0.5;
         const isPassiveActive = condRatio > passiveCondThreshold;
         if (isPassiveActive) {
-          return `<div style="color:#00e436; font-size:9px; margin-bottom:2px;">\u2713 ${passiveName} ACTIVE \u2014 ${passiveDesc}</div>`;
+          return `<div style="color:#00e436; font-size:11px; margin-bottom:2px;">\u2713 ${passiveName} ACTIVE \u2014 ${passiveDesc}</div>`;
         } else {
-          return `<div style="color:#666; font-size:9px; margin-bottom:2px;">\u2717 <span style="color:#ff004d">${passiveName} INACTIVE</span> \u2014 Requires &gt;50% condition to activate</div>`;
+          return `<div style="color:#666; font-size:11px; margin-bottom:2px;">\u2717 <span style="color:#ff004d">${passiveName} INACTIVE</span> \u2014 Requires &gt;50% condition to activate</div>`;
         }
       })()}
       ${(() => {
         const synergy = state.filterSynergies?.[filter.id];
-        if (!synergy) return '<div style="color:#555; font-size:9px; margin-bottom:2px;">No synergies \u2014 add more filters to this zone</div>';
+        if (!synergy) return '<div style="color:#555; font-size:11px; margin-bottom:2px;">No synergies \u2014 add more filters to this zone</div>';
         let html = '';
         const zoneFilters = state.filters.filter(f => (f.zone ?? 'mechanical') === (filter.zone ?? 'mechanical'));
         const sameDomainCount = zoneFilters.filter(f => f.domain === filter.domain).length;
         if (synergy.sameDomainBonus > 0) {
-          html += `<div style="color:#00e436; font-size:9px; margin-bottom:2px;">Zone Bonus: +${Math.round(synergy.sameDomainBonus * 100)}% (${sameDomainCount} ${filter.domain} filters in this zone)</div>`;
+          html += `<div style="color:#00e436; font-size:11px; margin-bottom:2px;">Zone Bonus: +${Math.round(synergy.sameDomainBonus * 100)}% (${sameDomainCount} ${filter.domain} filters in this zone)</div>`;
         }
         if (synergy.crossDomainBonus > 0) {
           const pairMap = { air: 'hvac', hvac: 'air', water: 'drainage', drainage: 'water' };
           const partner = pairMap[filter.domain] ?? '?';
-          html += `<div style="color:#29adff; font-size:9px; margin-bottom:2px;">Cross-Domain: +${Math.round(synergy.crossDomainBonus * 100)}% (${filter.domain} + ${partner} pairing)</div>`;
+          html += `<div style="color:#29adff; font-size:11px; margin-bottom:2px;">Cross-Domain: +${Math.round(synergy.crossDomainBonus * 100)}% (${filter.domain} + ${partner} pairing)</div>`;
         }
         return html;
       })()}
-      <div style="color:#555; font-size:9px; font-style:italic; margin-bottom:8px;">${description}</div>
+      <div style="color:#555; font-size:11px; font-style:italic; margin-bottom:8px;">${description}</div>
     `;
 
     // Action buttons
@@ -239,8 +244,8 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
       emergBtn.disabled = !canEmergencyRepair;
       emergBtn.style.cssText = `
         background:${canEmergencyRepair ? '#4a1a1a' : '#1a1a1a'}; color:${canEmergencyRepair ? '#ff004d' : '#444'};
-        border:1px solid ${canEmergencyRepair ? '#8a3a3a' : '#2a2a2a'}; font-family:monospace; font-size:10px;
-        padding:4px 10px; cursor:${canEmergencyRepair ? 'pointer' : 'not-allowed'};
+        border:1px solid ${canEmergencyRepair ? '#8a3a3a' : '#2a2a2a'}; font-family:monospace; font-size:12px;
+        padding:6px 10px; cursor:${canEmergencyRepair ? 'pointer' : 'not-allowed'};
         font-weight:bold;
       `;
       emergBtn.addEventListener('click', () => {
@@ -267,8 +272,8 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
     repairBtn.disabled = !canRepair;
     repairBtn.style.cssText = `
       background:${canRepair ? '#1a3a1a' : '#1a1a1a'}; color:${canRepair ? '#00e436' : '#444'};
-      border:1px solid ${canRepair ? '#3a6a3a' : '#2a2a2a'}; font-family:monospace; font-size:10px;
-      padding:4px 10px; cursor:${canRepair ? 'pointer' : 'not-allowed'};
+      border:1px solid ${canRepair ? '#3a6a3a' : '#2a2a2a'}; font-family:monospace; font-size:12px;
+      padding:6px 10px; cursor:${canRepair ? 'pointer' : 'not-allowed'};
     `;
     repairBtn.addEventListener('click', () => {
       if (!canRepair) return;
@@ -287,6 +292,15 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
     });
     actions.appendChild(repairBtn);
 
+    // Inline repair cost breakdown (only when modifiers exist)
+    if (repairBreakdownLines.length > 0 && filter.condition < filter.maxCondition) {
+      const breakdownEl = document.createElement('div');
+      breakdownEl.style.cssText = 'width:100%; font-family:monospace; font-size:10px; color:#888; line-height:1.5; margin-top:2px; margin-bottom:4px; padding-left:6px;';
+      breakdownEl.innerHTML = `<span style="color:#aaa;">Repair: $${repairCost}</span><br>` +
+        repairBreakdownLines.map(l => `  ${l}`).join('<br>');
+      actions.appendChild(breakdownEl);
+    }
+
     // Preventive Maintenance — only when filter condition >= 80% and not at max
     if (condPct >= 80 && filter.condition < filter.maxCondition) {
       const prevCost = Math.floor(repairCostBase * 0.5);
@@ -297,8 +311,8 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
       prevBtn.disabled = !canPreventive;
       prevBtn.style.cssText = `
         background:${canPreventive ? '#1a2a3a' : '#1a1a1a'}; color:${canPreventive ? '#4fc' : '#444'};
-        border:1px solid ${canPreventive ? '#3a6a7a' : '#2a2a2a'}; font-family:monospace; font-size:10px;
-        padding:4px 10px; cursor:${canPreventive ? 'pointer' : 'not-allowed'};
+        border:1px solid ${canPreventive ? '#3a6a7a' : '#2a2a2a'}; font-family:monospace; font-size:12px;
+        padding:6px 10px; cursor:${canPreventive ? 'pointer' : 'not-allowed'};
       `;
       prevBtn.addEventListener('click', () => {
         if (!canPreventive) return;
@@ -315,8 +329,8 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
       upgradeBtn.disabled = !canUpgrade;
       upgradeBtn.style.cssText = `
         background:${canUpgrade ? '#1a1a3a' : '#1a1a1a'}; color:${canUpgrade ? '#29adff' : '#444'};
-        border:1px solid ${canUpgrade ? '#3a5a8a' : '#2a2a2a'}; font-family:monospace; font-size:10px;
-        padding:4px 10px; cursor:${canUpgrade ? 'pointer' : 'not-allowed'};
+        border:1px solid ${canUpgrade ? '#3a5a8a' : '#2a2a2a'}; font-family:monospace; font-size:12px;
+        padding:6px 10px; cursor:${canUpgrade ? 'pointer' : 'not-allowed'};
       `;
       upgradeBtn.addEventListener('click', () => {
         if (!canUpgrade) return;
@@ -351,7 +365,7 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
     removeBtn.textContent = salvageValue > 0 ? `Remove (salvage: $${salvageValue})` : 'Remove';
     removeBtn.style.cssText = `
       background:#3a1a1a; color:#ff004d; border:1px solid #6a3a3a;
-      font-family:monospace; font-size:10px; padding:4px 10px; cursor:pointer;
+      font-family:monospace; font-size:12px; padding:6px 10px; cursor:pointer;
     `;
     removeBtn.addEventListener('click', () => {
       const confirmMsg = salvageValue > 0

@@ -75,8 +75,9 @@ const XP_THRESHOLDS = [50, 150, 300, 500];
 const SPECIALIZATIONS = {
   airTech:     { name: 'Air Tech',     domains: ['air', 'hvac'] },
   plumber:     { name: 'Plumber',      domains: ['water', 'drainage'] },
-  electrician: { name: 'Electrician',  domains: ['hvac'] },
-  general:     { name: 'General Maintenance', domains: ['air', 'water', 'hvac', 'drainage'] },
+  electrician: { name: 'Electrician',  domains: ['hvac', 'electrical'] },
+  sanitarian:  { name: 'Sanitarian',   domains: ['pest'] },
+  general:     { name: 'General Maintenance', domains: ['air', 'water', 'hvac', 'drainage', 'electrical', 'pest'] },
 };
 
 // Random positive morale events (triggered daily with 8% chance)
@@ -103,8 +104,9 @@ export class StaffSystem {
 
     // Staff roster: synced with state.staffList for save/load via StateManager
     this.staff = this.state.staffList ?? [];
-    this.nextStaffId = this.staff.length > 0
-      ? Math.max(...this.staff.map(s => s.id)) + 1
+    const numericIds = this.staff.map(s => s.id).filter(id => typeof id === 'number' && !isNaN(id));
+    this.nextStaffId = numericIds.length > 0
+      ? Math.max(...numericIds) + 1
       : 1;
 
     // Candidates available for hire (refreshable)
@@ -153,14 +155,35 @@ export class StaffSystem {
     // Re-sync staff from state after save/load
     this.eventBus.on('state:loaded', () => {
       this.staff = this.state.staffList ?? [];
-      this.nextStaffId = this.staff.length > 0
-        ? Math.max(...this.staff.map(s => s.id)) + 1
-        : 1;
+
+      // Migrate corrupted saves: fix non-numeric IDs AND duplicate IDs.
+      // First pass: find the max valid unique ID to use as the starting point.
+      const validIds = this.staff
+        .map(s => s.id)
+        .filter(id => typeof id === 'number' && !isNaN(id));
+      let nextRepairId = validIds.length > 0 ? Math.max(...validIds) + 1 : 1;
+
+      // Second pass: assign unique IDs to any invalid or duplicate entries.
+      const seenIds = new Set();
+      for (const member of this.staff) {
+        const isValid = typeof member.id === 'number' && !isNaN(member.id);
+        if (!isValid || seenIds.has(member.id)) {
+          member.id = nextRepairId++;
+        }
+        seenIds.add(member.id);
+      }
+
+      this.nextStaffId = nextRepairId;
       this._dailyRepairs.clear();
       this._dailyPraise.clear();
       for (const member of this.staff) {
         this._dailyRepairs.set(member.id, 0);
       }
+
+      // Regenerate candidates with fresh IDs to avoid collisions with loaded staff
+      this._refreshCount = -1;
+      this.candidates = [];
+      this.refreshCandidates();
     });
 
     // Listen for staff assignment requests
@@ -282,6 +305,11 @@ export class StaffSystem {
       return null;
     }
 
+    // Ensure candidate ID doesn't collide with any existing staff
+    if (this.staff.some(s => s.id === candidate.id)) {
+      candidate.id = this.nextStaffId++;
+    }
+
     this.state.set('money', this.state.money - candidate.hireCost);
     this.candidates.splice(idx, 1);
     this.staff.push(candidate);
@@ -329,6 +357,7 @@ export class StaffSystem {
       return false;
     }
     member.specialization = specializationKey;
+    this._syncToState();
     this.eventBus.emit('staff:specialized', { staff: member, specialization: specializationKey });
     return true;
   }
@@ -341,6 +370,7 @@ export class StaffSystem {
     if (!member) return false;
     member.assignedDomain = domain;
     this._refreshRepairMultipliers();
+    this._syncToState();
     this.eventBus.emit('staff:assigned', { staff: member, domain });
     return true;
   }
@@ -353,6 +383,7 @@ export class StaffSystem {
     if (!member) return false;
     member.assignedDomain = null;
     this._refreshRepairMultipliers();
+    this._syncToState();
     this.eventBus.emit('staff:unassigned', { staff: member });
     return true;
   }
@@ -462,9 +493,13 @@ export class StaffSystem {
     }
 
     this.state.set('money', this.state.money - cost);
+    // Staff Training Center expansion: reduce training days by 1 (minimum 1)
+    const hasTrainingCenter = (this.state.purchasedExpansions ?? []).some(p => p.key === 'staffTrainingCenter');
+    const baseDays = config.trainingDays ?? 3;
+    const trainingDays = hasTrainingCenter ? Math.max(1, baseDays - 1) : baseDays;
     member.training = {
-      daysRemaining: config.trainingDays ?? 3,
-      totalDays: config.trainingDays ?? 3,
+      daysRemaining: trainingDays,
+      totalDays: trainingDays,
     };
     this._syncToState();
     this.eventBus.emit('staff:trainingStarted', { staff: member });
@@ -522,7 +557,8 @@ export class StaffSystem {
    * All 4 domains covered = +20% total.
    */
   getStaffEfficiencyBonus() {
-    const domains = ['air', 'water', 'hvac', 'drainage'];
+    const domainKeys = Object.keys(this.state.config?.filtrationSystems ?? {});
+    const domains = domainKeys.length > 0 ? domainKeys : ['air', 'water', 'hvac', 'drainage'];
     let bonus = 0;
     for (const domain of domains) {
       for (const member of this.staff) {
@@ -667,7 +703,10 @@ export class StaffSystem {
         member.training.daysRemaining--;
         if (member.training.daysRemaining <= 0) {
           // Training complete — grant XP bonus
-          const trainingXP = this.state.config.staffConfig?.trainingXP ?? 50;
+          let trainingXP = this.state.config.staffConfig?.trainingXP ?? 50;
+          // Staff Training Center expansion: 50% more XP on training completion
+          const hasTrainingCenter = (this.state.purchasedExpansions ?? []).some(p => p.key === 'staffTrainingCenter');
+          if (hasTrainingCenter) trainingXP = Math.floor(trainingXP * 1.5);
           member.xp += trainingXP;
           this._checkLevelUp(member);
           member.training = null;
@@ -813,7 +852,9 @@ export class StaffSystem {
    */
   _refreshRepairMultipliers() {
     this.state.staffRepairMultipliers = {};
-    for (const domain of ['air', 'water', 'hvac', 'drainage']) {
+    const domainKeys = Object.keys(this.state.config?.filtrationSystems ?? {});
+    const domains = domainKeys.length > 0 ? domainKeys : ['air', 'water', 'hvac', 'drainage'];
+    for (const domain of domains) {
       this.state.staffRepairMultipliers[domain] = this.getRepairSpeedMultiplier(domain);
     }
     // Update staff efficiency bonus for EconomySystem concession revenue
@@ -854,6 +895,12 @@ export class StaffSystem {
       if (effect) {
         if (effect.repairSpeed) multiplier *= (1 + effect.repairSpeed);
         if (effect.personalRepairSpeed) multiplier *= (1 + effect.personalRepairSpeed);
+      }
+
+      // Rusty's Retirement Clock expansion: level 3+ staff get +20% effectiveness
+      const hasRetirementClock = (this.state.purchasedExpansions ?? []).some(p => p.key === 'rustysRetirementClock');
+      if (hasRetirementClock && member.level >= 3) {
+        multiplier *= 1.2;
       }
 
       break; // only apply one worker's effects per domain

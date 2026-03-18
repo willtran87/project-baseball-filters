@@ -210,15 +210,25 @@ export class PrestigeSystem {
     }
 
     if (unlocks.veteranStaff) {
+      // Use a high numeric ID to avoid collision with auto-incremented IDs
+      const maxId = state.staffList.length > 0
+        ? Math.max(...state.staffList.filter(s => typeof s.id === 'number').map(s => s.id), 0)
+        : 0;
       state.staffList.push({
-        id: 'prestige_veteran',
+        id: maxId + 9000,
         name: 'Legacy Technician',
+        speed: 8,
+        skill: 9,
         specialization: 'general',
         level: 2,
         xp: 150,
         wagePerDay: 200,
         morale: 85,
         assignedDomain: null,
+        trait: 'Old School',
+        traitDesc: 'Learned from their grandfather. No power tools needed.',
+        backstory: 'A veteran from a previous season. Came back because they missed the stadium.',
+        hireCost: 0,
       });
     }
 

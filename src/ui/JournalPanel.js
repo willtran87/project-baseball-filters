@@ -43,7 +43,7 @@ export function registerJournalPanel(panelManager, state, eventBus, sprites) {
     if (panelManager.isOpen('journal')) {
       eventBus.emit('ui:closePanel');
     } else {
-      eventBus.emit('ui:openPanel', { name: 'journal', data: { tab: 'story' } });
+      eventBus.emit('ui:openPanel', { name: 'journal', data: { tab: 'log' } });
     }
   });
 }
@@ -57,6 +57,7 @@ function renderJournal(el, state, eventBus, sprites, data) {
 
   // Tab definitions
   const tabs = [
+    { id: 'log', label: 'Log' },
     { id: 'story', label: 'Story' },
     { id: 'characters', label: 'Characters' },
     { id: 'notes', label: 'Notes' },
@@ -76,14 +77,14 @@ function renderJournal(el, state, eventBus, sprites, data) {
     <div style="display:flex;gap:0">
       ${tabs.map(t => `
         <span data-tab="${t.id}" style="
-          padding: 3px 10px; cursor: pointer; font-size: 10px;
+          padding: 5px 10px; cursor: pointer; font-size: 12px;
           color: ${t.id === activeTab ? '#ffec27' : '#888'};
           border-bottom: ${t.id === activeTab ? '2px solid #ffec27' : '2px solid transparent'};
           background: ${t.id === activeTab ? 'rgba(255,236,39,0.05)' : 'transparent'};
         ">${t.label}</span>
       `).join('')}
     </div>
-    <span data-action="close-journal" style="cursor:pointer;color:#888;font-size:12px">\u2715</span>
+    <span data-action="close-journal" style="cursor:pointer;color:#888;font-size:14px">\u2715</span>
   `;
   el.appendChild(header);
 
@@ -94,6 +95,9 @@ function renderJournal(el, state, eventBus, sprites, data) {
 
   // Render active tab content
   switch (activeTab) {
+    case 'log':
+      renderLogTab(content, state);
+      break;
     case 'story':
       renderStoryTab(content, state);
       break;
@@ -131,6 +135,69 @@ function renderJournal(el, state, eventBus, sprites, data) {
   });
 }
 
+// ── Log Tab (Daily Event Log) ─────────────────────
+
+function renderLogTab(container, state) {
+  const log = state.dailyLog ?? [];
+  const currentDay = state.gameDay ?? 1;
+
+  if (log.length === 0) {
+    container.innerHTML = `
+      <div style="color:#888;text-align:center;padding:20px;font-size:12px">
+        No events recorded yet. Events will appear here as the season progresses.
+      </div>
+    `;
+    return;
+  }
+
+  const typeColors = {
+    positive: '#00e436',
+    negative: '#ff004d',
+    danger:   '#ff004d',
+    info:     '#29adff',
+    story:    '#ffc83c',
+  };
+  const typeIcons = {
+    positive: '\u2714',
+    negative: '\u26a0',
+    danger:   '\u{1f6a8}',
+    info:     '\u2139',
+    story:    '\u{1f4d6}',
+  };
+
+  // Show most recent days first
+  let html = '';
+  for (let i = log.length - 1; i >= 0; i--) {
+    const day = log[i];
+    const isToday = day.day === currentDay;
+    const dayLabel = isToday ? `Game ${day.day} (Today)` : `Game ${day.day}`;
+    const seasonLabel = day.season ? ` \u2014 Season ${day.season}` : '';
+
+    html += `
+      <div style="margin-bottom:10px;">
+        <div style="color:${isToday ? '#ffec27' : '#aaa'};font-size:11px;font-weight:bold;
+          border-bottom:1px solid ${isToday ? 'rgba(255,236,39,0.3)' : '#333'};
+          padding-bottom:3px;margin-bottom:4px;">
+          ${dayLabel}${seasonLabel}
+        </div>
+    `;
+
+    for (const entry of day.entries) {
+      const color = typeColors[entry.type] ?? '#888';
+      const icon = typeIcons[entry.type] ?? '\u2022';
+      html += `
+        <div style="color:${color};font-size:11px;padding:2px 0 2px 12px;line-height:1.4;">
+          ${icon} ${entry.text}
+        </div>
+      `;
+    }
+
+    html += '</div>';
+  }
+
+  container.innerHTML = html;
+}
+
 // ── Story Tab ─────────────────────────────────────
 
 function renderStoryTab(container, state) {
@@ -149,14 +216,14 @@ function renderStoryTab(container, state) {
   // Chapter progress
   html += `
     <div style="margin-bottom:12px">
-      <div style="color:#ffec27;font-size:12px;margin-bottom:6px">Chapter ${currentChapter}</div>
+      <div style="color:#ffec27;font-size:14px;margin-bottom:6px">Chapter ${currentChapter}</div>
   `;
 
   // Show summaries for completed chapters
   for (let i = 1; i < currentChapter; i++) {
     const summary = chapterSummaries[i] ?? `Chapter ${i} completed.`;
     html += `
-      <div style="margin-bottom:6px;padding:4px 8px;border-left:2px solid #3a5a3a;color:#aaa;font-size:10px">
+      <div style="margin-bottom:6px;padding:6px 8px;border-left:2px solid #3a5a3a;color:#aaa;font-size:12px">
         <span style="color:#5f8a5f">Ch.${i}:</span> ${summary}
       </div>
     `;
@@ -165,18 +232,18 @@ function renderStoryTab(container, state) {
   // Current chapter
   const currentSummary = chapterSummaries[currentChapter] ?? 'In progress...';
   html += `
-    <div style="margin-bottom:6px;padding:4px 8px;border-left:2px solid #ffec27;color:#e0e0e0;font-size:10px">
+    <div style="margin-bottom:6px;padding:6px 8px;border-left:2px solid #ffec27;color:#e0e0e0;font-size:12px">
       <span style="color:#ffec27">Ch.${currentChapter}:</span> ${currentSummary}
     </div>
   </div>`;
 
   // Recent events (storyEventsCompleted stores event ID strings)
   if (recentEvents.length > 0) {
-    html += `<div style="color:#83769c;font-size:10px;margin-bottom:4px">Completed Story Events</div>`;
+    html += `<div style="color:#83769c;font-size:12px;margin-bottom:4px">Completed Story Events</div>`;
     for (const evtId of recentEvents.slice(-6)) {
       const label = typeof evtId === 'string' ? evtId.replace(/_/g, ' ').replace(/\bch\d+\b/g, m => m.toUpperCase()) : String(evtId);
       html += `
-        <div style="padding:2px 8px;font-size:10px;color:#aaa;border-left:2px solid #4a4a6a;margin-bottom:2px">
+        <div style="padding:4px 8px;font-size:12px;color:#aaa;border-left:2px solid #4a4a6a;margin-bottom:2px">
           ${label}
         </div>
       `;
@@ -261,7 +328,7 @@ function renderCharactersTab(container, state, sprites) {
     // Tier 1+: Show bio
     if (currentTierIdx >= 1 && npc.bio) {
       detailsHtml += `
-        <div style="font-size:9px;color:#aaa;margin-top:3px;line-height:1.4;font-style:italic">
+        <div style="font-size:11px;color:#aaa;margin-top:3px;line-height:1.4;font-style:italic">
           ${npc.bio}
         </div>
       `;
@@ -271,7 +338,7 @@ function renderCharactersTab(container, state, sprites) {
     const maxTierIdx = allTiers.length - 1;
     if (currentTierIdx >= maxTierIdx && maxTierIdx >= 0 && npc.lore) {
       detailsHtml += `
-        <div style="font-size:9px;color:#d4aa40;margin-top:4px;padding:3px 6px;
+        <div style="font-size:11px;color:#d4aa40;margin-top:4px;padding:5px 8px;
           background:rgba(212,170,64,0.06);border-left:2px solid #d4aa4044;line-height:1.4">
           ${npc.lore}
         </div>
@@ -299,15 +366,15 @@ function renderCharactersTab(container, state, sprites) {
         const borderColor = isCurrent ? themeColor : (isUnlocked ? `${themeColor}44` : '#2a2a2a');
 
         tierRoadmapHtml += `
-          <div style="display:flex;align-items:flex-start;gap:4px;padding:2px 4px;
+          <div style="display:flex;align-items:flex-start;gap:4px;padding:4px 6px;
             background:${bgColor};border-left:2px solid ${borderColor}">
-            <span style="color:${tierColor};font-size:8px;min-width:8px;margin-top:1px">${isUnlocked ? '\u2713' : '\u25cb'}</span>
+            <span style="color:${tierColor};font-size:10px;min-width:8px;margin-top:1px">${isUnlocked ? '\u2713' : '\u25cb'}</span>
             <div style="flex:1;min-width:0">
-              <span style="color:${textColor};font-size:8px;font-weight:${isCurrent ? 'bold' : 'normal'}">
+              <span style="color:${textColor};font-size:10px;font-weight:${isCurrent ? 'bold' : 'normal'}">
                 ${t.name ?? `Tier ${i}`}${t.threshold > 0 ? ` (${t.threshold} pts)` : ''}${isCurrent ? ' \u25c4' : ''}
               </span>
               ${newBonuses.length > 0 ? `
-                <span style="font-size:8px;color:${bonusColor};margin-left:4px">
+                <span style="font-size:10px;color:${bonusColor};margin-left:4px">
                   ${newBonuses.map(b => formatBonus(b)).join(', ')}
                 </span>
               ` : ''}
@@ -325,7 +392,7 @@ function renderCharactersTab(container, state, sprites) {
       const nextT = allTiers[nextTierIdx];
       const pointsNeeded = (nextT.threshold ?? 0) - rel;
       nextUnlockHtml = `
-        <div style="font-size:8px;color:#888;margin-top:3px">
+        <div style="font-size:10px;color:#888;margin-top:3px">
           Next: <span style="color:${themeColor}">${nextT.name ?? `Tier ${nextTierIdx}`}</span>
           at ${nextT.threshold ?? '?'} pts
           <span style="color:#666">(+${Math.max(0, pointsNeeded)} more)</span>
@@ -333,21 +400,21 @@ function renderCharactersTab(container, state, sprites) {
       `;
     } else if (allTiers.length > 0) {
       nextUnlockHtml = `
-        <div style="font-size:8px;color:#00e436;margin-top:3px">Max relationship tier reached!</div>
+        <div style="font-size:10px;color:#00e436;margin-top:3px">Max relationship tier reached!</div>
       `;
     }
 
     html += `
-      <div style="display:flex;gap:8px;align-items:flex-start;padding:4px 6px;
+      <div style="display:flex;gap:8px;align-items:flex-start;padding:6px 8px;
         background:rgba(255,255,255,0.02);border-left:3px solid ${themeColor}">
         <canvas id="${portraitId}" width="64" height="64"
           style="width:64px;height:64px;image-rendering:pixelated;flex-shrink:0"></canvas>
         <div style="flex:1;min-width:0">
-          <div style="font-size:11px">
+          <div style="font-size:14px">
             <span style="color:${themeColor};font-weight:bold">${name}</span>
-            ${role ? `<span style="color:#5f574f;font-size:9px;margin-left:4px">${role}</span>` : ''}
+            ${role ? `<span style="color:#5f574f;font-size:11px;margin-left:4px">${role}</span>` : ''}
           </div>
-          <div style="font-size:9px;color:${tier.color};margin:2px 0">${tier.label}
+          <div style="font-size:11px;color:${tier.color};margin:2px 0">${tier.label}
             <span style="color:#5f574f;margin-left:4px">(${rel}/100)</span>${
             lastChat[npcId] != null
               ? `<span style="color:#5f574f;margin-left:6px">\u00b7 Last spoke: Day ${lastChat[npcId]}</span>`
@@ -387,7 +454,7 @@ function renderNotesTab(container, state, eventBus) {
   const totalNotes = allNotes.length || 8;
 
   let html = `
-    <div style="color:#83769c;font-size:10px;margin-bottom:8px">
+    <div style="color:#83769c;font-size:12px;margin-bottom:8px">
       Hank's Notes: ${foundNoteIds.length} / ${totalNotes} found
     </div>
     <div style="display:flex;flex-direction:column;gap:6px">
@@ -402,24 +469,24 @@ function renderNotesTab(container, state, eventBus) {
       const title = noteDef?.title ?? `Note #${i + 1}`;
       html += `
         <div data-note-id="${noteId}" style="
-          padding: 6px 10px; cursor: pointer;
+          padding: 8px 10px; cursor: pointer;
           background: rgba(255, 236, 39, 0.05);
           border: 1px solid #4a4a3a;
           border-left: 3px solid #ffec27;
-          font-size: 10px; color: #e0d8b0;
+          font-size: 12px; color: #e0d8b0;
         ">
           <div style="font-weight:bold;margin-bottom:2px">${title}</div>
-          <div style="color:#8a8060;font-size:9px">Click to read</div>
+          <div style="color:#8a8060;font-size:11px">Click to read</div>
         </div>
       `;
     } else {
       html += `
         <div style="
-          padding: 6px 10px;
+          padding: 8px 10px;
           background: rgba(0, 0, 0, 0.2);
           border: 1px solid #2a2a2a;
           border-left: 3px solid #333;
-          font-size: 10px; color: #444;
+          font-size: 12px; color: #444;
         ">???</div>
       `;
     }
@@ -442,15 +509,15 @@ function showNoteDetail(container, state, noteId, eventBus) {
   container.innerHTML = `
     <div style="padding:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <span style="color:#ffec27;font-size:12px;font-weight:bold">${title}</span>
-        <span data-action="back-notes" style="cursor:pointer;color:#888;font-size:10px">[Back]</span>
+        <span style="color:#ffec27;font-size:14px;font-weight:bold">${title}</span>
+        <span data-action="back-notes" style="cursor:pointer;color:#888;font-size:12px">[Back]</span>
       </div>
       <div style="
         padding: 10px 12px;
         background: rgba(255, 236, 39, 0.03);
         border: 1px solid #3a3a2a;
         color: #d0c890;
-        font-size: 10px;
+        font-size: 12px;
         line-height: 1.5;
         font-style: italic;
         white-space: pre-wrap;
@@ -495,15 +562,15 @@ function renderMilestonesTab(container, state) {
       html += `
         <div style="
           display:flex; align-items:center; gap:8px;
-          padding:4px 8px;
+          padding:6px 8px;
           border-left:3px solid ${achieved ? '#00e436' : '#333'};
           color: ${achieved ? '#e0e0e0' : '#444'};
-          font-size:10px;
+          font-size:12px;
         ">
-          <span style="color:${achieved ? '#00e436' : '#333'};font-size:12px">${achieved ? '[+]' : '[ ]'}</span>
+          <span style="color:${achieved ? '#00e436' : '#333'};font-size:14px">${achieved ? '[+]' : '[ ]'}</span>
           <div>
             <div style="font-weight:${achieved ? 'bold' : 'normal'}">${achieved ? name : '???'}</div>
-            ${achieved && desc ? `<div style="color:#888;font-size:9px">${desc}</div>` : ''}
+            ${achieved && desc ? `<div style="color:#888;font-size:11px">${desc}</div>` : ''}
           </div>
         </div>
       `;
@@ -517,14 +584,14 @@ function renderMilestonesTab(container, state) {
       html += `
         <div style="
           display:flex; align-items:center; gap:8px;
-          padding:4px 8px;
+          padding:6px 8px;
           border-left:3px solid #00e436;
-          font-size:10px;
+          font-size:12px;
         ">
-          <span style="color:#00e436;font-size:12px">[+]</span>
+          <span style="color:#00e436;font-size:14px">[+]</span>
           <div>
             <div style="font-weight:bold">${name}</div>
-            ${desc ? `<div style="color:#888;font-size:9px">${desc}</div>` : ''}
+            ${desc ? `<div style="color:#888;font-size:11px">${desc}</div>` : ''}
           </div>
         </div>
       `;

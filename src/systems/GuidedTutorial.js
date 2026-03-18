@@ -116,6 +116,13 @@ export class GuidedTutorial {
         animation: tutorial-pulse 1.2s ease-in-out infinite !important;
         border-color: #ffec27 !important;
       }
+      #guided-tutorial-banner {
+        cursor: pointer;
+        transition: opacity 0.3s ease, background 0.2s ease;
+      }
+      #guided-tutorial-banner:hover {
+        background: rgba(20,20,10,0.92) !important;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -133,10 +140,14 @@ export class GuidedTutorial {
     this._bannerEl.addEventListener('click', (e) => {
       if (e.target.closest('[data-tutorial-next]')) {
         this._advanceStep();
+        return;
       }
       if (e.target.closest('[data-tutorial-skip]')) {
         this._completeTutorial();
+        return;
       }
+      // Click anywhere else on the banner to dismiss/advance
+      this._advanceStep();
     });
     this._container.appendChild(this._bannerEl);
   }
@@ -153,7 +164,7 @@ export class GuidedTutorial {
     const isLast = this._currentStep >= STEPS.length - 1;
     this._bannerEl.innerHTML = `
       <div style="color:#ffec27;font-size:11px;margin-bottom:3px;letter-spacing:1px">${step.title}</div>
-      <div style="color:#c0c0d0;font-size:9px;line-height:1.4">${step.text}</div>
+      <div style="color:#c0c0d0;font-size:9px;line-height:1.4">${step.text} <span style="color:#555;font-size:8px">(click to dismiss)</span></div>
       <div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-top:5px">
         <span data-tutorial-skip style="
           cursor:pointer;font-size:8px;color:#666;padding:2px 6px;

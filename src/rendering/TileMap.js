@@ -93,6 +93,20 @@ function _ventSlotLetterMap() {
       [1,0,1],
       [1,1,0],
     ],
+    E: [
+      [1,1,1],
+      [1,0,0],
+      [1,1,0],
+      [1,0,0],
+      [1,1,1],
+    ],
+    P: [
+      [1,1,0],
+      [1,0,1],
+      [1,1,0],
+      [1,0,0],
+      [1,0,0],
+    ],
   };
 }
 
@@ -301,6 +315,13 @@ export class TileMap {
       ventSlots.push({ ...v, domain: 'water' });
     }
 
+    // 2 pest slots near concession stands (food waste attracts pests)
+    const pestVents = [{ col: 3, row: 5 }, { col: 16, row: 5 }];
+    for (const v of pestVents) {
+      grid[v.row][v.col] = T.VENT_SLOT;
+      ventSlots.push({ ...v, domain: 'pest' });
+    }
+
     return { grid, ventSlots };
   }
 
@@ -376,6 +397,17 @@ export class TileMap {
       grid[v.row][v.col] = T.VENT_SLOT;
       ventSlots.push({ ...v, domain: 'air' });
     }
+
+    // 2 electrical slots near electrical panels
+    const elecVents = [{ col: 8, row: 11 }, { col: 19, row: 11 }];
+    for (const v of elecVents) {
+      grid[v.row][v.col] = T.VENT_SLOT;
+      ventSlots.push({ ...v, domain: 'electrical' });
+    }
+
+    // 1 pest slot in warm equipment room (nesting area)
+    grid[5][13] = T.VENT_SLOT;
+    ventSlots.push({ col: 13, row: 5, domain: 'pest' });
 
     return { grid, ventSlots };
   }
@@ -459,6 +491,20 @@ export class TileMap {
       ventSlots.push({ ...v, domain: 'water' });
     }
 
+    // 2 electrical slots near pump stations
+    const elecVents = [{ col: 5, row: 7 }, { col: 15, row: 7 }];
+    for (const v of elecVents) {
+      grid[v.row][v.col] = T.VENT_SLOT;
+      ventSlots.push({ ...v, domain: 'electrical' });
+    }
+
+    // 2 pest slots in dark tunnels (sewage lines)
+    const pestVents = [{ col: 12, row: 13 }, { col: 26, row: 6 }];
+    for (const v of pestVents) {
+      grid[v.row][v.col] = T.VENT_SLOT;
+      ventSlots.push({ ...v, domain: 'pest' });
+    }
+
     return { grid, ventSlots };
   }
 
@@ -534,6 +580,14 @@ export class TileMap {
       ventSlots.push({ ...v, domain: 'hvac' });
     }
 
+    // 1 electrical slot for suite power distribution
+    grid[13][14] = T.VENT_SLOT;
+    ventSlots.push({ col: 14, row: 13, domain: 'electrical' });
+
+    // 1 pest slot near suite food service
+    grid[12][24] = T.VENT_SLOT;
+    ventSlots.push({ col: 24, row: 12, domain: 'pest' });
+
     return { grid, ventSlots };
   }
 
@@ -607,6 +661,10 @@ export class TileMap {
       grid[v.row][v.col] = T.VENT_SLOT;
       ventSlots.push({ ...v, domain: 'hvac' });
     }
+
+    // 1 electrical slot for broadcast equipment power
+    grid[14][4] = T.VENT_SLOT;
+    ventSlots.push({ col: 4, row: 14, domain: 'electrical' });
 
     return { grid, ventSlots };
   }
@@ -1749,6 +1807,8 @@ export class TileMap {
       water: '#4488ff',
       hvac: '#ff8844',
       drainage: '#44bb44',
+      electrical: '#ffcc00',
+      pest: '#cc44cc',
     };
 
     for (const slot of this._ventSlots) {
@@ -1785,7 +1845,7 @@ export class TileMap {
 
       // Domain letter label centered in vent slot (3x5 pixel font)
       const letterMap = _ventSlotLetterMap();
-      const letter = { air: 'A', water: 'W', hvac: 'H', drainage: 'D' }[slot.domain];
+      const letter = { air: 'A', water: 'W', hvac: 'H', drainage: 'D', electrical: 'E', pest: 'P' }[slot.domain];
       const bitmap = letterMap[letter];
       if (bitmap) {
         const lx = x + 6; // center 3px letter in 16px tile
@@ -2559,7 +2619,8 @@ export class TileMap {
     const t = time * 0.001;
     const pm = this.placementMode;
     const occupied = this.placementOccupied;
-    const domainHealth = state?.domainHealth ?? { air: 100, water: 100, hvac: 100, drainage: 100 };
+    const currentZone = state?.currentZone ?? 'field';
+    const domainHealth = state?.zoneDomainHealth?.[currentZone] ?? state?.domainHealth ?? { air: 100, water: 100, hvac: 100, drainage: 100, electrical: 100, pest: 100 };
 
     for (const slot of this._ventSlots) {
       const x = slot.col * TILE_SIZE;
@@ -2654,6 +2715,7 @@ export class TileMap {
   _renderAnimated(renderer, state) {
     const _domainGlowColors = {
       air: '#cccccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44',
+      electrical: '#ffcc00', pest: '#cc44cc',
     };
 
     // For non-field zones, delegate animated overlays to ZoneRenderer
@@ -2715,8 +2777,26 @@ export class TileMap {
     // --- Dynamic scoreboard data ---
     this._renderScoreboardData(renderer, state, t);
 
+    // --- Jumbotron LED overlay (on top of scoreboard) ---
+    this._renderJumbotronOverlay(renderer, state, t);
+
+    // --- Groundskeeper's Garden (outfield wall) ---
+    this._renderGarden(renderer, state, t);
+
     // --- Seated fans — scaled by attendance percentage ---
     this._renderSeatedFans(renderer, state);
+
+    // --- Stadium Blimp (in sky, above fans) ---
+    this._renderBlimp(renderer, state, t);
+
+    // --- Expansion: Rally Raccoon mascot along outfield wall ---
+    this._renderRallyRaccoon(renderer, state);
+
+    // --- Expansion: Foul ball tracer arc ---
+    this._renderFoulBallTracer(renderer, state);
+
+    // --- Expansion: Fireworks for special game days ---
+    this._renderFireworks(renderer, state);
 
     // --- Weather effects (rain, snow, heat, wind) on top ---
     this._renderWeatherEffects(renderer, state);
@@ -3006,13 +3086,588 @@ export class TileMap {
   }
 
   /* ================================================================ */
+  /*  EXPANSION VISUALS — Blimp, Jumbotron, Garden                   */
+  /* ================================================================ */
+
+  /**
+   * Stadium Blimp — 32x16 pixel blimp slowly crossing the sky.
+   * Gentle sine-wave bob, wraps at screen edge.
+   */
+  _renderBlimp(renderer, state, t) {
+    const purchased = state?.purchasedExpansions ?? [];
+    if (!purchased.some(p => p.key === 'stadiumBlimp')) return;
+
+    const ctx = renderer.ctx;
+    const W = this.cols * TILE_SIZE; // 480
+
+    // Blimp horizontal position: moves left-to-right, wraps at screen edge
+    if (this._blimpX === undefined) this._blimpX = -40;
+    this._blimpX += 0.15;
+    if (this._blimpX > W + 40) this._blimpX = -40;
+    const bx = Math.floor(this._blimpX);
+
+    // Gentle vertical sine-wave bob
+    const by = Math.floor(1.5 * TILE_SIZE + Math.sin(t * 0.3) * 4);
+
+    ctx.save();
+
+    // Blimp envelope (ellipse body) — 32x12
+    ctx.fillStyle = '#ccccdd';
+    ctx.beginPath();
+    ctx.ellipse(bx + 16, by + 6, 16, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Highlight stripe
+    ctx.fillStyle = '#ddddee';
+    ctx.fillRect(bx + 4, by + 3, 24, 2);
+
+    // Rotating sponsor banner color stripe (cycles every 4s)
+    const bannerColors = ['#ff004d', '#29adff', '#00e436', '#ffec27'];
+    const bannerIdx = Math.floor(t * 0.25) % bannerColors.length;
+    ctx.fillStyle = bannerColors[bannerIdx];
+    ctx.fillRect(bx + 6, by + 7, 20, 2);
+
+    // Gondola (cabin)
+    ctx.fillStyle = '#555566';
+    ctx.fillRect(bx + 10, by + 12, 12, 3);
+
+    // Tail fin (trailing left as blimp moves left-to-right)
+    ctx.fillStyle = '#aaaabb';
+    ctx.beginPath();
+    ctx.moveTo(bx + 2, by + 3);
+    ctx.lineTo(bx - 2, by);
+    ctx.lineTo(bx - 2, by + 12);
+    ctx.lineTo(bx + 2, by + 9);
+    ctx.closePath();
+    ctx.fill();
+
+    // Blinking red beacon
+    const beaconOn = Math.floor(t * 2) % 2 === 0;
+    if (beaconOn) {
+      ctx.fillStyle = '#ff004d';
+      ctx.fillRect(bx + 15, by, 2, 2);
+      // Glow halo
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = '#ff004d';
+      ctx.fillRect(bx + 13, by - 1, 6, 4);
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * Jumbotron Upgrade — LED chase lights around existing scoreboard frame.
+   * Pulsing corner spotlights.
+   */
+  _renderJumbotronOverlay(renderer, state, t) {
+    const purchased = state?.purchasedExpansions ?? [];
+    if (!purchased.some(p => p.key === 'jumbotronUpgrade')) return;
+
+    const ctx = renderer.ctx;
+    const boardX = 13 * TILE_SIZE;
+    const boardY = 4 * TILE_SIZE;
+    const boardW = 5 * TILE_SIZE;
+    const boardH = 2 * TILE_SIZE;
+
+    ctx.save();
+
+    // LED chase lights around the scoreboard frame
+    const chaseSpeed = t * 3;
+    const chaseColors = ['#ff004d', '#ffec27', '#00e436', '#29adff'];
+    const totalPerimeter = 2 * (boardW + boardH);
+
+    for (let i = 0; i < 16; i++) {
+      const offset = ((chaseSpeed + i * (totalPerimeter / 16)) % totalPerimeter + totalPerimeter) % totalPerimeter;
+      let px, py;
+
+      if (offset < boardW) {
+        // Top edge
+        px = boardX + offset;
+        py = boardY - 2;
+      } else if (offset < boardW + boardH) {
+        // Right edge
+        px = boardX + boardW;
+        py = boardY + (offset - boardW);
+      } else if (offset < 2 * boardW + boardH) {
+        // Bottom edge
+        px = boardX + boardW - (offset - boardW - boardH);
+        py = boardY + boardH + 1;
+      } else {
+        // Left edge
+        px = boardX - 2;
+        py = boardY + boardH - (offset - 2 * boardW - boardH);
+      }
+
+      const color = chaseColors[i % chaseColors.length];
+      ctx.globalAlpha = 0.7 + Math.sin(t * 4 + i) * 0.3;
+      ctx.fillStyle = color;
+      ctx.fillRect(Math.floor(px), Math.floor(py), 2, 2);
+    }
+
+    // Pulsing corner spotlights
+    const spotAlpha = 0.15 + Math.sin(t * 2) * 0.1;
+    ctx.globalAlpha = spotAlpha;
+    ctx.fillStyle = '#ffffff';
+    // Top-left
+    ctx.fillRect(boardX - 4, boardY - 4, 6, 6);
+    // Top-right
+    ctx.fillRect(boardX + boardW - 2, boardY - 4, 6, 6);
+    // Bottom-left
+    ctx.fillRect(boardX - 4, boardY + boardH - 2, 6, 6);
+    // Bottom-right
+    ctx.fillRect(boardX + boardW - 2, boardY + boardH - 2, 6, 6);
+
+    ctx.restore();
+  }
+
+  /**
+   * Groundskeeper's Garden — garden strip along outfield wall (cols 4-8).
+   * Visual state tied to water health.
+   */
+  _renderGarden(renderer, state, t) {
+    const purchased = state?.purchasedExpansions ?? [];
+    if (!purchased.some(p => p.key === 'groundskeeperGarden')) return;
+
+    const ctx = renderer.ctx;
+    const waterHealth = state?.zoneDomainHealth?.field?.water ?? state?.domainHealth?.water ?? 50;
+
+    // Garden sits along the outfield wall area (cols 4-8, row 9 — just above field level)
+    const gardenY = 9 * TILE_SIZE;
+    const gardenStartCol = 4;
+    const gardenEndCol = 8;
+
+    ctx.save();
+
+    // Determine plant colors based on water health
+    let grassColor, flowerColor, soilColor;
+    if (waterHealth > 60) {
+      // Lush green
+      grassColor = '#2d8e2d';
+      flowerColor = '#ff77a8';
+      soilColor = '#5c3a1e';
+    } else if (waterHealth > 30) {
+      // Yellowing
+      grassColor = '#b8a830';
+      flowerColor = '#cc9944';
+      soilColor = '#6b4a2a';
+    } else {
+      // Brown/dead
+      grassColor = '#7a6040';
+      flowerColor = '#8a7050';
+      soilColor = '#4a3a1e';
+    }
+
+    for (let col = gardenStartCol; col <= gardenEndCol; col++) {
+      const gx = col * TILE_SIZE;
+
+      // Wooden border fence (2px high)
+      ctx.fillStyle = '#8b6914';
+      ctx.fillRect(gx, gardenY - 2, TILE_SIZE, 2);
+      ctx.fillStyle = '#6b4914';
+      ctx.fillRect(gx, gardenY, TILE_SIZE, 1);
+
+      // Soil strip
+      ctx.fillStyle = soilColor;
+      ctx.fillRect(gx, gardenY + 1, TILE_SIZE, 4);
+
+      // Grass tufts (varied positions based on column)
+      ctx.fillStyle = grassColor;
+      const tuftOffsets = [2, 6, 10, 14];
+      for (const ox of tuftOffsets) {
+        ctx.fillRect(gx + ox, gardenY - 3, 1, 2);
+        ctx.fillRect(gx + ox - 1, gardenY - 2, 1, 1);
+      }
+
+      // Flowers (only when water health > 30)
+      if (waterHealth > 30) {
+        const flowerX = gx + 4 + (col % 3) * 4;
+        ctx.fillStyle = flowerColor;
+        ctx.fillRect(flowerX, gardenY - 4, 2, 2);
+        // Stem
+        ctx.fillStyle = grassColor;
+        ctx.fillRect(flowerX, gardenY - 2, 1, 2);
+      }
+    }
+
+    // Subtle water drop animation when water health is high
+    if (waterHealth > 60) {
+      const dropPhase = (t * 1.5) % 1;
+      for (let col = gardenStartCol; col <= gardenEndCol; col += 2) {
+        const dx = col * TILE_SIZE + 8;
+        const dy = gardenY - 6 + dropPhase * 4;
+        ctx.globalAlpha = 0.5 * (1 - dropPhase);
+        ctx.fillStyle = '#4488ff';
+        ctx.fillRect(dx, Math.floor(dy), 1, 1);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * Rally Raccoon — small mascot running along the outfield wall.
+   * Moves left-to-right with a bobbing animation.
+   */
+  _renderRallyRaccoon(renderer, state) {
+    if (!(state?.purchasedExpansions ?? []).some(p => p.key === 'rallyRaccoon')) return;
+
+    const ctx = renderer.ctx;
+
+    // Advance raccoon position; wraps across the outfield
+    this._raccoonX = (this._raccoonX ?? 0) + 0.35;
+    if (this._raccoonX > 30 * TILE_SIZE + 16) this._raccoonX = -20;
+
+    const t = Date.now() * 0.001;
+    const runCycle = Math.floor(t * 6) % 4; // 4-frame run cycle
+    const bob = (runCycle === 1 || runCycle === 3) ? -1 : 0; // bounce on odd frames
+    const rx = Math.floor(this._raccoonX);
+    const ry = Math.floor(10 * TILE_SIZE + 1 + bob);
+
+    ctx.save();
+
+    // === Ringed tail (5px long, 3 alternating bands) ===
+    ctx.fillStyle = '#777777'; // light ring
+    ctx.fillRect(rx - 5, ry + 2, 2, 3);
+    ctx.fillStyle = '#3a3a3a'; // dark ring
+    ctx.fillRect(rx - 3, ry + 2, 2, 3);
+    ctx.fillStyle = '#777777';
+    ctx.fillRect(rx - 1, ry + 3, 1, 2);
+    // Tail tip curves up
+    ctx.fillStyle = '#3a3a3a';
+    ctx.fillRect(rx - 5, ry + 1, 1, 1);
+
+    // === Body (8x5 rounded shape) ===
+    ctx.fillStyle = '#888888'; // main fur
+    ctx.fillRect(rx + 1, ry + 2, 7, 4);
+    ctx.fillRect(rx, ry + 3, 9, 3);
+    // Darker back ridge
+    ctx.fillStyle = '#666666';
+    ctx.fillRect(rx + 2, ry + 2, 5, 1);
+
+    // === Head (6x5 at front) ===
+    ctx.fillStyle = '#999999'; // lighter head fur
+    ctx.fillRect(rx + 7, ry + 1, 5, 4);
+    ctx.fillRect(rx + 8, ry, 3, 1);
+    // Rounded snout
+    ctx.fillStyle = '#aaaaaa';
+    ctx.fillRect(rx + 11, ry + 2, 2, 2);
+
+    // === Raccoon eye mask (signature black band across eyes) ===
+    ctx.fillStyle = '#222222';
+    ctx.fillRect(rx + 8, ry + 1, 4, 2);
+    // Eyes (white dots in the mask)
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(rx + 9, ry + 1, 1, 1);
+    ctx.fillRect(rx + 11, ry + 1, 1, 1);
+    // Eye pupils
+    ctx.fillStyle = '#111111';
+    ctx.fillRect(rx + 9, ry + 2, 1, 1);
+
+    // White nose bridge stripe
+    ctx.fillStyle = '#cccccc';
+    ctx.fillRect(rx + 10, ry, 1, 1);
+
+    // Nose tip
+    ctx.fillStyle = '#333333';
+    ctx.fillRect(rx + 12, ry + 3, 1, 1);
+
+    // === Ears (pointed, 2px tall) ===
+    ctx.fillStyle = '#777777';
+    ctx.fillRect(rx + 8, ry - 1, 2, 1);
+    ctx.fillRect(rx + 9, ry - 2, 1, 1);
+    ctx.fillStyle = '#ffccaa'; // pink inner ear
+    ctx.fillRect(rx + 9, ry - 1, 1, 1);
+
+    // === Legs (animated run cycle) ===
+    ctx.fillStyle = '#555555';
+    if (runCycle === 0) {
+      // Front legs forward, back legs back
+      ctx.fillRect(rx + 2, ry + 6, 1, 2);
+      ctx.fillRect(rx + 4, ry + 6, 1, 3);
+      ctx.fillRect(rx + 7, ry + 6, 1, 3);
+      ctx.fillRect(rx + 9, ry + 6, 1, 2);
+    } else if (runCycle === 1) {
+      // Legs together (airborne)
+      ctx.fillRect(rx + 3, ry + 6, 1, 2);
+      ctx.fillRect(rx + 5, ry + 6, 1, 2);
+      ctx.fillRect(rx + 7, ry + 6, 1, 2);
+      ctx.fillRect(rx + 8, ry + 6, 1, 2);
+    } else if (runCycle === 2) {
+      // Front legs back, back legs forward
+      ctx.fillRect(rx + 2, ry + 6, 1, 3);
+      ctx.fillRect(rx + 4, ry + 6, 1, 2);
+      ctx.fillRect(rx + 7, ry + 6, 1, 2);
+      ctx.fillRect(rx + 9, ry + 6, 1, 3);
+    } else {
+      // Legs together (airborne)
+      ctx.fillRect(rx + 3, ry + 6, 1, 2);
+      ctx.fillRect(rx + 5, ry + 6, 1, 2);
+      ctx.fillRect(rx + 7, ry + 6, 1, 2);
+      ctx.fillRect(rx + 8, ry + 6, 1, 2);
+    }
+    // Paws
+    ctx.fillStyle = '#333333';
+    if (runCycle === 0 || runCycle === 2) {
+      ctx.fillRect(rx + 4, ry + 8, 1, 1);
+      ctx.fillRect(rx + 7, ry + 8, 1, 1);
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * Foul Ball Tracer — a ball arcs across the screen every ~5 seconds.
+   * Parabolic trajectory with a fading trail.
+   */
+  _renderFoulBallTracer(renderer, state) {
+    if (!(state?.purchasedExpansions ?? []).some(p => p.key === 'foulBallPhysics')) return;
+
+    const ctx = renderer.ctx;
+
+    // Timer: trigger a new ball every ~300 frames (~5 seconds at 60fps)
+    this._foulBallTimer = (this._foulBallTimer ?? 0) + 1;
+    if (this._foulBallTimer % 300 === 0) {
+      this._foulBallActive = true;
+      this._foulBallPhase = 0;
+      // Randomize direction: left or right arc
+      this._foulBallDir = Math.random() > 0.5 ? 1 : -1;
+    }
+
+    if (!this._foulBallActive) return;
+
+    this._foulBallPhase = (this._foulBallPhase ?? 0) + 1;
+
+    // Arc origin (home plate area, bottom center of field)
+    const startX = 15 * TILE_SIZE;
+    const startY = 12 * TILE_SIZE;
+    const dir = this._foulBallDir ?? 1;
+
+    // Parabolic arc over 80 frames — rises high then falls
+    const progress = this._foulBallPhase / 80;
+    const bx = startX + dir * progress * 10 * TILE_SIZE;
+    const by = startY - Math.sin(progress * Math.PI) * 8 * TILE_SIZE;
+
+    ctx.save();
+
+    // === Dashed trajectory line ===
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = '#ffec27';
+    for (let p = 0; p < this._foulBallPhase; p += 4) {
+      if ((p / 4) % 2 === 0) continue; // skip every other dash
+      const dp = p / 80;
+      const dx = startX + dir * dp * 10 * TILE_SIZE;
+      const dy = startY - Math.sin(dp * Math.PI) * 8 * TILE_SIZE;
+      ctx.fillRect(Math.floor(dx), Math.floor(dy), 1, 1);
+    }
+
+    // === Trail (6 ghost balls fading out) ===
+    for (let i = 6; i >= 1; i--) {
+      const trailPhase = Math.max(0, this._foulBallPhase - i * 3);
+      if (trailPhase <= 0) continue;
+      const tp = trailPhase / 80;
+      const tx = startX + dir * tp * 10 * TILE_SIZE;
+      const ty = startY - Math.sin(tp * Math.PI) * 8 * TILE_SIZE;
+      ctx.globalAlpha = (0.6 - i * 0.08);
+      ctx.fillStyle = '#eeeeee';
+      ctx.fillRect(Math.floor(tx), Math.floor(ty), 2, 2);
+    }
+
+    // === Baseball (3x3 with stitch detail) ===
+    const ballX = Math.floor(bx);
+    const ballY = Math.floor(by);
+    ctx.globalAlpha = 1;
+    // White ball body
+    ctx.fillStyle = '#eeeeee';
+    ctx.fillRect(ballX, ballY, 3, 3);
+    // Slight shadow on bottom-right
+    ctx.fillStyle = '#cccccc';
+    ctx.fillRect(ballX + 2, ballY + 1, 1, 2);
+    ctx.fillRect(ballX + 1, ballY + 2, 1, 1);
+    // Red stitch marks (rotate with flight)
+    const stitchFrame = Math.floor(this._foulBallPhase / 4) % 3;
+    ctx.fillStyle = '#ff004d';
+    if (stitchFrame === 0) {
+      ctx.fillRect(ballX, ballY + 1, 1, 1);
+      ctx.fillRect(ballX + 2, ballY + 1, 1, 1);
+    } else if (stitchFrame === 1) {
+      ctx.fillRect(ballX + 1, ballY, 1, 1);
+      ctx.fillRect(ballX + 1, ballY + 2, 1, 1);
+    } else {
+      ctx.fillRect(ballX, ballY, 1, 1);
+      ctx.fillRect(ballX + 2, ballY + 2, 1, 1);
+    }
+
+    // === Speed lines near the ball ===
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(ballX - dir * 4, ballY + 1, 2, 1);
+    ctx.globalAlpha = 0.15;
+    ctx.fillRect(ballX - dir * 7, ballY, 2, 1);
+
+    ctx.restore();
+
+    if (this._foulBallPhase >= 80) {
+      this._foulBallActive = false;
+    }
+  }
+
+  /**
+   * Fireworks — animated bursts in the sky during special game days.
+   * Multiple concurrent fireworks with expanding colored dots.
+   */
+  _renderFireworks(renderer, state) {
+    if (!(state?.purchasedExpansions ?? []).some(p => p.key === 'fireworksLauncherArray')) return;
+
+    // Only show during special game day types
+    const specialDays = ['playoffGame', 'championshipGame', 'openingDay', 'rivalryGame'];
+    if (!specialDays.includes(state.currentGameDayType)) return;
+
+    const ctx = renderer.ctx;
+    const colors = ['#ff004d', '#ffec27', '#00e436', '#29adff', '#ff77a8', '#ffa300'];
+
+    // Initialize fireworks array
+    if (!this._fireworks) this._fireworks = [];
+    if (this._fireworksTimer === undefined) this._fireworksTimer = 0;
+    this._fireworksTimer += 1;
+
+    // Spawn a new firework every ~90 frames (keep max 4 concurrent)
+    if (this._fireworksTimer % 90 === 0 && this._fireworks.length < 4) {
+      const launchX = (4 + Math.random() * 22) * TILE_SIZE;
+      this._fireworks.push({
+        x: launchX,
+        launchX: launchX,
+        burstY: (0.5 + Math.random() * 1.5) * TILE_SIZE, // burst height in sky
+        color: colors[Math.floor(Math.random() * colors.length)],
+        color2: colors[Math.floor(Math.random() * colors.length)], // secondary color
+        phase: 0,
+        dotCount: 8 + Math.floor(Math.random() * 5), // 8-12 dots
+        sparkles: [], // lingering sparkle particles
+      });
+    }
+
+    ctx.save();
+
+    for (let f = this._fireworks.length - 1; f >= 0; f--) {
+      const fw = this._fireworks[f];
+      fw.phase += 1;
+
+      const launchDuration = 30; // frames for launch trail
+      const burstDuration = 100; // frames for burst + fade
+
+      if (fw.phase <= launchDuration) {
+        // === LAUNCH PHASE: rising trail from bottom ===
+        const launchP = fw.phase / launchDuration;
+        const rocketY = 18 * TILE_SIZE - launchP * (18 * TILE_SIZE - fw.burstY);
+        const rocketX = fw.launchX;
+
+        // Rocket dot (bright white)
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(Math.floor(rocketX), Math.floor(rocketY), 2, 2);
+
+        // Sparking tail behind rocket
+        ctx.fillStyle = fw.color;
+        for (let s = 1; s <= 5; s++) {
+          const sy = rocketY + s * 3;
+          const sparkAlpha = (1 - s / 6) * 0.8;
+          ctx.globalAlpha = sparkAlpha;
+          const wobble = Math.sin(fw.phase * 2 + s) * 1;
+          ctx.fillRect(Math.floor(rocketX + wobble), Math.floor(sy), 1, 1);
+        }
+        // Smoke trail
+        ctx.globalAlpha = 0.1;
+        ctx.fillStyle = '#aaaaaa';
+        for (let s = 6; s <= 10; s++) {
+          const sy = rocketY + s * 3;
+          if (sy > 18 * TILE_SIZE) break;
+          ctx.fillRect(Math.floor(rocketX), Math.floor(sy), 1, 1);
+        }
+      } else {
+        // === BURST PHASE ===
+        const burstPhase = fw.phase - launchDuration;
+        const burstP = burstPhase / burstDuration;
+
+        // Outer ring (primary color, expanding)
+        const outerRadius = burstP * 18;
+        const outerAlpha = Math.max(0, 0.9 - burstP * 1.1);
+        ctx.fillStyle = fw.color;
+        for (let i = 0; i < fw.dotCount; i++) {
+          const angle = (i / fw.dotCount) * Math.PI * 2;
+          const gravity = burstP * burstP * 4; // particles droop with gravity
+          const dx = fw.x + Math.cos(angle) * outerRadius;
+          const dy = fw.burstY + Math.sin(angle) * outerRadius + gravity;
+          ctx.globalAlpha = outerAlpha;
+          ctx.fillRect(Math.floor(dx), Math.floor(dy), 2, 2);
+          // Sparkle tail on each particle
+          ctx.globalAlpha = outerAlpha * 0.4;
+          ctx.fillRect(Math.floor(dx - Math.cos(angle) * 2), Math.floor(dy - Math.sin(angle) * 2), 1, 1);
+        }
+
+        // Inner ring (secondary color, smaller, brighter)
+        const innerRadius = burstP * 10;
+        const innerAlpha = Math.max(0, 1.0 - burstP * 1.3);
+        ctx.fillStyle = fw.color2;
+        const innerDots = Math.floor(fw.dotCount * 0.6);
+        for (let i = 0; i < innerDots; i++) {
+          const angle = (i / innerDots) * Math.PI * 2 + 0.3;
+          const gravity = burstP * burstP * 3;
+          const dx = fw.x + Math.cos(angle) * innerRadius;
+          const dy = fw.burstY + Math.sin(angle) * innerRadius + gravity;
+          ctx.globalAlpha = innerAlpha;
+          ctx.fillRect(Math.floor(dx), Math.floor(dy), 1, 1);
+        }
+
+        // Central flash (bright white, fades fast)
+        if (burstPhase < 8) {
+          ctx.globalAlpha = 1 - burstPhase / 8;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(Math.floor(fw.x) - 1, Math.floor(fw.burstY) - 1, 3, 3);
+        }
+
+        // Lingering sparkles (tiny twinkling dots)
+        if (burstPhase === 1) {
+          for (let s = 0; s < 6; s++) {
+            fw.sparkles.push({
+              x: fw.x + (Math.random() - 0.5) * 20,
+              y: fw.burstY + (Math.random() - 0.5) * 16,
+              life: 40 + Math.random() * 40,
+              twinkleSpeed: 4 + Math.random() * 6,
+            });
+          }
+        }
+        for (let s = fw.sparkles.length - 1; s >= 0; s--) {
+          const sp = fw.sparkles[s];
+          sp.life -= 1;
+          sp.y += 0.1; // slow drift down
+          if (sp.life <= 0) { fw.sparkles.splice(s, 1); continue; }
+          const twinkle = Math.sin(burstPhase * 0.5 / sp.twinkleSpeed * Math.PI * 2);
+          if (twinkle > 0) {
+            ctx.globalAlpha = (sp.life / 80) * twinkle;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(Math.floor(sp.x), Math.floor(sp.y), 1, 1);
+          }
+        }
+      }
+
+      // Remove fully expired fireworks
+      const totalLife = 30 + 100;
+      if (fw.phase >= totalLife && fw.sparkles.length === 0) {
+        this._fireworks.splice(f, 1);
+      }
+    }
+
+    ctx.restore();
+  }
+
+  /* ================================================================ */
   /*  HEALTH-BASED TILE OVERLAYS — visual degradation on non-field    */
   /* ================================================================ */
 
   _renderHealthOverlays(renderer, state) {
-    const health = state?.domainHealth ?? { air: 100, water: 100, hvac: 100, drainage: 100 };
-    const ctx = renderer.ctx;
     const zone = this._currentZone;
+    const health = state?.zoneDomainHealth?.[zone] ?? state?.domainHealth ?? { air: 100, water: 100, hvac: 100, drainage: 100, electrical: 100, pest: 100 };
+    const ctx = renderer.ctx;
     const now = (state?.time ?? Date.now()) * 0.001;
 
     ctx.save();
@@ -3078,6 +3733,67 @@ export class TileMap {
         const [dx, dy] = spots[i];
         const bob = Math.sin(now * 1.5 + i * 2.3) * 2;
         ctx.fillRect(dx, dy + bob, 1, 1);
+      }
+    }
+
+    // --- Electrical health < 40: flickering light spots ---
+    if ((health.electrical ?? 100) < 40) {
+      const alpha = Math.min(0.6, (40 - health.electrical) / 40);
+      const lightPositions = {
+        concourse: [[6, 2], [12, 2], [18, 2], [24, 2]],
+        mechanical: [[5, 3], [15, 3], [25, 3]],
+        underground: [[8, 2], [16, 2], [24, 2]],
+        luxury: [[12, 2], [18, 2]],
+        pressbox: [[6, 3], [14, 3], [22, 3]],
+      };
+      const lights = lightPositions[zone] ?? [];
+      for (let i = 0; i < lights.length; i++) {
+        const [lx, ly] = lights[i];
+        const hash = _hash(lx, ly, 77);
+        const flicker = Math.sin(now * 8 + hash) > 0.3;
+        if (flicker) {
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = '#ffee88'; // warm yellow
+          ctx.fillRect(lx * 16 + 4, ly * 16 + 6, 3, 2);
+          ctx.fillStyle = '#ffffff'; // bright white center
+          ctx.fillRect(lx * 16 + 5, ly * 16 + 7, 1, 1);
+        }
+      }
+    }
+
+    // --- Pest health < 45: small pest indicators ---
+    if ((health.pest ?? 100) < 45) {
+      const alpha = Math.min(0.5, (45 - health.pest) / 45);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#332211'; // dark brown droppings
+      const droppingSpots = {
+        concourse: [[7, 5], [13, 4], [19, 5], [25, 4]],
+        mechanical: [[10, 9], [14, 10], [18, 8]],
+        underground: [[6, 6], [12, 8], [20, 7]],
+        luxury: [[14, 6], [20, 5]],
+        pressbox: [[8, 8], [16, 7]],
+      };
+      const spots2 = droppingSpots[zone] ?? [];
+      for (let i = 0; i < spots2.length; i++) {
+        const [px, py] = spots2[i];
+        const vis = Math.sin(now * 0.8 + _hash(px, py, 55) * 6.28) > -0.3;
+        if (vis) {
+          ctx.fillRect(px * 16 + 3, py * 16 + 12, 1, 1);
+          ctx.fillRect(px * 16 + 7, py * 16 + 13, 1, 1);
+        }
+      }
+      // Critical pest level < 25: animated scurrying dots
+      if (health.pest < 25) {
+        const critAlpha = Math.min(0.5, (25 - health.pest) / 25);
+        ctx.globalAlpha = critAlpha;
+        ctx.fillStyle = '#332211';
+        for (let i = 0; i < spots2.length; i++) {
+          const [px, py] = spots2[i];
+          const hash = _hash(px, py, 99);
+          const scurryX = Math.sin(now * 3.5 + hash * 10) * 4;
+          const scurryY = Math.cos(now * 2.8 + hash * 7) * 2;
+          ctx.fillRect(px * 16 + 5 + scurryX, py * 16 + 10 + scurryY, 1, 1);
+        }
       }
     }
 

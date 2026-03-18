@@ -18,7 +18,7 @@ const THRESHOLD_WARNING = 0.25;   // 25-49%: Orange — fan complaints, reputati
 const THRESHOLD_CRITICAL = 0;     // 0-24%:  Red — health violations, revenue loss
 
 // Cross-domain synergy pairs: filters from paired domains in the same zone get a bonus
-const SYNERGY_PAIRS = [['air', 'hvac'], ['water', 'drainage']];
+const SYNERGY_PAIRS = [['air', 'hvac'], ['water', 'drainage'], ['electrical', 'hvac'], ['pest', 'drainage']];
 
 export class FiltrationSystem {
   constructor(state, eventBus) {
@@ -33,6 +33,14 @@ export class FiltrationSystem {
     this.eventBus.on('filter:upgrade', (data) => this.upgradeFilter(data));
     this.eventBus.on('filter:remove', (data) => this._removeFilterWithSalvage(data.id));
     this.eventBus.on('filter:bulkRepair', () => this._handleBulkRepair());
+
+    // Domain-level bulk repair: repair all damaged filters in a given domain
+    this.eventBus.on('domain:repairAll', (data) => {
+      const result = this.repairAllInDomain(data.domain);
+      if (result.repairedCount > 0) {
+        this.eventBus.emit('ui:message', { text: `Repaired ${result.repairedCount} ${data.domain} filters for $${result.totalCost}`, type: 'success' });
+      }
+    });
 
     // Recalculate zone synergies when filters change
     this.eventBus.on('filter:added', () => this._recalcSynergies());
@@ -66,6 +74,15 @@ export class FiltrationSystem {
     const synergies = this.calculateZoneSynergies();
     this.state.filterSynergies = synergies;
     this.eventBus.emit('filter:synergyChanged', synergies);
+
+    // One-time discovery hint when synergies first activate
+    if (!this.state.synergiesDiscovered && Object.keys(synergies).length > 0) {
+      this.state.synergiesDiscovered = true;
+      this.eventBus.emit('ui:message', {
+        text: 'Filter Synergy discovered! Placing 3+ same-domain filters in one zone gives +10% efficiency. Check the Filter Inspector for details.',
+        type: 'info',
+      });
+    }
   }
 
   /**
@@ -145,8 +162,8 @@ export class FiltrationSystem {
    * data: { domain, componentType, tier, x, y }
    */
   installFilter({ domain, componentType, tier, x, y }) {
-    // Validate domain is a known filtration domain
-    const validDomains = ['air', 'water', 'hvac', 'drainage'];
+    // Validate domain is a known filtration domain (data-driven from config)
+    const validDomains = Object.keys(this.state.config.filtrationSystems ?? {});
     if (!validDomains.includes(domain)) {
       this.eventBus.emit('ui:message', { text: `Unknown filter domain: ${domain}`, type: 'warning' });
       return null;
@@ -155,8 +172,8 @@ export class FiltrationSystem {
     const tierDef = this._getTierDef(domain, componentType, tier ?? 1);
     if (!tierDef) return null;
 
-    // Prevent installing on an occupied slot
-    const zone = this.state.currentZone ?? 'mechanical';
+    // Prevent installing on an occupied slot (field zone has no vent slots)
+    const zone = (this.state.currentZone && this.state.currentZone !== 'field') ? this.state.currentZone : 'mechanical';
     const existing = this.state.filters.find(f => f.x === x && f.y === y && f.zone === zone);
     if (existing) {
       this.eventBus.emit('ui:message', { text: 'This slot already has a filter installed.', type: 'warning' });
@@ -180,10 +197,10 @@ export class FiltrationSystem {
     const supplyCostMult = this.state._supplyCostMultiplier ?? 1.0;
     if (supplyCostMult > 1.0) cost = Math.ceil(cost * supplyCostMult);
     // Apply dynamic market multiplier
-    const marketMult = MarketSystem.getMarketMultiplier(this.state.market, domain, tier ?? 1);
+    const marketMult = MarketSystem.getMarketMultiplier(this.state.market, domain, tier ?? 1, this.state.purchasedExpansions);
     cost = Math.round(cost * marketMult);
 
-    if (this.state.money < cost) {
+    if (!Number.isFinite(this.state.money) || this.state.money < cost) {
       this.eventBus.emit('ui:message', { text: 'Not enough money!', type: 'warning' });
       return null;
     }
@@ -199,7 +216,7 @@ export class FiltrationSystem {
       tier: tier ?? 1,
       x,
       y,
-      zone: this.state.currentZone ?? 'mechanical',
+      zone: (this.state.currentZone && this.state.currentZone !== 'field') ? this.state.currentZone : 'mechanical',
       condition: maxCondition,
       maxCondition,
       efficiency: 1.0, // starts at full efficiency, degrades with condition
@@ -208,7 +225,7 @@ export class FiltrationSystem {
     });
 
     // Notify player of install with cost info
-    const discountNote = cost < tierDef.cost ? ` (${plumbingDiscount}% Hank discount!)` : '';
+    const discountNote = (plumbingDiscount && (domain === 'water' || domain === 'drainage') && cost < tierDef.cost) ? ` (${plumbingDiscount}% Hank discount!)` : '';
     this.eventBus.emit('ui:message', {
       text: `Installed ${tierDef.name} ($${cost.toLocaleString()})${discountNote} -- ${domain} domain.`,
       type: 'success',
@@ -365,7 +382,7 @@ export class FiltrationSystem {
 
     // Upgrade cost: new cost minus 50% of old cost (trade-in value)
     const upgradeCost = Math.max(0, newTierDef.cost - Math.floor(oldTierDef.cost * 0.5));
-    if (this.state.money < upgradeCost) {
+    if (!Number.isFinite(this.state.money) || this.state.money < upgradeCost) {
       this.eventBus.emit('ui:message', { text: 'Not enough money to upgrade!', type: 'warning' });
       return;
     }
@@ -471,7 +488,7 @@ export class FiltrationSystem {
       return null;
     }
 
-    const zone = this.state.currentZone ?? 'mechanical';
+    const zone = (this.state.currentZone && this.state.currentZone !== 'field') ? this.state.currentZone : 'mechanical';
     const existing = this.state.filters.find(f => f.x === x && f.y === y && f.zone === zone);
     if (existing) {
       this.eventBus.emit('ui:message', { text: 'This slot already has a filter installed.', type: 'warning' });
@@ -657,7 +674,19 @@ export class FiltrationSystem {
     const efficiencyBoostActive = (this.state.efficiencyBoostDaysLeft ?? 0) > 0;
     const efficiencyBoostMult = efficiencyBoostActive ? 0.7 : 1.0;
 
-    const combinedDegradeMultiplier = stressDegradeMultiplier * eventDegradeMultiplier * weatherResearchMult * difficultyDegrade * attDegradeMult * championshipMult * challengeWeatherMult * offSeasonMultiplier * efficiencyBoostMult;
+    // Weather Station Tower: 20% reduced weather stress on filter degradation
+    const hasWeatherStation = (this.state.purchasedExpansions ?? []).some(p => p.key === 'weatherStationTower');
+    const weatherStationMult = (hasWeatherStation && eventDegradeMultiplier > 1) ? 0.80 : 1.0;
+
+    // Steam Forge: 15% reduced degradation for HVAC and air domain filters (applied per-filter below)
+    const hasSteamForge = (this.state.purchasedExpansions ?? []).some(p => p.key === 'steamForge');
+
+    // Winterization Bay: 50% reduced degradation in off-season, 20% reduced during cold events
+    const hasWinterization = (this.state.purchasedExpansions ?? []).some(p => p.key === 'winterizationBay');
+    const isColdEvent = ['Cold', 'Snow', 'Ice'].some(w => (this.state.activeEvent?.name ?? '').includes(w));
+    const winterMult = hasWinterization ? (this.state.offSeason ? 0.50 : (isColdEvent ? 0.80 : 1.0)) : 1.0;
+
+    const combinedDegradeMultiplier = stressDegradeMultiplier * eventDegradeMultiplier * weatherResearchMult * difficultyDegrade * attDegradeMult * championshipMult * challengeWeatherMult * offSeasonMultiplier * efficiencyBoostMult * weatherStationMult * winterMult;
 
     // Pre-scan for weatherShield passive: reduces degradation by 20% during weather events
     const weatherShieldDomains = new Set();
@@ -701,7 +730,8 @@ export class FiltrationSystem {
       const staffList = this.state.staffList ?? [];
       const specDomainMap = {
         airTech: ['air', 'hvac'], plumber: ['water', 'drainage'],
-        electrician: ['hvac'], general: ['air', 'water', 'hvac', 'drainage'],
+        electrician: ['hvac', 'electrical'], sanitarian: ['pest'],
+        general: ['air', 'water', 'hvac', 'drainage', 'electrical', 'pest'],
       };
       for (const staff of staffList) {
         if (!staff.specialization || staff.assignedDomain !== filter.domain) continue;
@@ -726,8 +756,11 @@ export class FiltrationSystem {
       // Contamination spike: 2x degradation for water/drainage domain filters
       const contaminationMult = (contaminationActive && (filter.domain === 'water' || filter.domain === 'drainage')) ? 2.0 : 1.0;
 
+      // Steam Forge: 15% reduced degradation for hvac and air domain filters
+      const steamForgeMult = (hasSteamForge && (filter.domain === 'hvac' || filter.domain === 'air')) ? 0.85 : 1.0;
+
       // Degrade condition over time (baseRate ensures filter lasts its intended lifespan)
-      filter.condition -= dt * baseRate * combinedDegradeMultiplier * weatherMult * staffSpecMult * weatherDomainStress * criticalSlowdown * contaminationMult;
+      filter.condition -= dt * baseRate * combinedDegradeMultiplier * weatherMult * staffSpecMult * weatherDomainStress * criticalSlowdown * contaminationMult * steamForgeMult;
 
       const conditionRatio = filter.maxCondition > 0
         ? filter.condition / filter.maxCondition
@@ -869,6 +902,147 @@ export class FiltrationSystem {
         });
       }
     }
+  }
+
+  /**
+   * Repair all damaged filters in a given domain.
+   * If the player can't afford all repairs, repairs as many as possible starting with the most damaged.
+   * Returns { repairedCount, totalCost }.
+   */
+  repairAllInDomain(domain) {
+    const damaged = this.state.filters.filter(
+      f => f.domain === domain && f.condition < f.maxCondition
+    );
+
+    if (damaged.length === 0) {
+      this.eventBus.emit('ui:message', { text: `All ${domain} filters are in good condition!`, type: 'info' });
+      return { repairedCount: 0, totalCost: 0 };
+    }
+
+    // Sort by condition ascending (most damaged first) so we prioritize worst filters if budget is limited
+    damaged.sort((a, b) => a.condition - b.condition);
+
+    let totalCost = 0;
+    let repairedCount = 0;
+
+    for (const filter of damaged) {
+      const cost = this._getRepairCost(filter);
+      if (this.state.money < cost) continue;
+
+      this.state.set('money', this.state.money - cost);
+      filter.condition = filter.maxCondition;
+      filter.efficiency = 1.0;
+      this._brokenSet.delete(filter.id);
+      this.state.repairsCompleted = (this.state.repairsCompleted ?? 0) + 1;
+      this.eventBus.emit('filter:repaired', filter);
+
+      totalCost += cost;
+      repairedCount++;
+    }
+
+    return { repairedCount, totalCost };
+  }
+
+  /**
+   * Get repair cost summary for all damaged filters in a domain.
+   * Read-only method used by the UI to show costs before confirming.
+   */
+  getDomainRepairCost(domain) {
+    const damaged = this.state.filters.filter(
+      f => f.domain === domain && f.condition < f.maxCondition
+    );
+
+    const filters = damaged.map(f => {
+      const tierDef = this._getTierDef(f.domain, f.componentType, f.tier);
+      return {
+        id: f.id,
+        name: tierDef?.name ?? 'Unknown Filter',
+        condition: f.condition,
+        maxCondition: f.maxCondition,
+        repairCost: this._getRepairCost(f),
+      };
+    });
+
+    const totalCost = filters.reduce((sum, f) => sum + f.repairCost, 0);
+
+    return { totalCost, filterCount: filters.length, filters };
+  }
+
+  /**
+   * Get a summary of domain filter stats for UI display.
+   */
+  getDomainStats(domain) {
+    const domainFilters = this.state.filters.filter(f => f.domain === domain);
+
+    if (domainFilters.length === 0) {
+      return {
+        filterCount: 0,
+        avgEfficiency: 0,
+        brokenCount: 0,
+        warningCount: 0,
+        healthyCount: 0,
+        totalRepairCost: 0,
+        lowestFilter: null,
+        degradeRate: 'normal',
+      };
+    }
+
+    let totalEfficiency = 0;
+    let brokenCount = 0;
+    let warningCount = 0;
+    let healthyCount = 0;
+    let totalRepairCost = 0;
+    let lowestFilter = null;
+    let lowestPct = Infinity;
+
+    for (const f of domainFilters) {
+      totalEfficiency += f.efficiency;
+      const condPct = f.maxCondition > 0 ? f.condition / f.maxCondition : 0;
+
+      if (f.condition <= 0) {
+        brokenCount++;
+      } else if (condPct < 0.5) {
+        warningCount++;
+      } else if (condPct >= 0.8) {
+        healthyCount++;
+      }
+
+      totalRepairCost += this._getRepairCost(f);
+
+      if (condPct < lowestPct) {
+        lowestPct = condPct;
+        const tierDef = this._getTierDef(f.domain, f.componentType, f.tier);
+        lowestFilter = {
+          id: f.id,
+          componentType: f.componentType,
+          tier: f.tier,
+          conditionPct: Math.round(condPct * 100),
+        };
+      }
+    }
+
+    // Determine degradeRate based on active events and contamination
+    const contaminationActive = (this.state.contaminationDaysLeft ?? 0) > 0;
+    const eventDegradeMultiplier = this.state.activeEvent?.degradeMultiplier ?? 1;
+    let degradeRate = 'normal';
+    if (contaminationActive && (domain === 'water' || domain === 'drainage')) {
+      degradeRate = 'critical';
+    } else if (eventDegradeMultiplier > 1.5) {
+      degradeRate = 'critical';
+    } else if (eventDegradeMultiplier > 1) {
+      degradeRate = 'elevated';
+    }
+
+    return {
+      filterCount: domainFilters.length,
+      avgEfficiency: domainFilters.length > 0 ? totalEfficiency / domainFilters.length : 0,
+      brokenCount,
+      warningCount,
+      healthyCount,
+      totalRepairCost,
+      lowestFilter,
+      degradeRate,
+    };
   }
 
   /**

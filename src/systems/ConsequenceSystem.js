@@ -1,11 +1,14 @@
 /**
  * ConsequenceSystem -- Maps filter/maintenance quality to realistic gameplay effects.
  *
- * Periodically scores each domain (air, water, hvac, drainage) based on
- * installed filter efficiency, then activates consequences (penalties for
- * poor maintenance) AND bonuses (rewards for well-maintained systems).
+ * Periodically scores each domain per-zone based on installed filter efficiency
+ * and the domain's protection mapping (which zones each domain protects).
+ * Activates consequences (penalties for poor maintenance) AND bonuses
+ * (rewards for well-maintained systems).
  * Affects attendance, revenue, reputation, and team performance.
  */
+
+import { DOMAIN_ZONE_PROTECTION, ALL_ZONES } from '../data/domainZoneMap.js';
 
 export class ConsequenceSystem {
   constructor(state, eventBus) {
@@ -46,12 +49,28 @@ export class ConsequenceSystem {
 
     // Listen for cross-system cascade events from FiltrationSystem
     this.eventBus.on('system:cascade', (data) => {
-      const health = this.state.domainHealth ?? {};
-      const current = health[data.target] ?? 100;
       const severityMap = { low: 1, medium: 2, high: 3 };
       const severityValue = severityMap[data.severity] ?? 1;
       const penalty = severityValue * 5;
-      health[data.target] = Math.max(0, current - penalty);
+
+      // Apply cascade penalty to zone-specific health
+      const zdh = this.state.zoneDomainHealth ?? {};
+      for (const zone of ALL_ZONES) {
+        if (zdh[zone] && zdh[zone][data.target] !== undefined) {
+          zdh[zone][data.target] = Math.max(0, zdh[zone][data.target] - penalty);
+        }
+      }
+      this.state.set('zoneDomainHealth', zdh);
+
+      // Recompute aggregate: use max across protected zones per domain
+      // (cascade penalties applied uniformly, so just read any protected zone)
+      const health = this.state.domainHealth ?? {};
+      const domainKeys = Object.keys(health);
+      for (const d of domainKeys) {
+        const protectedZones = DOMAIN_ZONE_PROTECTION[d] ?? ALL_ZONES;
+        const bestZone = protectedZones[0] ?? ALL_ZONES[0];
+        health[d] = zdh[bestZone]?.[d] ?? 100;
+      }
       this.state.set('domainHealth', health);
 
       this._emitCascadeMessage(data);
@@ -66,34 +85,46 @@ export class ConsequenceSystem {
     if (this._lastCheck < this._checkInterval) return;
     this._lastCheck = 0;
 
-    // Calculate domain health scores
-    const scores = this._calculateDomainScores();
+    // Calculate zone-specific domain health scores + aggregate
+    const { zoneHealth, aggregateScores } = this._calculateDomainScores();
 
-    // Store in state for visual/UI layers to read
-    this.state.set('domainHealth', scores);
+    // Store both in state
+    this.state.set('zoneDomainHealth', zoneHealth);
+    this.state.set('domainHealth', aggregateScores);
 
-    // Determine active consequences (negative) and bonuses (positive)
-    const consequences = this._evaluateConsequences(scores);
+    // Determine active consequences (global, from aggregate — drives gameplay effects)
+    const consequences = this._evaluateConsequences(aggregateScores);
     this.state.set('activeConsequences', consequences);
 
-    // Apply gameplay effects
-    this._applyEffects(scores, consequences);
+    // Evaluate zone-specific consequences (drives per-zone visuals)
+    const zoneConsequences = this._evaluateZoneConsequences(zoneHealth);
+    this.state.set('zoneConsequences', zoneConsequences);
 
-    // Emit domain:critical for any domain below 20%
-    for (const [domain, score] of Object.entries(scores)) {
+    // Apply gameplay effects (uses aggregate scores)
+    this._applyEffects(aggregateScores, consequences);
+
+    // Emit domain:critical for any domain below 20% (aggregate)
+    for (const [domain, score] of Object.entries(aggregateScores)) {
       if (score < 20) {
         this.eventBus.emit('domain:critical', { domain, score });
       }
     }
 
     // Emit for visual/notification layers
-    this.eventBus.emit('consequence:update', { scores, consequences });
+    this.eventBus.emit('consequence:update', { scores: aggregateScores, consequences, zoneHealth });
   }
 
   _calculateDomainScores() {
-    const domains = { air: [], water: [], hvac: [], drainage: [] };
-    const domainBonuses = { air: 0, water: 0, hvac: 0, drainage: 0 };
-    const tierBonuses = { air: 0, water: 0, hvac: 0, drainage: 0 };
+    // Build domain maps dynamically from config
+    const domainKeys = Object.keys(this.state.config.filtrationSystems ?? {});
+    const domains = {};
+    const domainBonuses = {};
+    const tierBonuses = {};
+    for (const key of domainKeys) {
+      domains[key] = [];
+      domainBonuses[key] = 0;
+      tierBonuses[key] = 0;
+    }
     let crossDomainHvacBonus = 0;
 
     for (const filter of this.state.filters) {
@@ -108,16 +139,11 @@ export class ConsequenceSystem {
           const bonus = tierDef?.domainHealthBonus ?? 0;
           domainBonuses[filter.domain] += bonus;
 
-          // Tier-specific bonuses: qualityBonus (air/water), comfortBonus (hvac),
-          // integrityBonus (drainage/water). Scaled so max T4 bonus (~55-60)
-          // gives up to 15 domain health points. Makes higher-tier filters
-          // meaningfully better for domain health, not just longer-lasting.
           const tierBonus = (tierDef?.qualityBonus ?? 0)
             + (tierDef?.comfortBonus ?? 0)
             + (tierDef?.integrityBonus ?? 0);
           tierBonuses[filter.domain] += (tierBonus / 60) * 15;
 
-          // crossDomain passive: coolingSystem adds half its bonus to HVAC
           if (tierDef?.passive === 'crossDomain') {
             crossDomainHvacBonus += Math.floor(bonus / 2);
           }
@@ -125,18 +151,17 @@ export class ConsequenceSystem {
       }
     }
 
-    // Apply crossDomain passive bonus to HVAC
-    domainBonuses.hvac += crossDomainHvacBonus;
+    if (domainBonuses.hvac !== undefined) domainBonuses.hvac += crossDomainHvacBonus;
 
     // Staff specialization bonus: +5 domain health when a specialist is assigned
     const specDomainMap = {
       airTech: ['air', 'hvac'], plumber: ['water', 'drainage'],
-      electrician: ['hvac'], general: ['air', 'water', 'hvac', 'drainage'],
+      electrician: ['hvac', 'electrical'], sanitarian: ['pest'],
+      general: ['air', 'water', 'hvac', 'drainage', 'electrical', 'pest'],
     };
     const staffList = this.state.staffList ?? [];
     for (const staff of staffList) {
       if (!staff.specialization || !staff.assignedDomain) continue;
-      // Skip staff in training — they don't contribute
       if (staff.training && staff.training.daysRemaining > 0) continue;
       const coveredDomains = specDomainMap[staff.specialization];
       if (coveredDomains && coveredDomains.includes(staff.assignedDomain)) {
@@ -146,8 +171,6 @@ export class ConsequenceSystem {
       }
     }
 
-    // Morale tier bonus/penalty: high morale (>70) staff add +3 domain health,
-    // low morale (<30) staff subtract -3 domain health for their assigned domain.
     for (const staff of staffList) {
       if (!staff.assignedDomain) continue;
       if (staff.training && staff.training.daysRemaining > 0) continue;
@@ -159,7 +182,7 @@ export class ConsequenceSystem {
       }
     }
 
-    // Research effects that modify domain health scores
+    // Research effects
     const re = this.state.researchEffects ?? {};
     const waterQualityBonus = Math.min(re.waterQualityBonus ?? 0, 10);
     const irrigationBonus = Math.min(re.irrigationBonus ?? 0, 10);
@@ -167,48 +190,97 @@ export class ConsequenceSystem {
     const drainageEfficiencyBonus = re.drainageEfficiencyBonus ?? 0;
     const coolingEfficiencyBonus = re.coolingEfficiencyBonus ?? 0;
 
-    const scores = {};
+    // Compute raw domain scores (global, before zone distribution)
+    const rawScores = {};
     for (const [domain, efficiencies] of Object.entries(domains)) {
       if (efficiencies.length === 0) {
-        // No filters installed in this domain yet — use a neutral baseline
-        // so the player isn't penalized before they can install anything.
-        scores[domain] = 50;
+        rawScores[domain] = 50;
       } else {
-        // Average efficiency * 100, with multiplicative bonus for coverage.
-        // Coverage scales up to +20% for having 4+ filters in a domain.
         const avg = efficiencies.reduce((a, b) => a + b, 0) / efficiencies.length;
-        const coverageBonus = Math.min(efficiencies.length / 4, 1) * 0.2; // 0 to 0.2
+        const coverageBonus = Math.min(efficiencies.length / 4, 1) * 0.2;
         const baseScore = Math.floor(avg * (1 + coverageBonus) * 100);
-        // Add capped domainHealthBonus (max 20 points)
         const cappedBonus = Math.min(domainBonuses[domain], 20);
-        // Add capped tier bonus (max 15 points)
         const cappedTierBonus = Math.min(tierBonuses[domain], 15);
 
-        // Research flat bonuses per domain (capped at 10 each)
         let researchBonus = 0;
         if (domain === 'water') researchBonus += waterQualityBonus;
         if (domain === 'drainage') researchBonus += irrigationBonus;
         if (domain === 'hvac') researchBonus += noiseReduction;
 
-        // Research efficiency bonuses (percentage multiplier on base score)
         let researchEffMult = 1.0;
         if (domain === 'drainage') researchEffMult += drainageEfficiencyBonus;
         if (domain === 'hvac') researchEffMult += coolingEfficiencyBonus;
 
-        scores[domain] = Math.min(100, Math.floor(baseScore * researchEffMult) + cappedBonus + Math.floor(cappedTierBonus) + Math.floor(researchBonus));
+        const raw = Math.floor(baseScore * researchEffMult) + (cappedBonus || 0) + Math.floor(cappedTierBonus || 0) + Math.floor(researchBonus || 0);
+        rawScores[domain] = Math.min(100, Number.isFinite(raw) ? raw : 50);
       }
     }
 
-    // Cross-domain interaction penalties: neglecting one domain drags related domains down
-    // Drainage failure contaminates water supply; HVAC failure worsens air quality
-    if (scores.drainage < 30) {
-      scores.water = Math.max(0, scores.water - 5);
+    // Expansion bonuses (applied globally before zone distribution)
+    const purchased = this.state.purchasedExpansions ?? [];
+    if (purchased.some(p => p.key === 'groundskeeperGarden')) {
+      rawScores.water = Math.min(100, (rawScores.water ?? 50) + 10);
     }
-    if (scores.hvac < 30) {
-      scores.air = Math.max(0, scores.air - 5);
+    if (purchased.some(p => p.key === 'luxuryAquariumWall')) {
+      rawScores.water = Math.min(100, (rawScores.water ?? 50) + 5);
     }
 
-    return scores;
+    // --- Distribute raw scores to zones via protection mapping ---
+    const zoneHealth = {};
+    for (const zone of ALL_ZONES) {
+      zoneHealth[zone] = {};
+      for (const domain of domainKeys) {
+        const protectedZones = DOMAIN_ZONE_PROTECTION[domain] ?? [];
+        const isProtected = protectedZones.includes(zone);
+        // Protected zones get full score; unprotected get 50% (ambient)
+        zoneHealth[zone][domain] = isProtected
+          ? rawScores[domain]
+          : Math.floor((rawScores[domain] ?? 50) * 0.5);
+      }
+    }
+
+    // Apply cross-domain interaction penalties per-zone
+    for (const zone of ALL_ZONES) {
+      const zh = zoneHealth[zone];
+      if (zh.drainage < 30) zh.water = Math.max(0, zh.water - 5);
+      if (zh.hvac < 30) zh.air = Math.max(0, zh.air - 5);
+
+      // Electrical cascade amplifier per-zone
+      if (zh.electrical !== undefined && zh.electrical < 30) {
+        for (const key of domainKeys) {
+          if (key !== 'electrical') zh[key] = Math.max(0, zh[key] - 5);
+        }
+      }
+
+      // Pest escalation per-zone
+      if (zh.pest !== undefined && zh.pest < 40) {
+        const escalation = zh.pest < 20 ? 8 : 4;
+        zh.pest = Math.max(0, zh.pest - escalation);
+      }
+    }
+
+    // Aggregate scores use raw domain scores (before zone distribution).
+    // Zone distribution only affects per-zone display; the global aggregate
+    // reflects overall domain health regardless of how many zones it covers.
+    const aggregateScores = {};
+    for (const domain of domainKeys) {
+      aggregateScores[domain] = rawScores[domain] ?? 50;
+    }
+
+    // Apply cross-domain penalties to aggregate (same rules as per-zone)
+    if (aggregateScores.drainage < 30) aggregateScores.water = Math.max(0, aggregateScores.water - 5);
+    if (aggregateScores.hvac < 30) aggregateScores.air = Math.max(0, aggregateScores.air - 5);
+    if (aggregateScores.electrical !== undefined && aggregateScores.electrical < 30) {
+      for (const key of domainKeys) {
+        if (key !== 'electrical') aggregateScores[key] = Math.max(0, aggregateScores[key] - 5);
+      }
+    }
+    if (aggregateScores.pest !== undefined && aggregateScores.pest < 40) {
+      const escalation = aggregateScores.pest < 20 ? 8 : 4;
+      aggregateScores.pest = Math.max(0, aggregateScores.pest - escalation);
+    }
+
+    return { zoneHealth, aggregateScores };
   }
 
   /** Look up the tier definition for an installed filter. */
@@ -258,6 +330,26 @@ export class ConsequenceSystem {
       consequences.push({ id: 'muddy_infield', domain: 'drainage', severity: 'warning', label: 'Muddy Infield', description: 'Infield too muddy for play' });
     }
 
+    // Electrical consequences
+    if (scores.electrical !== undefined) {
+      if (scores.electrical < 25) {
+        consequences.push({ id: 'partial_blackout', domain: 'electrical', severity: 'critical', label: 'Partial Blackout', description: 'Major power failure across stadium zones' });
+        consequences.push({ id: 'scoreboard_down', domain: 'electrical', severity: 'critical', label: 'Scoreboard Down', description: 'Fans can\'t follow the game' });
+      } else if (scores.electrical < 55) {
+        consequences.push({ id: 'flickering_lights', domain: 'electrical', severity: 'warning', label: 'Flickering Lights', description: 'Power fluctuations noticed by fans' });
+      }
+    }
+
+    // Pest consequences
+    if (scores.pest !== undefined) {
+      if (scores.pest < 35) {
+        consequences.push({ id: 'active_infestation', domain: 'pest', severity: 'critical', label: 'Active Infestation', description: 'Pests running wild through stadium' });
+        consequences.push({ id: 'pest_on_camera', domain: 'pest', severity: 'critical', label: 'Pest on Camera', description: 'Live broadcast caught a rat — social media disaster' });
+      } else if (scores.pest < 60) {
+        consequences.push({ id: 'pest_sightings', domain: 'pest', severity: 'warning', label: 'Pest Sightings', description: 'Fans reporting rodent and insect sightings' });
+      }
+    }
+
     // --- POSITIVE bonuses (well-maintained systems, score > 80) ---
 
     if (scores.air > 80) {
@@ -276,12 +368,72 @@ export class ConsequenceSystem {
       consequences.push({ id: 'perfect_drainage', domain: 'drainage', severity: 'bonus', label: 'Perfect Drainage', description: 'Field always ready -- no rain delays' });
     }
 
+    if (scores.electrical !== undefined && scores.electrical > 80) {
+      consequences.push({ id: 'full_power', domain: 'electrical', severity: 'bonus', label: 'Full Power', description: 'Brilliant lighting and reliable broadcasts' });
+    }
+
+    if (scores.pest !== undefined && scores.pest > 80) {
+      consequences.push({ id: 'pristine_venue', domain: 'pest', severity: 'bonus', label: 'Pristine Venue', description: 'Spotless sanitation boosts concessions' });
+    }
+
     // Stadium of Excellence: all domains > 80
-    if (scores.air > 80 && scores.water > 80 && scores.hvac > 80 && scores.drainage > 80) {
+    const allDomainKeys = Object.keys(scores);
+    const allAbove80 = allDomainKeys.every(k => scores[k] > 80);
+    if (allAbove80 && allDomainKeys.length > 0) {
       consequences.push({ id: 'stadium_excellence', domain: 'all', severity: 'excellence', label: 'Stadium of Excellence', description: 'All systems running at peak performance' });
     }
 
     return consequences;
+  }
+
+  /**
+   * Evaluate consequences per-zone using zone-specific health.
+   * Returns { zone: [consequences] } for visual layers to render zone-appropriate effects.
+   */
+  _evaluateZoneConsequences(zoneHealth) {
+    const result = {};
+    for (const zone of ALL_ZONES) {
+      const h = zoneHealth[zone];
+      if (!h) { result[zone] = []; continue; }
+      const cons = [];
+
+      // Air
+      if (h.air < 25) cons.push({ id: 'thick_smog', domain: 'air', severity: 'critical' });
+      else if (h.air < 50) cons.push({ id: 'haze', domain: 'air', severity: 'warning' });
+      else if (h.air > 80) cons.push({ id: 'clean_air', domain: 'air', severity: 'bonus' });
+
+      // Water
+      if (h.water < 25) cons.push({ id: 'dead_grass', domain: 'water', severity: 'critical' });
+      else if (h.water < 50) cons.push({ id: 'brown_grass', domain: 'water', severity: 'warning' });
+      else if (h.water > 80) cons.push({ id: 'lush_field', domain: 'water', severity: 'bonus' });
+
+      // HVAC
+      if (h.hvac < 25) cons.push({ id: 'mold_severe', domain: 'hvac', severity: 'critical' });
+      else if (h.hvac < 50) cons.push({ id: 'moldy_baseballs', domain: 'hvac', severity: 'warning' });
+      else if (h.hvac > 80) cons.push({ id: 'perfect_climate', domain: 'hvac', severity: 'bonus' });
+
+      // Drainage
+      if (h.drainage < 25) cons.push({ id: 'flooding', domain: 'drainage', severity: 'critical' });
+      else if (h.drainage < 50) cons.push({ id: 'puddles', domain: 'drainage', severity: 'warning' });
+      else if (h.drainage > 80) cons.push({ id: 'perfect_drainage', domain: 'drainage', severity: 'bonus' });
+
+      // Electrical
+      if (h.electrical !== undefined) {
+        if (h.electrical < 25) cons.push({ id: 'partial_blackout', domain: 'electrical', severity: 'critical' });
+        else if (h.electrical < 55) cons.push({ id: 'flickering_lights', domain: 'electrical', severity: 'warning' });
+        else if (h.electrical > 80) cons.push({ id: 'full_power', domain: 'electrical', severity: 'bonus' });
+      }
+
+      // Pest
+      if (h.pest !== undefined) {
+        if (h.pest < 35) cons.push({ id: 'active_infestation', domain: 'pest', severity: 'critical' });
+        else if (h.pest < 60) cons.push({ id: 'pest_sightings', domain: 'pest', severity: 'warning' });
+        else if (h.pest > 80) cons.push({ id: 'pristine_venue', domain: 'pest', severity: 'bonus' });
+      }
+
+      result[zone] = cons;
+    }
+    return result;
   }
 
   _applyEffects(scores, consequences) {
@@ -307,10 +459,16 @@ export class ConsequenceSystem {
     const moldRiskReduction = re.moldRiskReduction ?? 0;
     const odorReduction = re.odorReduction ?? 0;
 
+    // Groundskeeper's Garden: 50% reduced drainage consequence penalties
+    const hasGarden = (this.state.purchasedExpansions ?? []).some(p => p.key === 'groundskeeperGarden');
+
     // --- Penalty effects from negative consequences ---
     for (const c of consequences) {
       // crisisArmor halves reputation penalties for armored domains
       const armorMult = armoredDomains.has(c.domain) ? 0.5 : 1.0;
+
+      // Groundskeeper's Garden: halve drainage penalties
+      const gardenMult = (hasGarden && c.domain === 'drainage') ? 0.5 : 1.0;
 
       // Research-based penalty reduction per domain
       let researchPenaltyMult = 1.0;
@@ -325,13 +483,13 @@ export class ConsequenceSystem {
       }
 
       if (c.severity === 'critical') {
-        revenueModifier -= 0.1 * researchPenaltyMult;
-        attendanceModifier -= 0.08 * researchPenaltyMult;
-        repDelta -= 0.5 * armorMult * researchPenaltyMult;
+        revenueModifier -= 0.1 * researchPenaltyMult * gardenMult;
+        attendanceModifier -= 0.08 * researchPenaltyMult * gardenMult;
+        repDelta -= 0.5 * armorMult * researchPenaltyMult * gardenMult;
       } else if (c.severity === 'warning') {
-        revenueModifier -= 0.03 * researchPenaltyMult;
-        attendanceModifier -= 0.03 * researchPenaltyMult;
-        repDelta -= 0.1 * armorMult * researchPenaltyMult;
+        revenueModifier -= 0.03 * researchPenaltyMult * gardenMult;
+        attendanceModifier -= 0.03 * researchPenaltyMult * gardenMult;
+        repDelta -= 0.1 * armorMult * researchPenaltyMult * gardenMult;
       }
     }
 
@@ -361,6 +519,12 @@ export class ConsequenceSystem {
               break;
             case 'perfect_drainage':
               // No rain delays -- bonus handled by team performance
+              break;
+            case 'full_power':
+              revenueModifier += 0.03; // +3% rev from better broadcast lighting
+              break;
+            case 'pristine_venue':
+              revenueModifier += 0.08; // +8% concession rev from pristine conditions
               break;
           }
         }
@@ -416,12 +580,22 @@ export class ConsequenceSystem {
       sewage_risk: { text: 'Browntide conditions developing -- fix drainage NOW!', type: 'danger' },
       puddles: { text: 'Standing water on field after rain.', type: 'warning' },
       muddy_infield: { text: 'Infield too muddy -- game delay risk!', type: 'warning' },
+      // Electrical
+      partial_blackout: { text: 'Partial blackout! Stadium zones losing power!', type: 'danger' },
+      scoreboard_down: { text: 'Scoreboard is dark -- fans can\'t follow the game!', type: 'danger' },
+      flickering_lights: { text: 'Lights flickering -- check electrical systems!', type: 'warning' },
+      // Pest
+      active_infestation: { text: 'Active infestation! Pests overrunning stadium!', type: 'danger' },
+      pest_on_camera: { text: 'PEST ON CAMERA! Social media nightmare!', type: 'danger' },
+      pest_sightings: { text: 'Pest sightings reported -- check pest control!', type: 'warning' },
       // Positive
       clean_air: { text: 'Fans are raving about the fresh stadium air!', type: 'success' },
       lush_field: { text: 'The field looks pristine -- attendance is up!', type: 'success' },
       perfect_climate: { text: 'Perfect climate control -- concession sales booming!', type: 'success' },
       perfect_drainage: { text: 'Drainage running perfectly -- field always game-ready!', type: 'success' },
       stadium_excellence: { text: 'Stadium of Excellence! All systems at peak performance!', type: 'success' },
+      full_power: { text: 'Full power! Brilliant lighting and crystal-clear broadcasts!', type: 'success' },
+      pristine_venue: { text: 'Pristine venue! Concession revenue boosted by spotless conditions!', type: 'success' },
     };
 
     for (const c of consequences) {
@@ -449,6 +623,16 @@ export class ConsequenceSystem {
       backupContamination: 'Drainage backup is contaminating the water supply!',
       floodingAirQuality: 'Poor drainage is degrading air quality!',
       scrubberWaterDemand: 'Poor air quality is increasing water scrubber demand!',
+      // Electrical cascades
+      powerLossHVACShutdown: 'Power failure is shutting down HVAC systems!',
+      pumpStationFailure: 'Power loss is causing water pump failures!',
+      ventilationPowerLoss: 'Ventilation fans losing power — air quality dropping!',
+      sumpPumpFailure: 'Sump pumps failing without power — drainage backing up!',
+      // Pest cascades
+      pestContaminationAir: 'Pest activity is contaminating air ducts!',
+      pestContaminationWater: 'Pests have infiltrated the water system!',
+      standingWaterBreeding: 'Standing water from drainage failure is breeding pests!',
+      leakAttractionPests: 'Water leaks are attracting pests into the stadium!',
     };
 
     const text = cascadeMessages[data.effect];
@@ -492,10 +676,11 @@ export class ConsequenceSystem {
       } else if (def.contractType === 'multiDomain') {
         // Multi-domain: check how many domains are above threshold
         const threshold = (def.qualityReq ?? 0.75) * 100;
-        const domainsAbove = ['air', 'water', 'hvac', 'drainage'].filter(d => (health[d] ?? 0) >= threshold).length;
+        const allDomains = Object.keys(this.state.config.filtrationSystems ?? { air: 1, water: 1, hvac: 1, drainage: 1 });
+        const domainsAbove = allDomains.filter(d => (health[d] ?? 0) >= threshold).length;
         const domainsRequired = def.domainsRequired ?? 2;
         // Near breach: exactly at or 1 above the requirement with some domains borderline
-        const borderlineDomains = ['air', 'water', 'hvac', 'drainage'].filter(d => {
+        const borderlineDomains = allDomains.filter(d => {
           const h = health[d] ?? 0;
           return h >= threshold && h < threshold + 5;
         }).length;
@@ -551,8 +736,11 @@ export class ConsequenceSystem {
     return null;
   }
 
-  /** Get score for a specific domain (used by visual layers). */
-  getDomainScore(domain) {
+  /** Get score for a specific domain, optionally for a specific zone. */
+  getDomainScore(domain, zone = null) {
+    if (zone) {
+      return this.state.zoneDomainHealth?.[zone]?.[domain] ?? this.state.domainHealth?.[domain] ?? 100;
+    }
     return this.state.domainHealth?.[domain] ?? 100;
   }
 
@@ -569,7 +757,13 @@ export class ConsequenceSystem {
     const health = this.state.domainHealth ?? {};
     const values = Object.values(health);
     if (values.length === 0) return 'C';
-    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+    let avg = values.reduce((a, b) => a + b, 0) / values.length;
+
+    // Compliance Office: +10 to inspection score before grade assignment
+    if ((this.state.purchasedExpansions ?? []).some(p => p.key === 'complianceOffice')) {
+      avg = Math.min(100, avg + 10);
+    }
+
     // Normalize to 0-1 range (health is 0-100)
     const quality = avg / 100;
     if (quality >= 0.85) return 'A';

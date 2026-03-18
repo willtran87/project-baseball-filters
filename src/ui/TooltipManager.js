@@ -38,11 +38,11 @@ export class TooltipManager {
     this.el.style.cssText = `
       position: absolute;
       display: none;
-      padding: 4px 8px;
+      padding: 6px 8px;
       background: rgba(0, 0, 0, 0.9);
       border: 1px solid #8b4513;
       border-radius: 2px;
-      font-size: 10px;
+      font-size: 12px;
       font-family: monospace;
       color: #d0d0e0;
       pointer-events: none;
@@ -51,6 +51,15 @@ export class TooltipManager {
       line-height: 1.3;
     `;
     container.appendChild(this.el);
+  }
+
+  /**
+   * Returns shortcut hint HTML if the player is still in the early game (day <= 30).
+   * Returns empty string for experienced players who likely know the shortcuts.
+   */
+  _shortcutHint(text) {
+    if ((this.state.gameDay ?? 0) > 30) return '';
+    return `<div style="color:#666;font-size:10px;margin-top:3px">${text}</div>`;
   }
 
   /**
@@ -105,9 +114,10 @@ export class TooltipManager {
       critical: '#ff004d', broken: '#ff004d',
     };
 
-    // Domain health line with consequence warning
+    // Domain health line with consequence warning (zone-specific if available)
     let domainHealthLine = '';
-    const dh = this.state.domainHealth;
+    const currentZone = this.state.currentZone ?? 'field';
+    const dh = this.state.zoneDomainHealth?.[currentZone] ?? this.state.domainHealth;
     const domainKey = filter.domain;
     if (dh && domainKey && dh[domainKey] != null) {
       const score = Math.floor(dh[domainKey]);
@@ -119,7 +129,7 @@ export class TooltipManager {
         drainage: 'Standing water pooling',
       };
       const warn = score < 50 ? ` \u26a0 ${consequenceHints[domainKey] ?? 'Degrading'}` : '';
-      domainHealthLine = `<div style="font-size:9px;color:${dhColor}">${domainName} Health: ${score}%${warn}</div>`;
+      domainHealthLine = `<div style="font-size:11px;color:${dhColor}">${domainName} Health: ${score}%${warn}</div>`;
     }
 
     // Repair cost estimate (30% of tier cost, or 2.5x if broken)
@@ -129,13 +139,13 @@ export class TooltipManager {
       const repairCost = filter.condition <= 0
         ? Math.floor(baseRepairCost * 2.5)
         : baseRepairCost;
-      repairLine = `<div style="font-size:9px;color:#ffa300">Repair: $${repairCost.toLocaleString()}</div>`;
+      repairLine = `<div style="font-size:11px;color:#ffa300">Repair: $${repairCost.toLocaleString()}</div>`;
     }
 
     // Installed day
     let installedLine = '';
     if (filter.installedDay) {
-      installedLine = `<div style="font-size:9px;color:#888">Installed: Day ${filter.installedDay}</div>`;
+      installedLine = `<div style="font-size:11px;color:#888">Installed: Day ${filter.installedDay}</div>`;
     }
 
     // Staff assignment status
@@ -143,22 +153,22 @@ export class TooltipManager {
     const staff = this.state.staffList ?? [];
     const assignedStaff = staff.filter(s => s.assignedDomain === filter.domain);
     if (assignedStaff.length > 0) {
-      staffLine = `<div style="font-size:9px;color:#29adff">Staff: ${assignedStaff.map(s => s.name).join(', ')}</div>`;
+      staffLine = `<div style="font-size:11px;color:#29adff">Staff: ${assignedStaff.map(s => s.name).join(', ')}</div>`;
     } else {
-      staffLine = `<div style="font-size:9px;color:#555">No staff assigned</div>`;
+      staffLine = `<div style="font-size:11px;color:#555">No staff assigned</div>`;
     }
 
     // Archetype tag and passive info
     const archetypeColors = { WORKHORSE: '#7ec850', BOOSTER: '#ff6c24', SPECIALIST: '#a78bfa' };
     const archetype = tierDef?.passive ? 'SPECIALIST' : ((tierDef?.domainHealthBonus ?? 0) >= 5 ? 'BOOSTER' : 'WORKHORSE');
-    const archetypeTag = tierDef ? `<span style="color:${archetypeColors[archetype]};font-size:8px;letter-spacing:1px">${archetype}</span>` : '';
+    const archetypeTag = tierDef ? `<span style="color:${archetypeColors[archetype]};font-size:10px;letter-spacing:1px">${archetype}</span>` : '';
     const passiveDescs = { weatherShield: 'Weather Shield', crossDomain: 'Cross Domain (HVAC)', maintenanceSaver: 'Maint. Saver', crisisArmor: 'Crisis Armor' };
-    const passiveLine = tierDef?.passive ? `<div style="font-size:8px;color:#a78bfa">\u2728 ${passiveDescs[tierDef.passive] ?? tierDef.passive}</div>` : '';
-    const dhbLine = (tierDef?.domainHealthBonus ?? 0) > 0 ? `<div style="font-size:9px;color:#4fc">+${tierDef.domainHealthBonus} Domain Health</div>` : '';
+    const passiveLine = tierDef?.passive ? `<div style="font-size:10px;color:#a78bfa">\u2728 ${passiveDescs[tierDef.passive] ?? tierDef.passive}</div>` : '';
+    const dhbLine = (tierDef?.domainHealthBonus ?? 0) > 0 ? `<div style="font-size:11px;color:#4fc">+${tierDef.domainHealthBonus} Domain Health</div>` : '';
 
     this.show(x, y, `
       <div style="color:#ffec27;margin-bottom:2px"><strong>${brand ? `${brand} — ` : ''}${name}</strong> ${archetypeTag}</div>
-      ${domainName ? `<div style="color:${systemDef?.color ?? '#888'};font-size:9px">${domainName}</div>` : ''}
+      ${domainName ? `<div style="color:${systemDef?.color ?? '#888'};font-size:11px">${domainName}</div>` : ''}
       <div>Status: <span style="color:${statusColors[status]}">${status}</span></div>
       <div>Condition: ${condPct}%</div>
       <div>Efficiency: ${Math.floor(filter.efficiency * 100)}%</div>
@@ -168,7 +178,8 @@ export class TooltipManager {
       ${installedLine}
       ${staffLine}
       ${domainHealthLine}
-      <div style="color:#888;font-size:9px;margin-top:2px">Click to inspect</div>
+      <div style="color:#888;font-size:11px;margin-top:2px">Click to inspect</div>
+      ${this._shortcutHint('[E] Repair \u00b7 [B] Next broken')}
     `);
   }
 
@@ -186,9 +197,9 @@ export class TooltipManager {
     }
     const chatted = this.state.npcLastChat?.[npcId] === this.state.gameDay;
     const chatLine = chatted
-      ? '<div style="color:#666;font-size:8px">Already spoke today</div>'
-      : '<div style="color:#888;font-size:9px">Click to chat</div>';
-    this.show(x, y, `<div style="color:${npc.themeColor}"><strong>${npc.name}</strong></div><div style="color:#888;font-size:9px">${npc.role} \u00b7 ${tierName}</div>${chatLine}`);
+      ? '<div style="color:#666;font-size:10px">Already spoke today</div>'
+      : '<div style="color:#888;font-size:11px">Click to chat</div>';
+    this.show(x, y, `<div style="color:${npc.themeColor}"><strong>${npc.name}</strong></div><div style="color:#888;font-size:11px">${npc.role} \u00b7 ${tierName}</div>${chatLine}${this._shortcutHint('[T] Talk \u00b7 [Shift+G] Gifts')}`);
   }
 
   /**
@@ -203,26 +214,26 @@ export class TooltipManager {
         const streakColor = id.attendanceStreak > 30 ? '#ffec27' : '#888';
         this.show(x, y, `
           <div style="color:#29adff"><strong>${id.name}</strong></div>
-          <div style="color:#888;font-size:9px">${id.personality}</div>
-          <div style="color:${streakColor};font-size:8px">Attendance streak: ${id.attendanceStreak} games</div>
-          <div style="color:#666;font-size:8px;font-style:italic">"${id.quote}"</div>
+          <div style="color:#888;font-size:11px">${id.personality}</div>
+          <div style="color:${streakColor};font-size:10px">Attendance streak: ${id.attendanceStreak} games</div>
+          <div style="color:#666;font-size:10px;font-style:italic">"${id.quote}"</div>
         `);
         break;
       }
       case 'worker': {
         this.show(x, y, `
           <div style="color:#ff8844"><strong>${id.name}</strong></div>
-          <div style="color:#888;font-size:9px">${id.jobTitle}</div>
-          <div style="color:#888;font-size:8px">${id.yearsWorked} year${id.yearsWorked !== 1 ? 's' : ''} at Ridgemont</div>
-          <div style="color:#666;font-size:8px;font-style:italic">"${id.bio}"</div>
+          <div style="color:#888;font-size:11px">${id.jobTitle}</div>
+          <div style="color:#888;font-size:10px">${id.yearsWorked} year${id.yearsWorked !== 1 ? 's' : ''} at Ridgemont</div>
+          <div style="color:#666;font-size:10px;font-style:italic">"${id.bio}"</div>
         `);
         break;
       }
       case 'vip': {
         this.show(x, y, `
           <div style="color:#ffec27"><strong>${id.name}</strong></div>
-          <div style="color:#888;font-size:9px">${id.title}</div>
-          <div style="color:#888;font-size:8px">${id.company}</div>
+          <div style="color:#888;font-size:11px">${id.title}</div>
+          <div style="color:#888;font-size:10px">${id.company}</div>
         `);
         break;
       }
@@ -233,8 +244,8 @@ export class TooltipManager {
           : `${avg} AVG | ${id.hr} HR | ${id.rbi} RBI`;
         this.show(x, y, `
           <div style="color:#cc2244"><strong>${id.name} #${id.jersey}</strong></div>
-          <div style="color:#888;font-size:9px">Raptors — ${id.positionLabel}</div>
-          <div style="color:#e0e0e0;font-size:9px">${statLine}</div>
+          <div style="color:#888;font-size:11px">Raptors — ${id.positionLabel}</div>
+          <div style="color:#e0e0e0;font-size:11px">${statLine}</div>
         `);
         break;
       }
@@ -245,17 +256,17 @@ export class TooltipManager {
           : `${avg} AVG | ${id.hr} HR | ${id.rbi} RBI`;
         this.show(x, y, `
           <div style="color:#29adff"><strong>${id.name} #${id.jersey}</strong></div>
-          <div style="color:#888;font-size:9px">${id.team ?? 'Visitors'} — ${id.positionLabel}</div>
-          <div style="color:#e0e0e0;font-size:9px">${statLine}</div>
+          <div style="color:#888;font-size:11px">${id.team ?? 'Visitors'} — ${id.positionLabel}</div>
+          <div style="color:#e0e0e0;font-size:11px">${statLine}</div>
         `);
         break;
       }
       case 'mascot': {
         this.show(x, y, `
           <div style="color:#cc2244"><strong>${id.name}</strong></div>
-          <div style="color:#888;font-size:9px">${id.title}</div>
-          <div style="color:#666;font-size:8px;font-style:italic">"${id.quote}"</div>
-          <div style="color:#555;font-size:8px">${id.funFact}</div>
+          <div style="color:#888;font-size:11px">${id.title}</div>
+          <div style="color:#666;font-size:10px;font-style:italic">"${id.quote}"</div>
+          <div style="color:#555;font-size:10px">${id.funFact}</div>
         `);
         break;
       }
@@ -268,7 +279,7 @@ export class TooltipManager {
    * Show a tooltip for an interactive environment object.
    */
   showForObject(x, y, obj) {
-    this.show(x, y, `<div style="color:#ffec27"><strong>${obj.icon ?? '\u{1f50d}'} ${obj.name}</strong></div><div style="color:#888;font-size:9px">Click to inspect</div>`);
+    this.show(x, y, `<div style="color:#ffec27"><strong>${obj.icon ?? '\u{1f50d}'} ${obj.name}</strong></div><div style="color:#888;font-size:11px">Click to inspect</div>`);
   }
 
   /**
@@ -288,8 +299,8 @@ export class TooltipManager {
 
     let extra = '';
     if (tileId === TILES.VENT_SLOT) {
-      const domainNames = { air: 'Air', water: 'Water', hvac: 'HVAC', drainage: 'Drainage' };
-      const domainColors = { air: '#cccccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44' };
+      const domainNames = { air: 'Air', water: 'Water', hvac: 'HVAC', drainage: 'Drainage', electrical: 'Electrical', pest: 'Pest Control' };
+      const domainColors = { air: '#cccccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44', electrical: '#ffcc00', pest: '#cc44cc' };
       const slotDomain = ventSlot?.domain;
 
       // Show filter stats being placed during placement mode
@@ -309,45 +320,46 @@ export class TooltipManager {
           const passiveDescs = { weatherShield: 'Weather Shield', crossDomain: 'Cross Domain (HVAC)', maintenanceSaver: 'Maint. Saver', crisisArmor: 'Crisis Armor' };
 
           extra += `<div style="margin-top:3px;border-top:1px solid #333;padding-top:3px">`;
-          extra += `<div style="color:#ffec27;font-size:9px"><strong>${tierDef.brand ? `${tierDef.brand} ` : ''}${tierDef.name}</strong></div>`;
-          extra += `<div style="color:${archetypeColors[archetype]};font-size:8px;letter-spacing:1px">${archetype}</div>`;
-          extra += `<div style="font-size:8px;color:#aaa">${tierDef.lifespanGames}d lifespan | \u26a1$${tierDef.energyPerDay}/day</div>`;
-          extra += `<div style="font-size:8px;color:#29adff">+${bonusVal} ${bonusLabel}</div>`;
-          if (dhb > 0) extra += `<div style="font-size:8px;color:#4fc">+${dhb} Domain Health</div>`;
-          if (tierDef.passive) extra += `<div style="font-size:8px;color:#a78bfa">\u2728 ${passiveDescs[tierDef.passive] ?? tierDef.passive}</div>`;
+          extra += `<div style="color:#ffec27;font-size:11px"><strong>${tierDef.brand ? `${tierDef.brand} ` : ''}${tierDef.name}</strong></div>`;
+          extra += `<div style="color:${archetypeColors[archetype]};font-size:10px;letter-spacing:1px">${archetype}</div>`;
+          extra += `<div style="font-size:10px;color:#aaa">${tierDef.lifespanGames}d lifespan | \u26a1$${tierDef.energyPerDay}/day</div>`;
+          extra += `<div style="font-size:10px;color:#29adff">+${bonusVal} ${bonusLabel}</div>`;
+          if (dhb > 0) extra += `<div style="font-size:10px;color:#4fc">+${dhb} Domain Health</div>`;
+          if (tierDef.passive) extra += `<div style="font-size:10px;color:#a78bfa">\u2728 ${passiveDescs[tierDef.passive] ?? tierDef.passive}</div>`;
           if (!domainMatch) {
             const slotName = domainNames[slotDomain] ?? slotDomain;
             const filterName = domainNames[pm.domain] ?? pm.domain;
-            extra += `<div style="font-size:8px;color:#ff004d;margin-top:2px">\u2716 ${filterName} filter \u2192 ${slotName} slot</div>`;
+            extra += `<div style="font-size:10px;color:#ff004d;margin-top:2px">\u2716 ${filterName} filter \u2192 ${slotName} slot</div>`;
           } else {
-            extra += `<div style="font-size:8px;color:#00e436;margin-top:2px">Click to install ($${tierDef.cost.toLocaleString()})</div>`;
+            extra += `<div style="font-size:10px;color:#00e436;margin-top:2px">Click to install ($${tierDef.cost.toLocaleString()})</div>`;
           }
           extra += `</div>`;
         }
       }
 
+      const currentZone = this.state.currentZone ?? 'field';
       if (slotDomain) {
         const dName = domainNames[slotDomain] ?? slotDomain;
         const dColor = domainColors[slotDomain] ?? '#888';
-        extra += `<div style="color:${dColor};font-size:9px;margin-top:1px">${dName} Connection</div>`;
+        extra += `<div style="color:${dColor};font-size:11px;margin-top:1px">${dName} Connection</div>`;
 
         // Filter count for this domain in the current zone
-        const currentZone = this.state.currentZone ?? 'mechanical';
         const domainFiltersInZone = (this.state.filters ?? []).filter(
           f => f.domain === slotDomain && (f.zone ?? 'mechanical') === currentZone
         ).length;
-        extra += `<div style="font-size:8px;color:#888">${domainFiltersInZone} ${dName} filter${domainFiltersInZone !== 1 ? 's' : ''} in zone</div>`;
+        extra += `<div style="font-size:10px;color:#888">${domainFiltersInZone} ${dName} filter${domainFiltersInZone !== 1 ? 's' : ''} in zone</div>`;
 
-        // Show domain health
-        const dh = this.state.domainHealth;
-        if (dh && dh[slotDomain] != null) {
-          const s = Math.floor(dh[slotDomain]);
+        // Show domain health (zone-specific)
+        const dhSlot = this.state.zoneDomainHealth?.[currentZone] ?? this.state.domainHealth;
+        if (dhSlot && dhSlot[slotDomain] != null) {
+          const s = Math.floor(dhSlot[slotDomain]);
           const c = s > 80 ? '#00e436' : s >= 50 ? '#ffec27' : s >= 25 ? '#ffa300' : '#ff004d';
-          extra += `<div style="font-size:8px;color:${c}">${dName} Health: ${s}%${s < 50 ? ' \u26a0' : ''}</div>`;
+          extra += `<div style="font-size:10px;color:${c}">${dName} Health: ${s}%${s < 50 ? ' \u26a0' : ''}</div>`;
         }
       } else {
         // Legacy slots without domain — show all domain healths
-        const dh = this.state.domainHealth;
+        const dhSlot2 = this.state.zoneDomainHealth?.[currentZone] ?? this.state.domainHealth;
+        const dh = dhSlot2;
         if (dh) {
           const domains = [
             { key: 'air', label: 'Air' },
@@ -360,10 +372,15 @@ export class TooltipManager {
             .map(d => {
               const s = Math.floor(dh[d.key]);
               const c = s >= 50 ? '#ffec27' : s >= 25 ? '#ffa300' : '#ff004d';
-              return `<div style="font-size:8px;color:${c}">${d.label}: ${s}%${s < 50 ? ' \u26a0' : ''}</div>`;
+              return `<div style="font-size:10px;color:${c}">${d.label}: ${s}%${s < 50 ? ' \u26a0' : ''}</div>`;
             });
           if (lines.length) extra = `<div style="margin-top:2px;border-top:1px solid #333;padding-top:2px">${lines.join('')}</div>`;
         }
+      }
+
+      // Shortcut hint for empty vent slots (not in placement mode)
+      if (!placementMode) {
+        extra += this._shortcutHint('[S] Open shop');
       }
     }
 

@@ -167,6 +167,42 @@ export class MediaSystem {
 
     const text = this._fillTemplate(template, event);
     this._publishHeadline(text, sentiment, repEffect);
+
+    // Stadium Blimp: 25% daily chance of bonus positive headline
+    const purchased = this.state.purchasedExpansions ?? [];
+    const hasBlimp = purchased.some(p => p.key === 'stadiumBlimp');
+    if (hasBlimp && Math.random() < 0.25) {
+      const blimpHeadlines = [
+        `${this._stadiumName()} Blimp Wows Fans — "Best View in Baseball!"`,
+        `Aerial Advertising Pays Off: ${this._stadiumName()} Blimp a Hit With Sponsors`,
+        `${this._stadiumName()} Blimp Spotted Over Downtown — Free Publicity!`,
+      ];
+      const blimpText = blimpHeadlines[Math.floor(Math.random() * blimpHeadlines.length)];
+      this._publishHeadline(blimpText, 'positive', 1);
+    }
+
+    // Rally Raccoon: 20% daily chance of bonus positive headline
+    if (purchased.some(p => p.key === 'rallyRaccoon') && Math.random() < 0.20) {
+      const raccoonHeadlines = [
+        'Rally Raccoon Steals the Show — Fans Go Wild!',
+        'Raccoon Mascot Spotted Raiding the Hot Dog Stand Again',
+        'Rally Raccoon Named Fan Favorite — Attendance Up!',
+      ];
+      const raccoonText = raccoonHeadlines[Math.floor(Math.random() * raccoonHeadlines.length)];
+      this._publishHeadline(raccoonText, 'positive', 1);
+    }
+
+    // Phantom Frequency: 10% daily chance of mystery headline
+    if (purchased.some(p => p.key === 'phantomFrequency') && Math.random() < 0.10) {
+      const stadiumName = this._stadiumName();
+      const phantomHeadlines = [
+        `Strange Radio Signal Detected at ${stadiumName} — Origin Unknown`,
+        'Phantom Frequency Broadcast Heard During Night Game',
+        `Mystery Signal at ${stadiumName} Draws Curious Crowds`,
+      ];
+      const phantomText = phantomHeadlines[Math.floor(Math.random() * phantomHeadlines.length)];
+      this._publishHeadline(phantomText, 'positive', 1);
+    }
   }
 
   _generateEventHeadline(type, data) {
@@ -345,6 +381,24 @@ export class MediaSystem {
     const priyaRel = this.state.npcRelationships?.priya ?? 0;
     if (sentiment === 'positive' && priyaRel >= 35) {
       repEffect += 1;
+    }
+
+    // Press Box expansion: +1 extra rep for positive, 50% reduced penalty for negative
+    const purchased = this.state.purchasedExpansions ?? [];
+    const hasPresBox = purchased.some(p => p.key === 'pressBox');
+    if (hasPresBox) {
+      if (sentiment === 'positive') {
+        repEffect += 1;
+      } else if (sentiment === 'negative' && repEffect < 0) {
+        repEffect = Math.ceil(repEffect * 0.5);
+      }
+    }
+
+    // Broadcast Drone Rack: +1 extra rep for positive headlines (stacks with press box)
+    if (purchased.some(p => p.key === 'broadcastDroneRack')) {
+      if (sentiment === 'positive') {
+        repEffect += 1;
+      }
     }
 
     const headline = {

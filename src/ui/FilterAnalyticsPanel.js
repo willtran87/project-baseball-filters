@@ -29,9 +29,9 @@ export class FilterAnalyticsPanel {
     const s = this.state;
     const config = s.config;
     const filters = s.filters ?? [];
-    const domains = ['air', 'water', 'hvac', 'drainage'];
-    const domainNames = { air: 'Air', water: 'Water', hvac: 'HVAC', drainage: 'Drainage' };
-    const domainColors = { air: '#cccccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44' };
+    const domains = Object.keys(config?.filtrationSystems ?? { air: 1, water: 1, hvac: 1, drainage: 1 });
+    const domainNames = { air: 'Air', water: 'Water', hvac: 'HVAC', drainage: 'Drainage', electrical: 'Electrical', pest: 'Pest Control' };
+    const domainColors = { air: '#cccccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44', electrical: '#ffcc00', pest: '#cc44cc' };
     const zoneNames = {
       field: 'Field', concourse: 'Concourse', mechanical: 'Mechanical',
       underground: 'Underground', luxury: 'Luxury', pressbox: 'Press Box',
@@ -44,14 +44,15 @@ export class FilterAnalyticsPanel {
       border: 2px solid #8b4513;
       border-radius: 4px;
       font-family: monospace; color: #e0e0e0;
-      font-size: 11px; z-index: 30;
+      font-size: 14px; z-index: 30;
       display: flex; flex-direction: column;
       overflow: hidden;
       box-shadow: 0 0 20px rgba(139,69,19,0.2);
     `;
 
     // Count total vent slots per domain across all zones
-    const totalSlotsByDomain = { air: 0, water: 0, hvac: 0, drainage: 0 };
+    const totalSlotsByDomain = {};
+    for (const d of domains) totalSlotsByDomain[d] = 0;
     const zoneIds = this.zoneManager?.getZoneIds() ?? [];
     for (const zoneId of zoneIds) {
       const zone = this.zoneManager.getZone(zoneId);
@@ -147,8 +148,8 @@ export class FilterAnalyticsPanel {
       <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #8b4513;background:linear-gradient(180deg,rgba(139,69,19,0.15),rgba(0,0,0,0.3));">
         <strong style="color:#29adff;letter-spacing:1px">FILTER ANALYTICS</strong>
         <div style="display:flex;align-items:center;gap:12px">
-          <span style="color:#888;font-size:9px">[A] to toggle</span>
-          <span data-action="close-analytics" style="cursor:pointer;color:#888;font-size:12px">\u2715</span>
+          <span style="color:#888;font-size:11px">[A] to toggle</span>
+          <span data-action="close-analytics" style="cursor:pointer;color:#888;font-size:14px">\u2715</span>
         </div>
       </div>
     `;
@@ -158,7 +159,7 @@ export class FilterAnalyticsPanel {
 
     // Left column: Per-domain overview (2x2 grid)
     html += `<div style="flex:1;display:flex;flex-direction:column;gap:6px;">`;
-    html += `<div style="color:#888;font-size:9px;letter-spacing:1px;margin-bottom:2px">PER-DOMAIN OVERVIEW</div>`;
+    html += `<div style="color:#888;font-size:11px;letter-spacing:1px;margin-bottom:2px">PER-DOMAIN OVERVIEW</div>`;
     html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;flex:1;">`;
     for (const d of domains) {
       const ds = domainStats[d];
@@ -166,19 +167,19 @@ export class FilterAnalyticsPanel {
       const avgEffPct = Math.floor(ds.avgEfficiency * 100);
       const condColor = avgCondPct > 75 ? '#00e436' : avgCondPct > 50 ? '#ffa300' : avgCondPct > 25 ? '#ff8800' : '#ff004d';
       html += `
-        <div style="background:rgba(20,20,40,0.8);border:1px solid ${domainColors[d]}44;border-radius:3px;padding:6px;">
+        <div style="background:rgba(20,20,40,0.8);border:1px solid ${domainColors[d]}44;border-radius:3px;padding:8px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <span style="color:${domainColors[d]};font-weight:bold;font-size:10px">${domainNames[d]}</span>
-            <span style="color:#888;font-size:9px">${ds.count}/${ds.totalSlots} slots</span>
+            <span style="color:${domainColors[d]};font-weight:bold;font-size:12px">${domainNames[d]}</span>
+            <span style="color:#888;font-size:11px">${ds.count}/${ds.totalSlots} slots</span>
           </div>
           <div style="background:#222;height:4px;margin-bottom:4px;border-radius:2px">
             <div style="background:${condColor};height:100%;width:${avgCondPct}%;border-radius:2px;transition:width 0.3s"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;font-size:9px;color:#aaa;margin-bottom:3px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:#aaa;margin-bottom:3px">
             <span>Avg Cond: <span style="color:${condColor}">${avgCondPct}%</span></span>
             <span>Eff: ${avgEffPct}%</span>
           </div>
-          <div style="font-size:8px;color:#777">
+          <div style="font-size:10px;color:#777">
             ${ds.healthy > 0 ? `<span style="color:#00e436">${ds.healthy} healthy</span>` : ''}
             ${ds.worn > 0 ? `<span style="color:#ffa300"> ${ds.worn} worn</span>` : ''}
             ${ds.critical > 0 ? `<span style="color:#ff8800"> ${ds.critical} critical</span>` : ''}
@@ -194,9 +195,9 @@ export class FilterAnalyticsPanel {
     html += `<div style="flex:1;display:flex;flex-direction:column;gap:6px;">`;
 
     // Fleet summary
-    html += `<div style="color:#888;font-size:9px;letter-spacing:1px;margin-bottom:2px">FILTER FLEET SUMMARY</div>`;
+    html += `<div style="color:#888;font-size:11px;letter-spacing:1px;margin-bottom:2px">FILTER FLEET SUMMARY</div>`;
     html += `<div style="background:rgba(20,20,40,0.8);border:1px solid #333;border-radius:3px;padding:8px;">`;
-    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:10px;">`;
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:12px;">`;
     html += `<div>Total installed:</div><div style="color:#29adff">${totalInstalled}</div>`;
     html += `<div>Daily maintenance est:</div><div style="color:#ffa300">$${totalMaintenanceCost.toLocaleString()}</div>`;
     html += `<div>Needing attention:</div><div style="color:${needingAttention.length > 0 ? '#ff8800' : '#00e436'}">${needingAttention.length}</div>`;
@@ -212,16 +213,16 @@ export class FilterAnalyticsPanel {
     html += `</div></div>`;
 
     // Recommended actions
-    html += `<div style="color:#888;font-size:9px;letter-spacing:1px;margin-top:4px;margin-bottom:2px">RECOMMENDED ACTIONS</div>`;
-    html += `<div style="background:rgba(20,20,40,0.8);border:1px solid #333;border-radius:3px;padding:6px;flex:1;overflow-y:auto;">`;
+    html += `<div style="color:#888;font-size:11px;letter-spacing:1px;margin-top:4px;margin-bottom:2px">RECOMMENDED ACTIONS</div>`;
+    html += `<div style="background:rgba(20,20,40,0.8);border:1px solid #333;border-radius:3px;padding:8px;flex:1;overflow-y:auto;">`;
     if (recommendations.length === 0) {
-      html += `<div style="color:#00e436;font-size:10px;padding:4px">All systems nominal. No actions needed.</div>`;
+      html += `<div style="color:#00e436;font-size:12px;padding:6px">All systems nominal. No actions needed.</div>`;
     } else {
       for (const rec of recommendations) {
         const iconColors = { critical: '#ff004d', warning: '#ff8800', info: '#29adff' };
         const icons = { critical: '!!', warning: '!', info: '*' };
         html += `
-          <div style="padding:3px 4px;margin-bottom:3px;font-size:10px;border-left:2px solid ${iconColors[rec.priority]};padding-left:6px">
+          <div style="padding:5px 6px;margin-bottom:3px;font-size:12px;border-left:2px solid ${iconColors[rec.priority]};padding-left:8px">
             <span style="color:${iconColors[rec.priority]}">${icons[rec.priority]}</span>
             <span style="color:#ccc">${rec.text}</span>
           </div>

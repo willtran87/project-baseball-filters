@@ -77,7 +77,7 @@ export class PanelManager {
       background: rgba(10, 10, 30, 0.92);
       border-top: 2px solid #8b4513;
       padding: 8px 12px; font-family: monospace;
-      color: #e0e0e0; font-size: 11px;
+      color: #e0e0e0; font-size: 14px;
       z-index: 30;
     `;
     this._activePanelName = name;
@@ -182,33 +182,33 @@ export class PanelManager {
       const actualRepairCost = filter.condition <= 0 ? Math.floor(repairCost * emergencyMult) : repairCost;
 
       el.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <strong>${name}</strong>
-          ${systemDef ? `<span style="color:${systemDef.color ?? '#888'};font-size:9px;margin-left:6px">[${systemDef.name}]</span>` : ''}
-          <span data-action="close" style="cursor:pointer;color:#888;font-size:12px">\u2715</span>
+          ${systemDef ? `<span style="color:${systemDef.color ?? '#888'};font-size:11px;margin-left:8px">[${systemDef.name}]</span>` : ''}
+          <span data-action="close" style="cursor:pointer;color:#888;font-size:14px">\u2715</span>
         </div>
-        <div style="margin-bottom:4px">
+        <div style="margin-bottom:6px">
           Status: <span style="color:${statusColor}">${status.toUpperCase()}</span>
         </div>
-        <div style="margin-bottom:4px">
+        <div style="margin-bottom:6px">
           Condition: ${condPct}% (${Math.floor(filter.condition)}/${filter.maxCondition})
         </div>
-        <div style="background:#222;height:6px;margin-bottom:6px;border-radius:2px">
+        <div style="background:#222;height:6px;margin-bottom:8px;border-radius:2px">
           <div style="background:${statusColor};height:100%;width:${condPct}%;border-radius:2px"></div>
         </div>
-        <div style="margin-bottom:4px">
+        <div style="margin-bottom:6px">
           Efficiency: ${Math.floor(filter.efficiency * 100)}%
         </div>
-        <div style="margin-bottom:8px;color:#888;font-size:10px">
+        <div style="margin-bottom:8px;color:#888;font-size:12px">
           ${compDef?.name ?? ''} ${tierDef ? `- Tier ${filter.tier}` : ''}
         </div>
         <div style="display:flex;gap:8px">
           <button data-action="repair" data-id="${filter.id}"
-            style="background:#2a4a2a;color:#00e436;border:1px solid #4a6a4a;padding:3px 8px;font-family:monospace;cursor:pointer;font-size:10px">
+            style="background:#2a4a2a;color:#00e436;border:1px solid #4a6a4a;padding:5px 8px;font-family:monospace;cursor:pointer;font-size:12px">
             Repair ($${actualRepairCost})
           </button>
           <button data-action="remove" data-id="${filter.id}"
-            style="background:#4a2a2a;color:#ff004d;border:1px solid #6a4a4a;padding:3px 8px;font-family:monospace;cursor:pointer;font-size:10px">
+            style="background:#4a2a2a;color:#ff004d;border:1px solid #6a4a4a;padding:5px 8px;font-family:monospace;cursor:pointer;font-size:12px">
             Remove
           </button>
         </div>
@@ -244,17 +244,17 @@ export class PanelManager {
 
       let loansHtml = '';
       if (activeLoans.length === 0) {
-        loansHtml = '<div style="color:#888;font-size:10px;margin:4px 0">No active loans.</div>';
+        loansHtml = '<div style="color:#888;font-size:12px;margin:6px 0">No active loans.</div>';
       } else {
         for (let i = 0; i < activeLoans.length; i++) {
           const loan = activeLoans[i];
           const remaining = loan.totalOwed - loan.paidSoFar;
           const pct = Math.floor((loan.paidSoFar / loan.totalOwed) * 100);
           loansHtml += `
-            <div style="margin:4px 0;padding:4px 6px;background:#1a1a3a;border:1px solid #333;font-size:10px">
+            <div style="margin:6px 0;padding:6px 8px;background:#1a1a3a;border:1px solid #333;font-size:12px">
               <div>Loan #${i + 1}: $${loan.amount.toLocaleString()} at ${Math.round(loan.interestRate * 100)}% interest</div>
               <div style="color:#aaa">Owed: $${remaining.toLocaleString()} / $${loan.totalOwed.toLocaleString()} (${pct}% paid)</div>
-              <div style="background:#222;height:4px;margin-top:3px;border-radius:2px">
+              <div style="background:#222;height:4px;margin-top:5px;border-radius:2px">
                 <div style="background:#29adff;height:100%;width:${pct}%;border-radius:2px"></div>
               </div>
             </div>
@@ -263,11 +263,11 @@ export class PanelManager {
       }
 
       el.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <strong>Loans</strong>
-          <span data-action="close" style="cursor:pointer;color:#888;font-size:12px">\u2715</span>
+          <span data-action="close" style="cursor:pointer;color:#888;font-size:14px">\u2715</span>
         </div>
-        <div style="margin-bottom:6px;font-size:10px;color:#aaa">
+        <div style="margin-bottom:8px;font-size:12px;color:#aaa">
           Available: ${availableCount} of ${maxLoans} loans remaining
           ${availableCount > 0 ? ` | Next rate: ${Math.round(nextRate * 100)}%` : ''}
           | Repayment: $${dailyRepayment.toLocaleString()}/day per loan
@@ -276,10 +276,10 @@ export class PanelManager {
         <div style="margin-top:8px">
           ${availableCount > 0 ? `
             <button data-action="take-loan"
-              style="background:#2a4a2a;color:#00e436;border:1px solid #4a6a4a;padding:4px 10px;font-family:monospace;cursor:pointer;font-size:10px">
+              style="background:#2a4a2a;color:#00e436;border:1px solid #4a6a4a;padding:6px 10px;font-family:monospace;cursor:pointer;font-size:12px">
               Take Loan ($${loanAmount.toLocaleString()} at ${Math.round(nextRate * 100)}% interest)
             </button>
-          ` : '<div style="color:#ff004d;font-size:10px">Maximum loans reached.</div>'}
+          ` : '<div style="color:#ff004d;font-size:12px">Maximum loans reached.</div>'}
         </div>
       `;
 
@@ -300,7 +300,7 @@ export class PanelManager {
       const { col, row, domain: slotDomain } = data ?? {};
       const systems = state.config.filtrationSystems ?? {};
       const repTiers = state.config.reputation?.tiers ?? [];
-      const domainNames = { air: 'Air', water: 'Water', hvac: 'HVAC', drainage: 'Drainage' };
+      const domainNames = { air: 'Air', water: 'Water', hvac: 'HVAC', drainage: 'Drainage', electrical: 'Electrical', pest: 'Pest Control' };
       const slotDomainName = slotDomain ? (domainNames[slotDomain] ?? slotDomain) : null;
 
       // Build list of installable tier-1 filters, filtered by slot domain
@@ -341,26 +341,26 @@ export class PanelManager {
       const emergencyHtml = emergencyStock > 0 ? `
         <button data-action="install-emergency"
           style="background:#3a1a1a;color:#ff004d;border:1px solid #6a3a3a;
-            padding:4px 8px;font-family:monospace;cursor:pointer;
-            font-size:10px;min-width:120px;text-align:left">
+            padding:6px 8px;font-family:monospace;cursor:pointer;
+            font-size:12px;min-width:120px;text-align:left">
           <div><strong>Emergency Filter</strong></div>
           <div style="display:flex;justify-content:space-between">
-            <span style="color:#ff004d;font-size:9px">Universal</span>
-            <span style="color:#ffa300;font-size:8px">30% eff</span>
+            <span style="color:#ff004d;font-size:11px">Universal</span>
+            <span style="color:#ffa300;font-size:10px">30% eff</span>
           </div>
-          <div style="color:#aaa;font-size:9px">Stock: ${emergencyStock} | 1 day</div>
+          <div style="color:#aaa;font-size:11px">Stock: ${emergencyStock} | 1 day</div>
         </button>
       ` : '';
 
       el.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <strong>${headerLabel}</strong>
-          <span data-action="close" style="cursor:pointer;color:#888;font-size:12px">\u2715</span>
+          <span data-action="close" style="cursor:pointer;color:#888;font-size:14px">\u2715</span>
         </div>
-        <div style="margin-bottom:6px;color:#aaa;font-size:10px">
+        <div style="margin-bottom:8px;color:#aaa;font-size:12px">
           ${slotDomainName ? `This slot accepts ${slotDomainName} equipment only.` : 'Choose a filter to install at this vent slot.'}
         </div>
-        <div id="filter-options" style="display:flex;flex-wrap:wrap;gap:6px">
+        <div id="filter-options" style="display:flex;flex-wrap:wrap;gap:8px">
           ${emergencyHtml}
           ${options.map((opt, i) => {
             const canAfford = state.money >= opt.cost;
@@ -371,19 +371,19 @@ export class PanelManager {
                 style="background:${canAfford ? '#1a2a4a' : '#2a2a2a'};
                   color:${canAfford ? '#29adff' : '#555'};
                   border:1px solid ${canAfford ? '#3a5a8a' : '#333'};
-                  padding:4px 8px;font-family:monospace;cursor:${canAfford ? 'pointer' : 'not-allowed'};
-                  font-size:10px;min-width:120px;text-align:left">
+                  padding:6px 8px;font-family:monospace;cursor:${canAfford ? 'pointer' : 'not-allowed'};
+                  font-size:12px;min-width:120px;text-align:left">
                 <div><strong>${opt.name}</strong></div>
                 <div style="display:flex;justify-content:space-between">
-                  <span style="color:${opt.domainColor};font-size:9px">${opt.domainName}</span>
-                  <span style="color:${archetypeColors[archetype]};font-size:8px">${archetype}</span>
+                  <span style="color:${opt.domainColor};font-size:11px">${opt.domainName}</span>
+                  <span style="color:${archetypeColors[archetype]};font-size:10px">${archetype}</span>
                 </div>
-                <div style="color:${canAfford ? '#aaa' : '#444'};font-size:9px">$${opt.cost}</div>
+                <div style="color:${canAfford ? '#aaa' : '#444'};font-size:11px">$${opt.cost}</div>
               </button>
             `;
           }).join('')}
         </div>
-        <div id="filter-hover-details" style="height:60px;margin-top:6px;padding:4px 8px;font-size:9px;color:#555;border-top:1px solid #222;overflow:hidden">
+        <div id="filter-hover-details" style="height:60px;margin-top:8px;padding:6px 8px;font-size:11px;color:#555;border-top:1px solid #222;overflow:hidden">
           <span style="font-style:italic">Hover a filter to see stats</span>
         </div>
       `;
@@ -437,7 +437,7 @@ export class PanelManager {
           const archetype = opt.passive ? 'SPECIALIST' : (opt.domainHealthBonus >= 5 ? 'BOOSTER' : 'WORKHORSE');
           detailsEl.innerHTML = `
             <span style="color:#ffec27"><strong>${opt.brand ? `${opt.brand} ` : ''}${opt.name}</strong></span>
-            <span style="color:${archetypeColors[archetype]};font-size:8px;letter-spacing:1px;margin-left:6px">${archetype}</span>
+            <span style="color:${archetypeColors[archetype]};font-size:10px;letter-spacing:1px;margin-left:8px">${archetype}</span>
             &nbsp;\u2014&nbsp;
             <span style="color:#aaa">${opt.lifespan}d life</span> &middot;
             <span style="color:#ffa300">\u26a1$${opt.energy}/day</span> &middot;

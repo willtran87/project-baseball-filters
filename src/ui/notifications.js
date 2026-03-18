@@ -34,18 +34,18 @@ export function showConfirmDialog(container, message, onConfirm, confirmLabel = 
   `;
 
   dialog.innerHTML = `
-    <div style="color:#ffa300;font-size:12px;margin-bottom:4px;letter-spacing:1px">\u26a0 CONFIRM</div>
-    <div style="color:#e0e0e0;font-size:11px;margin-bottom:14px;line-height:1.5">${message}</div>
+    <div style="color:#ffa300;font-size:14px;margin-bottom:4px;letter-spacing:1px">\u26a0 CONFIRM</div>
+    <div style="color:#e0e0e0;font-size:14px;margin-bottom:14px;line-height:1.5">${message}</div>
     <div style="display:flex;gap:8px;justify-content:center">
       <button data-confirm="yes" style="
         background:linear-gradient(180deg,#3a2a1a,#2a1a0a);color:#ff8800;
-        border:1px solid #6a4a2a;padding:6px 16px;font-family:monospace;
-        font-size:11px;cursor:pointer;letter-spacing:1px;
+        border:1px solid #6a4a2a;padding:8px 16px;font-family:monospace;
+        font-size:14px;cursor:pointer;letter-spacing:1px;
       ">${confirmLabel}</button>
       <button data-confirm="no" style="
         background:linear-gradient(180deg,#1a1a2a,#0d0d1a);color:#888;
-        border:1px solid #3a3a5a;padding:6px 16px;font-family:monospace;
-        font-size:11px;cursor:pointer;
+        border:1px solid #3a3a5a;padding:8px 16px;font-family:monospace;
+        font-size:14px;cursor:pointer;
       ">CANCEL</button>
     </div>
   `;
@@ -77,6 +77,13 @@ export class TutorialManager {
     this._el = null;
     this._shown = new Set(state.tutorialSeen ?? []);
 
+    // Re-sync after save load (TutorialManager is created before save is restored)
+    eventBus.on('game:resume', () => {
+      if (Array.isArray(this.state.tutorialSeen)) {
+        for (const id of this.state.tutorialSeen) this._shown.add(id);
+      }
+    });
+
     // Tutorial hints keyed by trigger
     this._hints = [
       {
@@ -84,7 +91,7 @@ export class TutorialManager {
         trigger: 'game:resume',
         condition: () => this.state.gameDay <= 1 && this.state.filters.length === 0,
         title: 'Welcome to Ridgemont Stadium!',
-        text: 'You\'re Casey "Pipes" Peralta, the new head of filtration. Click a glowing VENT SLOT to install your first filter, or press S to open the Dugout Supply Shop. Keep the air clean, the water pure, and the drains flowing — 15,000 fans are counting on you.',
+        text: 'You\'re Casey "Pipes" Peralta, the new head of filtration. Click a glowing VENT SLOT to install your first filter. Press S to check your Systems overview. Keep the air clean, the water pure, and the drains flowing — 15,000 fans are counting on you.',
         delay: 1500,
       },
       {
@@ -127,7 +134,7 @@ export class TutorialManager {
         trigger: 'game:newDay',
         condition: () => this.state.gameDay === 2,
         title: 'Dugout Controls',
-        text: 'S = Shop | F = Crew | J = Hank\'s Journal | N = Ridgemont Herald | C = Sponsor Deals | SPACE = Timeout | 1-3 = Speed | M = Mute',
+        text: 'S = Systems | F = Crew | J = Hank\'s Journal | N = Ridgemont Herald | C = Sponsor Deals | SPACE = Timeout | 1-3 = Speed | M = Mute',
       },
       {
         id: 'domain_health',
@@ -156,8 +163,8 @@ export class TutorialManager {
       },
       {
         id: 'economy_panel_hint',
-        trigger: 'ui:toggleShop',
-        condition: () => this.state.gameDay >= 2,
+        trigger: 'ui:toggleSystems',
+        condition: () => this.state.gameDay >= 2 && this.state.gameDay <= 5,
         title: 'Track Your Finances',
         text: 'Tip: Press E to view your financial breakdown and track income vs expenses. Knowing where the money goes is half the battle.',
       },
@@ -166,7 +173,7 @@ export class TutorialManager {
         trigger: 'filter:added',
         condition: () => this.state.filters.length >= 3,
         title: 'Upgrade Your Filters',
-        text: 'Check the UPGRADES tab in the Shop to see which filters can be upgraded to better tiers. Higher-tier filters last longer and perform better under pressure.',
+        text: 'Click an installed filter to inspect it — you can upgrade to higher tiers right from the inspector. Higher-tier filters last longer and perform better under pressure.',
       },
       {
         id: 'loan_hint',
@@ -255,7 +262,7 @@ export class TutorialManager {
       {
         id: 'tutorial_rep_75',
         trigger: 'state:reputation',
-        condition: () => this.state.reputation >= 75,
+        condition: () => this.state.reputation >= 75 && this.state.reputation < 85,
         title: 'Elite Territory!',
         text: 'Elite territory! The best equipment and most lucrative deals are within reach. Ridgemont Stadium is becoming the jewel of the league.',
       },
@@ -302,19 +309,19 @@ export class TutorialManager {
       border: 2px solid #ffec27;
       border-radius: 4px;
       font-family: monospace; color: #e0e0e0;
-      font-size: 11px; z-index: 45;
+      font-size: 14px; z-index: 45;
       box-shadow: 0 0 20px rgba(255,236,39,0.3);
       animation: tutorialGlow 2s ease-in-out infinite;
       text-align: center;
     `;
 
     this._el.innerHTML = `
-      <div style="color:#ffec27;font-size:12px;margin-bottom:6px;letter-spacing:1px">\u{1f4a1} ${hint.title}</div>
-      <div style="color:#c0c0d0;font-size:10px;line-height:1.5;margin-bottom:10px">${hint.text}</div>
+      <div style="color:#ffec27;font-size:14px;margin-bottom:6px;letter-spacing:1px">\u{1f4a1} ${hint.title}</div>
+      <div style="color:#c0c0d0;font-size:12px;line-height:1.5;margin-bottom:10px">${hint.text}</div>
       <button style="
         background:linear-gradient(180deg,#2a3a1a,#1a2a0a);color:#00e436;
-        border:1px solid #3a6a3a;padding:4px 20px;font-family:monospace;
-        font-size:10px;cursor:pointer;letter-spacing:1px;
+        border:1px solid #3a6a3a;padding:6px 20px;font-family:monospace;
+        font-size:12px;cursor:pointer;letter-spacing:1px;
       ">GOT IT</button>
     `;
 
@@ -370,7 +377,7 @@ export class NotificationManager {
   constructor(container, eventBus) {
     this.eventBus = eventBus;
     this._toasts = [];
-    this._maxToasts = 5;
+    this._maxToasts = 1;
     this._defaultDuration = 4000; // ms
 
     // Container for toast elements
@@ -380,13 +387,17 @@ export class NotificationManager {
       position: absolute; top: 28px; right: 8px;
       display: flex; flex-direction: column; gap: 4px;
       pointer-events: none; z-index: 25;
-      max-width: 220px;
+      max-width: 240px;
+      max-height: calc(100% - 80px);
+      overflow: hidden;
     `;
     container.appendChild(this._el);
 
     // Listen for notification events
     this.eventBus.on('ui:message', ({ text, type }) => this.show(text, type));
     this.eventBus.on('event:started', (evt) => {
+      // Skip toast for severe/championship events — EventBanner already shows a prominent box
+      if (evt.degradeMultiplier >= 1.5 || evt.isChampionship) return;
       const isPositive = evt.category === 'positive' || evt.isPositive;
       this.show(`${isPositive ? '\u2b50' : '\u26a0'} ${evt.name}: ${evt.description}`, isPositive ? 'success' : 'event');
     });
@@ -447,6 +458,8 @@ export class NotificationManager {
       }
     });
 
+    // Rival sabotage alert — handled by showSabotageAlert overlay (no redundant toast)
+
     this._storyPortrait = null;
     this._sprites = null; // set via setSprites()
   }
@@ -483,12 +496,12 @@ export class NotificationManager {
     const bgColor = isPositive ? 'rgba(0,228,54,0.12)' : 'rgba(255,0,77,0.12)';
 
     toast.style.cssText = `
-      padding: 4px 8px;
+      padding: 6px 8px;
       background: ${bgColor};
       border-left: 3px solid ${themeColor ?? '#ab82ff'};
       color: ${textColor};
       font-family: monospace;
-      font-size: 9px;
+      font-size: 11px;
       line-height: 1.3;
       opacity: 1;
       transition: opacity 0.5s ease;
@@ -639,26 +652,26 @@ export class NotificationManager {
 
     const toast = document.createElement('div');
     const colors = {
-      info:        { bg: 'rgba(41,173,255,0.15)', border: '#29adff', text: '#a0d0ff' },
-      success:     { bg: 'rgba(0,228,54,0.15)', border: '#00e436', text: '#80ff80' },
-      warning:     { bg: 'rgba(255,163,0,0.15)', border: '#ffa300', text: '#ffd080' },
-      danger:      { bg: 'rgba(255,0,77,0.15)', border: '#ff004d', text: '#ff8080' },
-      event:       { bg: 'rgba(255,119,168,0.15)', border: '#ff77a8', text: '#ffb0d0' },
-      achievement: { bg: 'rgba(255,236,39,0.15)', border: '#ffec27', text: '#fff0a0' },
-      celebration: { bg: 'rgba(0,228,54,0.20)', border: '#00e436', text: '#a0ffa0' },
-      story:       { bg: 'rgba(255,200,60,0.18)', border: '#ffc83c', text: '#ffe0a0' },
-      relationship:{ bg: 'rgba(171,130,255,0.15)', border: '#ab82ff', text: '#d0b8ff' },
+      info:        { bg: '#0a1e3c', border: '#29adff', text: '#c0e0ff' },
+      success:     { bg: '#0a2814', border: '#00e436', text: '#a0ffa0' },
+      warning:     { bg: '#321e05', border: '#ffa300', text: '#ffe0a0' },
+      danger:      { bg: '#320a0f', border: '#ff004d', text: '#ffa0a0' },
+      event:       { bg: '#320f23', border: '#ff77a8', text: '#ffc0d8' },
+      achievement: { bg: '#322d0a', border: '#ffec27', text: '#ffffff' },
+      celebration: { bg: '#0a2d14', border: '#00e436', text: '#c0ffc0' },
+      story:       { bg: '#2d230a', border: '#ffc83c', text: '#fff0c0' },
+      relationship:{ bg: '#1e1432', border: '#ab82ff', text: '#e0d0ff' },
     };
     const c = colors[type] ?? colors.info;
 
     const isStory = type === 'story';
     toast.style.cssText = `
-      padding: ${isStory ? '6px 10px' : '4px 8px'};
+      padding: ${isStory ? '8px 12px' : '6px 8px'};
       background: ${c.bg};
       border-left: 3px solid ${c.border};
       color: ${c.text};
       font-family: monospace;
-      font-size: ${isStory ? '10px' : '9px'};
+      font-size: ${isStory ? '12px' : '11px'};
       line-height: 1.3;
       opacity: 1;
       transition: opacity 0.5s ease;
@@ -722,23 +735,32 @@ export class NotificationManager {
       position: absolute; top: 30%; left: 50%;
       transform: translate(-50%, -50%) scale(0.8);
       padding: 16px 28px;
-      background: linear-gradient(180deg, rgba(255,236,39,0.25), rgba(255,163,0,0.15));
+      background: linear-gradient(180deg, #3a3510, #2a1e08);
       border: 2px solid #ffec27;
       border-radius: 6px;
-      font-family: monospace; color: #fff0a0;
+      font-family: monospace; color: #fff;
       text-align: center;
       z-index: 35;
-      pointer-events: none;
+      pointer-events: auto;
+      cursor: pointer;
       box-shadow: 0 0 30px rgba(255,236,39,0.4), inset 0 0 15px rgba(255,236,39,0.1);
       opacity: 0;
       transition: opacity 0.4s ease, transform 0.4s ease;
     `;
     banner.innerHTML = `
-      <div style="font-size:14px;font-weight:bold;letter-spacing:1px;margin-bottom:4px;color:#ffec27">\u{1f3c6} ${title}</div>
-      ${subtitle ? `<div style="font-size:10px;color:#c8c8a0;line-height:1.4;max-width:260px">${subtitle}</div>` : ''}
+      <div style="font-size:16px;font-weight:bold;letter-spacing:1px;margin-bottom:4px;color:#ffec27">\u{1f3c6} ${title}</div>
+      ${subtitle ? `<div style="font-size:12px;color:#e8e0c0;line-height:1.4;max-width:260px">${subtitle}</div>` : ''}
+      <div style="font-size:8px;color:#888;margin-top:6px">click to dismiss</div>
     `;
 
     this._el.parentElement.appendChild(banner);
+
+    // Click to dismiss
+    banner.addEventListener('click', () => {
+      banner.style.opacity = '0';
+      banner.style.transform = 'translate(-50%, -50%) scale(1.05)';
+      setTimeout(() => banner.remove(), 400);
+    });
 
     // Animate in
     requestAnimationFrame(() => {
@@ -746,13 +768,19 @@ export class NotificationManager {
       banner.style.transform = 'translate(-50%, -50%) scale(1)';
     });
 
-    // Fade out after 4 seconds
+    // Auto-dismiss after 8 seconds (or click to dismiss sooner)
     setTimeout(() => {
-      banner.style.opacity = '0';
-      banner.style.transform = 'translate(-50%, -50%) scale(1.05)';
-      setTimeout(() => banner.remove(), 500);
-    }, 4000);
+      if (banner.parentElement) {
+        banner.style.opacity = '0';
+        banner.style.transform = 'translate(-50%, -50%) scale(1.05)';
+        setTimeout(() => banner.remove(), 500);
+      }
+    }, 8000);
   }
+
+  /**
+   * Show a dramatic sabotage alert. Pauses game, requires click to dismiss.
+   */
 
   /**
    * Clear all notifications.
@@ -803,7 +831,7 @@ export function showOffSeasonEventDialog(container, event) {
         display:block; width:100%; margin-bottom:6px; padding:8px 12px;
         background:linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.2));
         color:${color}; border:1px solid ${color}44;
-        font-family:monospace; font-size:10px; cursor:pointer;
+        font-family:monospace; font-size:12px; cursor:pointer;
         text-align:left; border-radius:2px;
         transition: border-color 0.15s ease;
       " onmouseover="this.style.borderColor='${color}'" onmouseout="this.style.borderColor='${color}44'">
@@ -814,8 +842,8 @@ export function showOffSeasonEventDialog(container, event) {
 
   dialog.innerHTML = `
     <div style="color:#29adff;font-size:13px;font-weight:bold;margin-bottom:4px;letter-spacing:1px">OFF-SEASON EVENT</div>
-    <div style="color:#ffec27;font-size:12px;margin-bottom:6px">${event.name}</div>
-    <div style="color:#c0c0d0;font-size:10px;margin-bottom:14px;line-height:1.5">${event.description}</div>
+    <div style="color:#ffec27;font-size:14px;margin-bottom:6px">${event.name}</div>
+    <div style="color:#c0c0d0;font-size:12px;margin-bottom:14px;line-height:1.5">${event.description}</div>
     <div style="text-align:left">${choicesHtml}</div>
   `;
 
@@ -871,7 +899,7 @@ export function showDomainPickerDialog(container, options) {
       <button data-domain="${d.key}" style="
         padding:8px 14px; background:rgba(255,255,255,0.05);
         color:${d.color}; border:1px solid ${d.color}44;
-        font-family:monospace; font-size:11px; cursor:pointer;
+        font-family:monospace; font-size:14px; cursor:pointer;
         border-radius:2px;
       ">${d.icon} ${d.label}</button>
     `;
@@ -879,8 +907,8 @@ export function showDomainPickerDialog(container, options) {
   btnsHtml += '</div>';
 
   dialog.innerHTML = `
-    <div style="color:#ffec27;font-size:12px;margin-bottom:4px;letter-spacing:1px">${options.title ?? 'Choose Domain'}</div>
-    <div style="color:#c0c0d0;font-size:10px;margin-bottom:12px;line-height:1.5">${options.description ?? ''}</div>
+    <div style="color:#ffec27;font-size:14px;margin-bottom:4px;letter-spacing:1px">${options.title ?? 'Choose Domain'}</div>
+    <div style="color:#c0c0d0;font-size:12px;margin-bottom:12px;line-height:1.5">${options.description ?? ''}</div>
     ${btnsHtml}
   `;
 

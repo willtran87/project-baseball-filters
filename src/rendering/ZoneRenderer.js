@@ -48,6 +48,20 @@ function _ventSlotLetterMap() {
       [1,0,1],
       [1,1,0],
     ],
+    E: [
+      [1,1,1],
+      [1,0,0],
+      [1,1,0],
+      [1,0,0],
+      [1,1,1],
+    ],
+    P: [
+      [1,1,0],
+      [1,0,1],
+      [1,1,0],
+      [1,0,0],
+      [1,0,0],
+    ],
   };
 }
 
@@ -96,6 +110,8 @@ export class ZoneRenderer {
       water: '#4488ff',
       hvac: '#ff8844',
       drainage: '#44bb44',
+      electrical: '#ffcc00',
+      pest: '#cc44cc',
     };
 
     for (const slot of ventSlots) {
@@ -129,7 +145,7 @@ export class ZoneRenderer {
 
       // Domain letter label centered in vent slot (3x5 pixel font)
       const letterBitmaps = _ventSlotLetterMap();
-      const letter = { air: 'A', water: 'W', hvac: 'H', drainage: 'D' }[slot.domain];
+      const letter = { air: 'A', water: 'W', hvac: 'H', drainage: 'D', electrical: 'E', pest: 'P' }[slot.domain];
       const bitmap = letterBitmaps[letter];
       if (bitmap) {
         const lx = x + 6; // center 3px letter in 16px tile
@@ -2095,6 +2111,143 @@ export class ZoneRenderer {
       ctx.fillRect(sign.x - 1, sign.y - 1, 6, 5);
     }
     ctx.globalAlpha = 1;
+
+    // Neon Food Court (when purchased) — neon signs with food icons
+    if ((state?.purchasedExpansions ?? []).some(p => p.key === 'neonFoodCourt')) {
+      const ts = t * 0.001;
+
+      // === Sign 1: Hot Dog (red neon) at col 4-6, row 6-7 ===
+      const hx = 4 * T, hy = 6 * T;
+      ctx.save();
+      // Sign frame
+      ctx.fillStyle = '#331111';
+      ctx.fillRect(hx, hy, 3 * T, 2 * T);
+      ctx.fillStyle = '#552222';
+      ctx.fillRect(hx + 1, hy + 1, 3 * T - 2, 2 * T - 2);
+      // Neon glow background
+      const p1 = 0.12 + Math.sin(ts * 1.2) * 0.08;
+      ctx.globalAlpha = p1;
+      ctx.fillStyle = '#ff4466';
+      ctx.fillRect(hx + 2, hy + 2, 3 * T - 4, 2 * T - 4);
+      ctx.globalAlpha = 1;
+      // Hot dog pixel art (bun + sausage)
+      ctx.fillStyle = '#cc9944'; // bun
+      ctx.fillRect(hx + 6, hy + 8, 12, 5);
+      ctx.fillRect(hx + 5, hy + 10, 1, 3);
+      ctx.fillRect(hx + 18, hy + 10, 1, 3);
+      ctx.fillRect(hx + 6, hy + 13, 12, 2);
+      ctx.fillStyle = '#cc3333'; // sausage
+      ctx.fillRect(hx + 7, hy + 9, 10, 3);
+      ctx.fillStyle = '#ffee44'; // mustard zigzag
+      ctx.fillRect(hx + 8, hy + 9, 1, 1);
+      ctx.fillRect(hx + 10, hy + 10, 1, 1);
+      ctx.fillRect(hx + 12, hy + 9, 1, 1);
+      ctx.fillRect(hx + 14, hy + 10, 1, 1);
+      // Neon border glow dots
+      ctx.fillStyle = '#ff4466';
+      for (let i = 0; i < 3 * T; i += 3) {
+        const flicker = Math.sin(ts * 3 + i * 0.5) > 0;
+        if (flicker) {
+          ctx.fillRect(hx + i, hy, 1, 1);
+          ctx.fillRect(hx + i, hy + 2 * T - 1, 1, 1);
+        }
+      }
+      ctx.restore();
+
+      // === Sign 2: Nachos (yellow neon) at col 14-16, row 6-7 ===
+      const nx = 14 * T, ny = 6 * T;
+      ctx.save();
+      ctx.fillStyle = '#332200';
+      ctx.fillRect(nx, ny, 3 * T, 2 * T);
+      ctx.fillStyle = '#443311';
+      ctx.fillRect(nx + 1, ny + 1, 3 * T - 2, 2 * T - 2);
+      const p2 = 0.12 + Math.sin(ts * 1.2 + 2.1) * 0.08;
+      ctx.globalAlpha = p2;
+      ctx.fillStyle = '#ffec27';
+      ctx.fillRect(nx + 2, ny + 2, 3 * T - 4, 2 * T - 4);
+      ctx.globalAlpha = 1;
+      // Nacho chips pixel art (triangular chips in a pile)
+      ctx.fillStyle = '#ddaa33'; // chip color
+      ctx.fillRect(nx + 8, ny + 12, 8, 2);
+      ctx.fillRect(nx + 10, ny + 10, 6, 2);
+      ctx.fillRect(nx + 7, ny + 14, 10, 2);
+      // Individual chip triangles
+      ctx.fillStyle = '#eebb44';
+      ctx.fillRect(nx + 6, ny + 10, 3, 4);
+      ctx.fillRect(nx + 15, ny + 11, 3, 3);
+      ctx.fillRect(nx + 11, ny + 8, 2, 2);
+      // Cheese drizzle
+      ctx.fillStyle = '#ff8800';
+      ctx.fillRect(nx + 9, ny + 11, 1, 1);
+      ctx.fillRect(nx + 12, ny + 12, 1, 1);
+      ctx.fillRect(nx + 14, ny + 11, 1, 1);
+      // Neon border dots
+      ctx.fillStyle = '#ffec27';
+      for (let i = 0; i < 3 * T; i += 3) {
+        const flicker = Math.sin(ts * 3 + i * 0.5 + 1.5) > 0;
+        if (flicker) {
+          ctx.fillRect(nx + i, ny, 1, 1);
+          ctx.fillRect(nx + i, ny + 2 * T - 1, 1, 1);
+        }
+      }
+      ctx.restore();
+
+      // === Sign 3: Cold Beer (blue neon) at col 23-25, row 6-7 ===
+      const bx = 23 * T, by = 6 * T;
+      ctx.save();
+      ctx.fillStyle = '#112233';
+      ctx.fillRect(bx, by, 3 * T, 2 * T);
+      ctx.fillStyle = '#1a3344';
+      ctx.fillRect(bx + 1, by + 1, 3 * T - 2, 2 * T - 2);
+      const p3 = 0.12 + Math.sin(ts * 1.2 + 4.2) * 0.08;
+      ctx.globalAlpha = p3;
+      ctx.fillStyle = '#44aaff';
+      ctx.fillRect(bx + 2, by + 2, 3 * T - 4, 2 * T - 4);
+      ctx.globalAlpha = 1;
+      // Beer mug pixel art
+      ctx.fillStyle = '#ddcc88'; // mug body
+      ctx.fillRect(bx + 8, by + 8, 8, 10);
+      ctx.fillRect(bx + 7, by + 9, 1, 8); // left edge
+      ctx.fillStyle = '#ccbb77'; // mug bottom
+      ctx.fillRect(bx + 7, by + 17, 10, 2);
+      ctx.fillStyle = '#eebb44'; // beer
+      ctx.fillRect(bx + 9, by + 10, 6, 7);
+      ctx.fillStyle = '#ffffff'; // foam head
+      ctx.fillRect(bx + 8, by + 7, 8, 3);
+      ctx.fillRect(bx + 9, by + 6, 6, 1);
+      // Mug handle
+      ctx.fillStyle = '#ccbb77';
+      ctx.fillRect(bx + 16, by + 10, 2, 1);
+      ctx.fillRect(bx + 17, by + 11, 2, 4);
+      ctx.fillRect(bx + 16, by + 15, 2, 1);
+      // Foam bubbles
+      ctx.fillStyle = '#ffffff';
+      ctx.globalAlpha = 0.6 + Math.sin(ts * 2) * 0.3;
+      ctx.fillRect(bx + 10, by + 7, 1, 1);
+      ctx.fillRect(bx + 13, by + 6, 1, 1);
+      ctx.globalAlpha = 1;
+      // Neon border dots
+      ctx.fillStyle = '#44aaff';
+      for (let i = 0; i < 3 * T; i += 3) {
+        const flicker = Math.sin(ts * 3 + i * 0.5 + 3) > 0;
+        if (flicker) {
+          ctx.fillRect(bx + i, by, 1, 1);
+          ctx.fillRect(bx + i, by + 2 * T - 1, 1, 1);
+        }
+      }
+      ctx.restore();
+
+      // Floor glow reflections under each sign
+      ctx.save();
+      ctx.globalAlpha = 0.04 + Math.sin(ts) * 0.02;
+      ctx.fillStyle = '#ff4466';
+      ctx.fillRect(hx, hy + 2 * T, 3 * T, T);
+      ctx.fillStyle = '#ffec27';
+      ctx.fillRect(nx, ny + 2 * T, 3 * T, T);
+      ctx.fillStyle = '#44aaff';
+      ctx.fillRect(bx, by + 2 * T, 3 * T, T);
+      ctx.restore();
+    }
   }
 
   _animateMechanical(renderer, state) {
@@ -2172,6 +2325,134 @@ export class ZoneRenderer {
       ctx.fillRect(led.x, led.y, 2, 1);
     }
     ctx.globalAlpha = 1;
+
+    // Weather Station Tower (when purchased) — upper-right area
+    const purchased = state?.purchasedExpansions ?? [];
+    if (purchased.some(p => p.key === 'weatherStationTower')) {
+      const towerX = 26 * T;
+      const towerY = 1 * T;
+      const hasWeatherEvent = !!state?.activeEvent && state.activeEvent.category === 'weather';
+
+      // Antenna mast (vertical pole)
+      ctx.fillStyle = PALETTE.STEEL_LT;
+      ctx.fillRect(towerX + 7, towerY, 2, 6 * T);
+
+      // Cross-beams
+      ctx.fillStyle = PALETTE.STEEL_DK;
+      ctx.fillRect(towerX + 3, towerY + 2 * T, 10, 1);
+      ctx.fillRect(towerX + 4, towerY + 4 * T, 8, 1);
+
+      // Radar dish — shifts offset during active weather
+      const dishOffset = hasWeatherEvent ? Math.floor(Math.sin(t * 0.005) * 3) : 0;
+      ctx.fillStyle = '#aaaacc';
+      ctx.fillRect(towerX + 2 + dishOffset, towerY + T, 5, 3);
+      ctx.fillStyle = '#888aaa';
+      ctx.fillRect(towerX + 3 + dishOffset, towerY + T + 1, 3, 1);
+      // Dish arm connecting to mast
+      ctx.fillStyle = PALETTE.STEEL_DK;
+      ctx.fillRect(towerX + 7, towerY + T + 1, Math.abs(dishOffset) + 1, 1);
+
+      // Spinning anemometer cups at top
+      const anemAngle = (t * 0.006) % (Math.PI * 2);
+      ctx.save();
+      ctx.fillStyle = '#ccccdd';
+      for (let cup = 0; cup < 3; cup++) {
+        const a = anemAngle + cup * (Math.PI * 2 / 3);
+        const cx = towerX + 8 + Math.cos(a) * 4;
+        const cy = towerY - 2 + Math.sin(a) * 4;
+        ctx.fillRect(Math.floor(cx), Math.floor(cy), 2, 2);
+      }
+      // Center hub
+      ctx.fillStyle = PALETTE.STEEL_LT;
+      ctx.fillRect(towerX + 7, towerY - 3, 2, 2);
+      ctx.restore();
+
+      // Pulsing green signal indicator during storms
+      if (hasWeatherEvent) {
+        const signalPulse = 0.4 + Math.sin(t * 0.008) * 0.4;
+        ctx.globalAlpha = signalPulse;
+        ctx.fillStyle = PALETTE.GREEN;
+        ctx.fillRect(towerX + 6, towerY + 3 * T, 4, 2);
+        // Signal glow halo
+        ctx.globalAlpha = signalPulse * 0.3;
+        ctx.fillRect(towerX + 4, towerY + 3 * T - 1, 8, 4);
+        ctx.globalAlpha = 1;
+      } else {
+        // Steady dim green when no weather
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = PALETTE.GREEN;
+        ctx.fillRect(towerX + 6, towerY + 3 * T, 4, 2);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // Rusty's Retirement Clock (when purchased) — large clock face, cols 2-4, rows 0-2
+    if (purchased.some(p => p.key === 'rustysRetirementClock')) {
+      const clockCX = 3 * T + T / 2;       // center x (middle of cols 2-4)
+      const clockCY = 1 * T + T / 2;       // center y (middle of rows 0-2)
+      const clockR = Math.floor(T * 1.4);  // radius ~22px
+
+      // Clock face background
+      ctx.save();
+      for (let dy = -clockR; dy <= clockR; dy++) {
+        for (let dx = -clockR; dx <= clockR; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist <= clockR) {
+            ctx.fillStyle = dist > clockR - 2 ? '#cc9933' : '#1a1a2e';
+            ctx.fillRect(clockCX + dx, clockCY + dy, 1, 1);
+          }
+        }
+      }
+
+      // Brass border dots around circumference (every 30 degrees)
+      ctx.fillStyle = '#cc9933';
+      for (let i = 0; i < 12; i++) {
+        const a = i * (Math.PI * 2 / 12);
+        const dotX = clockCX + Math.cos(a) * (clockR - 3);
+        const dotY = clockCY + Math.sin(a) * (clockR - 3);
+        ctx.fillRect(Math.floor(dotX), Math.floor(dotY), 1, 1);
+      }
+
+      // Tick marks at 12, 3, 6, 9 o'clock (slightly larger)
+      ctx.fillStyle = PALETTE.WARM_WHITE;
+      for (let i = 0; i < 4; i++) {
+        const a = i * (Math.PI / 2) - Math.PI / 2; // start at 12 o'clock
+        const innerR = clockR - 5;
+        const outerR = clockR - 2;
+        const ix = clockCX + Math.cos(a) * innerR;
+        const iy = clockCY + Math.sin(a) * innerR;
+        const ox = clockCX + Math.cos(a) * outerR;
+        const oy = clockCY + Math.sin(a) * outerR;
+        ctx.fillRect(Math.floor(ix), Math.floor(iy), 1, 1);
+        ctx.fillRect(Math.floor(ox), Math.floor(oy), 1, 1);
+      }
+
+      // Hour hand — based on gameDay
+      const gameDay = state?.gameDay ?? 0;
+      const hourAngle = (gameDay % 12) / 12 * Math.PI * 2 - Math.PI / 2;
+      const hourLen = clockR * 0.45;
+      ctx.fillStyle = PALETTE.WARM_WHITE;
+      for (let s = 0; s < hourLen; s += 1) {
+        const hx = clockCX + Math.cos(hourAngle) * s;
+        const hy = clockCY + Math.sin(hourAngle) * s;
+        ctx.fillRect(Math.floor(hx), Math.floor(hy), 1, 1);
+      }
+
+      // Minute hand — based on real-time (one full revolution per 60 seconds)
+      const minuteAngle = ((t / 60000) % 1) * Math.PI * 2 - Math.PI / 2;
+      const minuteLen = clockR * 0.7;
+      ctx.fillStyle = PALETTE.LIGHT_GRAY;
+      for (let s = 0; s < minuteLen; s += 1) {
+        const mx = clockCX + Math.cos(minuteAngle) * s;
+        const my = clockCY + Math.sin(minuteAngle) * s;
+        ctx.fillRect(Math.floor(mx), Math.floor(my), 1, 1);
+      }
+
+      // Center hub dot
+      ctx.fillStyle = '#cc9933';
+      ctx.fillRect(clockCX - 1, clockCY - 1, 2, 2);
+      ctx.restore();
+    }
   }
 
   _animateUnderground(renderer, state) {
@@ -2251,6 +2532,147 @@ export class ZoneRenderer {
     ctx.fillStyle = PALETTE.YELLOW;
     ctx.fillRect(15 * T, 5 * T, 3 * T, 2 * T);
     ctx.globalAlpha = 1;
+
+    // Steam Forge (when purchased) — geothermal steam system
+    if ((state?.purchasedExpansions ?? []).some(p => p.key === 'steamForge')) {
+      const ts = t * 0.001;
+
+      // === Main pipes (thicker, with joints and flanges) ===
+      // Upper pipe — row 7, cols 1-6
+      ctx.fillStyle = '#994422'; // dark copper base
+      ctx.fillRect(1 * T, 7 * T + 4, 5 * T, 5);
+      ctx.fillStyle = '#cc6633'; // copper highlight top
+      ctx.fillRect(1 * T, 7 * T + 4, 5 * T, 2);
+      ctx.fillStyle = '#bb5522'; // mid tone
+      ctx.fillRect(1 * T, 7 * T + 6, 5 * T, 1);
+      // Pipe flanges (bolted joints)
+      for (const fx of [2 * T, 4 * T]) {
+        ctx.fillStyle = '#aa7733';
+        ctx.fillRect(fx - 1, 7 * T + 3, 3, 7);
+        ctx.fillStyle = '#887722';
+        ctx.fillRect(fx, 7 * T + 3, 1, 1); // bolt top
+        ctx.fillRect(fx, 7 * T + 9, 1, 1); // bolt bottom
+      }
+
+      // Lower pipe — row 9, cols 1-6
+      ctx.fillStyle = '#994422';
+      ctx.fillRect(1 * T, 9 * T + 4, 5 * T, 5);
+      ctx.fillStyle = '#cc6633';
+      ctx.fillRect(1 * T, 9 * T + 4, 5 * T, 2);
+      ctx.fillStyle = '#bb5522';
+      ctx.fillRect(1 * T, 9 * T + 6, 5 * T, 1);
+      // Flanges
+      for (const fx of [2 * T + 8, 4 * T + 8]) {
+        ctx.fillStyle = '#aa7733';
+        ctx.fillRect(fx - 1, 9 * T + 3, 3, 7);
+        ctx.fillStyle = '#887722';
+        ctx.fillRect(fx, 9 * T + 3, 1, 1);
+        ctx.fillRect(fx, 9 * T + 9, 1, 1);
+      }
+
+      // Vertical connector pipe between upper and lower
+      ctx.fillStyle = '#994422';
+      ctx.fillRect(5 * T + 6, 7 * T + 9, 4, 2 * T - 2);
+      ctx.fillStyle = '#cc6633';
+      ctx.fillRect(5 * T + 6, 7 * T + 9, 2, 2 * T - 2);
+
+      // === Valve wheel on upper pipe ===
+      const vx = 3 * T + 4, vy = 7 * T;
+      ctx.fillStyle = '#cc3333'; // red valve wheel
+      // Wheel spokes (rotating)
+      const valveAngle = ts * 0.5;
+      for (let spoke = 0; spoke < 4; spoke++) {
+        const a = valveAngle + spoke * Math.PI / 2;
+        const sx = vx + Math.cos(a) * 3;
+        const sy = vy + Math.sin(a) * 3;
+        ctx.fillRect(Math.floor(sx), Math.floor(sy), 1, 1);
+      }
+      // Wheel hub
+      ctx.fillStyle = '#aa2222';
+      ctx.fillRect(vx, vy, 1, 1);
+      // Valve stem
+      ctx.fillStyle = '#888888';
+      ctx.fillRect(vx, vy + 1, 1, 3);
+
+      // === Pressure gauge (larger, col 2, row 6) ===
+      const gaugeX = 2 * T + T / 2;
+      const gaugeY = 6 * T + T / 2;
+      const gaugeR = 5;
+
+      // Gauge face
+      ctx.fillStyle = '#1a1a1a';
+      for (let gdy = -gaugeR; gdy <= gaugeR; gdy++) {
+        for (let gdx = -gaugeR; gdx <= gaugeR; gdx++) {
+          if (gdx * gdx + gdy * gdy <= gaugeR * gaugeR) {
+            ctx.fillRect(gaugeX + gdx, gaugeY + gdy, 1, 1);
+          }
+        }
+      }
+      // Brass ring border
+      ctx.fillStyle = '#cc9933';
+      for (let gdy = -gaugeR; gdy <= gaugeR; gdy++) {
+        for (let gdx = -gaugeR; gdx <= gaugeR; gdx++) {
+          const dist = Math.sqrt(gdx * gdx + gdy * gdy);
+          if (dist <= gaugeR && dist > gaugeR - 1.5) {
+            ctx.fillRect(gaugeX + gdx, gaugeY + gdy, 1, 1);
+          }
+        }
+      }
+      // Gauge markings (green/yellow/red zones)
+      for (let a = -2.5; a < 0.5; a += 0.3) {
+        const markR = gaugeR - 2;
+        const mx = gaugeX + Math.cos(a) * markR;
+        const my = gaugeY + Math.sin(a) * markR;
+        ctx.fillStyle = a < -1.5 ? '#00aa44' : a < -0.5 ? '#ffcc00' : '#ff3333';
+        ctx.fillRect(Math.floor(mx), Math.floor(my), 1, 1);
+      }
+      // Needle (oscillating in green-yellow range)
+      const needleAngle = -2.0 + Math.sin(ts * 0.8) * 0.6;
+      ctx.fillStyle = '#ff3333';
+      for (let s = 0; s < gaugeR - 1; s++) {
+        const pnx = gaugeX + Math.cos(needleAngle) * s;
+        const pny = gaugeY + Math.sin(needleAngle) * s;
+        ctx.fillRect(Math.floor(pnx), Math.floor(pny), 1, 1);
+      }
+      // Center hub
+      ctx.fillStyle = '#cc9933';
+      ctx.fillRect(gaugeX - 1, gaugeY - 1, 2, 2);
+
+      // === Steam jets (larger, more visible wisps) ===
+      ctx.save();
+      const jetPositions = [
+        { px: 1 * T + 12, py: 7 * T + 3 },
+        { px: 4 * T + 6,  py: 7 * T + 3 },
+        { px: 2 * T + 4,  py: 9 * T + 3 },
+        { px: 5 * T,      py: 9 * T + 3 },
+      ];
+      for (const jet of jetPositions) {
+        for (let i = 0; i < 5; i++) {
+          const rise = (ts * 1.8 + i * 0.7) % 3.5;
+          const alpha = Math.max(0, 1 - rise / 3.5) * 0.45;
+          const xOff = Math.sin(ts * 1.5 + i * 1.3) * 3;
+          const spread = rise * 0.8; // wisps spread as they rise
+          ctx.globalAlpha = alpha;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(
+            Math.floor(jet.px + xOff - spread),
+            Math.floor(jet.py - rise * T * 0.6),
+            Math.ceil(2 + spread * 2), 2
+          );
+        }
+      }
+      ctx.globalAlpha = 1;
+      ctx.restore();
+
+      // === Warning sign label ===
+      ctx.fillStyle = '#ffcc00';
+      ctx.fillRect(1 * T, 10 * T + 2, 8, 6);
+      ctx.fillStyle = '#333333';
+      ctx.fillRect(1 * T + 1, 10 * T + 3, 6, 4);
+      ctx.fillStyle = '#ffcc00';
+      ctx.fillRect(1 * T + 3, 10 * T + 4, 2, 2); // ! exclamation mark
+      ctx.fillRect(1 * T + 3, 10 * T + 3, 2, 1);
+    }
   }
 
   _animateLuxury(renderer, state) {
@@ -2304,6 +2726,179 @@ export class ZoneRenderer {
       ctx.fillRect(tv.x - 1, tv.y - 1, 5, 4);
     }
     ctx.globalAlpha = 1;
+
+    // Luxury Aquarium Wall (when purchased) — right wall, cols 26-29, rows 4-14
+    if ((state?.purchasedExpansions ?? []).some(p => p.key === 'luxuryAquariumWall')) {
+      const ts = t * 0.001;
+      const aqLeft = 26 * T;
+      const aqTop = 4 * T;
+      const aqW = 4 * T;
+      const aqH = 10 * T;
+
+      ctx.save();
+
+      // === Aquarium tank frame (brass border) ===
+      ctx.fillStyle = '#886622';
+      ctx.fillRect(aqLeft - 1, aqTop - 1, aqW + 2, 1);        // top
+      ctx.fillRect(aqLeft - 1, aqTop + aqH, aqW + 2, 1);      // bottom
+      ctx.fillRect(aqLeft - 1, aqTop, 1, aqH);                 // left
+      ctx.fillRect(aqLeft + aqW, aqTop, 1, aqH);               // right
+      // Inner frame highlight
+      ctx.fillStyle = '#aa9944';
+      ctx.fillRect(aqLeft, aqTop - 1, aqW, 1);
+
+      // === Deep blue water background ===
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = '#002266';
+      ctx.fillRect(aqLeft, aqTop, aqW, aqH);
+      // Depth gradient (darker at bottom)
+      ctx.globalAlpha = 0.15;
+      ctx.fillStyle = '#000033';
+      ctx.fillRect(aqLeft, aqTop + aqH * 0.6, aqW, aqH * 0.4);
+      ctx.globalAlpha = 1;
+
+      // === Sandy bottom ===
+      ctx.fillStyle = '#ccaa66';
+      ctx.fillRect(aqLeft, aqTop + aqH - 4, aqW, 3);
+      ctx.fillStyle = '#bbaa55';
+      ctx.fillRect(aqLeft, aqTop + aqH - 2, aqW, 2);
+      // Pebbles
+      ctx.fillStyle = '#998844';
+      ctx.fillRect(aqLeft + 4, aqTop + aqH - 4, 2, 1);
+      ctx.fillRect(aqLeft + 15, aqTop + aqH - 3, 1, 1);
+      ctx.fillRect(aqLeft + 30, aqTop + aqH - 4, 2, 1);
+      ctx.fillRect(aqLeft + 45, aqTop + aqH - 3, 1, 1);
+
+      // === Seaweed (3 strands swaying) ===
+      const seaweedPositions = [aqLeft + 6, aqLeft + 22, aqLeft + 42];
+      for (let si = 0; si < seaweedPositions.length; si++) {
+        const swx = seaweedPositions[si];
+        const sway = Math.sin(ts * 0.8 + si * 1.5) * 2;
+        ctx.fillStyle = '#226633';
+        for (let seg = 0; seg < 6; seg++) {
+          const segSway = Math.floor(sway * (seg / 6));
+          ctx.fillRect(swx + segSway, aqTop + aqH - 6 - seg * 3, 2, 3);
+        }
+        // Leaf tips
+        ctx.fillStyle = '#33aa44';
+        ctx.fillRect(swx + Math.floor(sway) - 1, aqTop + aqH - 22, 1, 2);
+        ctx.fillRect(swx + Math.floor(sway) + 2, aqTop + aqH - 20, 1, 2);
+      }
+
+      // === Small coral cluster ===
+      ctx.fillStyle = '#cc5566';
+      ctx.fillRect(aqLeft + 50, aqTop + aqH - 8, 3, 4);
+      ctx.fillRect(aqLeft + 49, aqTop + aqH - 6, 1, 2);
+      ctx.fillStyle = '#ff7788';
+      ctx.fillRect(aqLeft + 51, aqTop + aqH - 9, 1, 1);
+      ctx.fillRect(aqLeft + 49, aqTop + aqH - 7, 1, 1);
+
+      // === Fish (5 fish with proper shapes) ===
+      this._aquariumFish = this._aquariumFish ?? [
+        { x: 5,      y: 2 * T, speed: 0.25, color: '#ff8844', accent: '#ffaa66', dir: 1, size: 'lg' },
+        { x: 3 * T,  y: 4 * T, speed: 0.18, color: '#44aaff', accent: '#66ccff', dir: -1, size: 'md' },
+        { x: T,      y: 6 * T, speed: 0.30, color: '#ffec27', accent: '#ffff66', dir: 1, size: 'md' },
+        { x: 2 * T,  y: 3 * T, speed: 0.15, color: '#ff77a8', accent: '#ffaacc', dir: 1, size: 'sm' },
+        { x: 4 * T,  y: 7 * T, speed: 0.22, color: '#00e436', accent: '#66ff88', dir: -1, size: 'sm' },
+      ];
+
+      for (const fish of this._aquariumFish) {
+        fish.x += fish.speed * fish.dir;
+        if (fish.x > aqW - 8) { fish.x = aqW - 8; fish.dir = -1; }
+        if (fish.x < 2) { fish.x = 2; fish.dir = 1; }
+
+        const fx = Math.floor(aqLeft + fish.x);
+        const fy = Math.floor(aqTop + fish.y);
+        const wobble = Math.sin(ts * 2 + fish.x * 0.1) * 0.5;
+
+        if (fish.size === 'lg') {
+          // Large fish: 7x4 body, tail, dorsal fin, eye
+          ctx.fillStyle = fish.color;
+          ctx.fillRect(fx + (fish.dir > 0 ? 2 : 0), fy + 1 + wobble, 5, 3);
+          ctx.fillRect(fx + (fish.dir > 0 ? 3 : 0), fy + wobble, 3, 1); // top ridge
+          // Tail fin
+          const tailX = fish.dir > 0 ? fx : fx + 6;
+          ctx.fillRect(tailX, fy + wobble, 2, 1);
+          ctx.fillRect(tailX, fy + 3 + wobble, 2, 1);
+          ctx.fillRect(tailX + (fish.dir > 0 ? 0 : 1), fy + 1 + wobble, 1, 2);
+          // Dorsal fin
+          ctx.fillStyle = fish.accent;
+          ctx.fillRect(fx + 3, fy - 1 + wobble, 2, 1);
+          // Eye
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(fx + (fish.dir > 0 ? 5 : 1), fy + 1 + wobble, 1, 1);
+          ctx.fillStyle = '#111111';
+          ctx.fillRect(fx + (fish.dir > 0 ? 6 : 0), fy + 1 + wobble, 1, 1);
+        } else if (fish.size === 'md') {
+          // Medium fish: 5x3 body
+          ctx.fillStyle = fish.color;
+          ctx.fillRect(fx + 1, fy + wobble, 4, 2);
+          ctx.fillRect(fx + 2, fy + 2 + wobble, 2, 1);
+          // Tail
+          const tailX = fish.dir > 0 ? fx : fx + 4;
+          ctx.fillRect(tailX, fy + wobble, 1, 2);
+          // Eye
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(fx + (fish.dir > 0 ? 4 : 1), fy + wobble, 1, 1);
+        } else {
+          // Small fish: 3x2 body
+          ctx.fillStyle = fish.color;
+          ctx.fillRect(fx + 1, fy + wobble, 2, 2);
+          // Tail
+          ctx.fillRect(fx + (fish.dir > 0 ? 0 : 3), fy + 1 + wobble, 1, 1);
+          // Eye
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(fx + (fish.dir > 0 ? 2 : 1), fy + wobble, 1, 1);
+        }
+      }
+
+      // === Bubbles (larger, more visible) ===
+      this._aquariumBubbles = this._aquariumBubbles ?? [
+        { x: aqLeft + 8,        y: aqTop + aqH - 10, sz: 2 },
+        { x: aqLeft + T + 5,    y: aqTop + aqH - T,  sz: 1 },
+        { x: aqLeft + 2 * T,    y: aqTop + aqH - 2 * T, sz: 2 },
+        { x: aqLeft + 3 * T,    y: aqTop + aqH - T / 2, sz: 1 },
+        { x: aqLeft + T + 12,   y: aqTop + aqH - 3 * T, sz: 2 },
+        { x: aqLeft + 3 * T + 5, y: aqTop + aqH - 4 * T, sz: 1 },
+      ];
+
+      for (const bubble of this._aquariumBubbles) {
+        bubble.y -= 0.2 + bubble.sz * 0.05;
+        bubble.x += Math.sin(ts * 1.5 + bubble.y * 0.02) * 0.1; // slight lateral drift
+        if (bubble.y < aqTop + 3) {
+          bubble.y = aqTop + aqH - 6;
+          bubble.x = aqLeft + 4 + Math.floor(Math.random() * (aqW - 8));
+        }
+        const bAlpha = ((bubble.y - aqTop) / aqH) * 0.7;
+        ctx.globalAlpha = bAlpha;
+        ctx.fillStyle = '#88ccff';
+        ctx.fillRect(Math.floor(bubble.x), Math.floor(bubble.y), bubble.sz, bubble.sz);
+        // Highlight dot
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(Math.floor(bubble.x), Math.floor(bubble.y), 1, 1);
+      }
+      ctx.globalAlpha = 1;
+
+      // === Water surface shimmer (caustic-like light ripples) ===
+      for (let cx = 0; cx < aqW; cx += 3) {
+        const shimmer = Math.sin(ts * 2 + cx * 0.4) * 0.5 + 0.5;
+        ctx.globalAlpha = shimmer * 0.12;
+        ctx.fillStyle = PALETTE.WATER_LT;
+        ctx.fillRect(aqLeft + cx, aqTop + 1, 2, 1);
+      }
+      // Light rays from top
+      ctx.globalAlpha = 0.03;
+      ctx.fillStyle = '#88ccff';
+      for (let ray = 0; ray < 3; ray++) {
+        const rayX = aqLeft + 8 + ray * 18 + Math.sin(ts * 0.5 + ray) * 3;
+        for (let ry = 0; ry < aqH * 0.4; ry += 2) {
+          ctx.fillRect(Math.floor(rayX + ry * 0.2), aqTop + ry, 2, 2);
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      ctx.restore();
+    }
   }
 
   _animatePressBox(renderer, state) {
@@ -2369,6 +2964,111 @@ export class ZoneRenderer {
       const toggle = Math.floor(t / (500 + i * 200)) % 2 === 0;
       ctx.fillStyle = toggle ? PALETTE.RED : PALETTE.GREEN;
       ctx.fillRect(led.x, led.y, 1, 1);
+    }
+
+    // Broadcast Drone Rack (when purchased) — 2 camera drones hovering
+    if ((state?.purchasedExpansions ?? []).some(p => p.key === 'broadcastDroneRack')) {
+      const ts = t * 0.001;
+      const drones = [
+        { col: 5,  row: 3, bobOffset: 0 },
+        { col: 16, row: 3, bobOffset: 2 },
+      ];
+
+      for (const drone of drones) {
+        const bob = Math.sin(ts * 1.5 + drone.bobOffset) * 2;
+        const sway = Math.sin(ts * 0.7 + drone.bobOffset) * 1;
+        const dx = Math.floor(drone.col * T + sway);
+        const dy = Math.floor(drone.row * T + bob);
+
+        ctx.save();
+
+        // === Propeller arms (4 arms extending from center) ===
+        ctx.fillStyle = '#555555';
+        // Top-left arm
+        ctx.fillRect(dx - 3, dy - 1, 4, 1);
+        // Top-right arm
+        ctx.fillRect(dx + 7, dy - 1, 4, 1);
+        // Bottom-left arm
+        ctx.fillRect(dx - 3, dy + 4, 4, 1);
+        // Bottom-right arm
+        ctx.fillRect(dx + 7, dy + 4, 4, 1);
+
+        // === Propeller blades (3 frames of rotation) ===
+        const propFrame = Math.floor(ts * 12) % 3;
+        ctx.fillStyle = PALETTE.LIGHT_GRAY;
+        ctx.globalAlpha = 0.6;
+        const propPositions = [
+          { px: dx - 3, py: dy - 1 },
+          { px: dx + 8, py: dy - 1 },
+          { px: dx - 3, py: dy + 4 },
+          { px: dx + 8, py: dy + 4 },
+        ];
+        for (const pp of propPositions) {
+          if (propFrame === 0) {
+            ctx.fillRect(pp.px - 1, pp.py, 3, 1); // horizontal
+          } else if (propFrame === 1) {
+            ctx.fillRect(pp.px, pp.py - 1, 1, 3); // vertical
+          } else {
+            ctx.fillRect(pp.px - 1, pp.py - 1, 1, 1); // diagonal
+            ctx.fillRect(pp.px + 1, pp.py + 1, 1, 1);
+          }
+        }
+        ctx.globalAlpha = 1;
+
+        // === Central body (8x4 with detail) ===
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(dx + 1, dy, 6, 4);
+        // Body highlight
+        ctx.fillStyle = '#444444';
+        ctx.fillRect(dx + 2, dy, 4, 1);
+        // Body side panels
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(dx + 1, dy + 3, 6, 1);
+
+        // === Camera gimbal underneath ===
+        ctx.fillStyle = '#222222';
+        ctx.fillRect(dx + 3, dy + 4, 2, 2);
+        // Camera lens
+        ctx.fillStyle = '#4466aa';
+        ctx.fillRect(dx + 3, dy + 5, 2, 1);
+        // Lens reflection
+        ctx.fillStyle = '#88aadd';
+        ctx.fillRect(dx + 3, dy + 5, 1, 1);
+
+        // === Landing skids ===
+        ctx.fillStyle = '#444444';
+        ctx.fillRect(dx, dy + 6, 1, 1);
+        ctx.fillRect(dx + 7, dy + 6, 1, 1);
+        ctx.fillRect(dx - 1, dy + 6, 3, 1);
+        ctx.fillRect(dx + 6, dy + 6, 3, 1);
+
+        // === Recording light (blinks red) ===
+        const recOn = Math.floor(ts * 2) % 2 === 0;
+        if (recOn) {
+          ctx.fillStyle = '#ff0000';
+          ctx.fillRect(dx + 6, dy + 1, 1, 1);
+          // Glow
+          ctx.globalAlpha = 0.3;
+          ctx.fillStyle = '#ff0000';
+          ctx.fillRect(dx + 5, dy, 3, 3);
+          ctx.globalAlpha = 1;
+        }
+
+        // === Signal waves (emanating periodically) ===
+        const wavePhase = (ts * 2 + drone.bobOffset) % 2;
+        if (wavePhase < 1.2) {
+          ctx.globalAlpha = (1 - wavePhase / 1.2) * 0.3;
+          ctx.fillStyle = '#44ff88';
+          const wr = Math.floor(wavePhase * 6);
+          // Arc of dots above the drone
+          for (let wa = -2; wa <= 2; wa++) {
+            ctx.fillRect(dx + 4 + wa * (wr + 1), dy - 3 - wr, 1, 1);
+          }
+          ctx.globalAlpha = 1;
+        }
+
+        ctx.restore();
+      }
     }
   }
 

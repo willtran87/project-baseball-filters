@@ -22,7 +22,7 @@ export const GAME_CONFIG = {
   startingSeason: 1,
 
   // ── Time ────────────────────────────────────────────────────────────
-  inningDurationSec: 30, // real seconds per in-game inning
+  inningDurationSec: 45, // real seconds per in-game inning
   inningsPerGame: 9,
   gamesPerSeason: 80,
   offSeasonDays: 20, // planning days between seasons
@@ -146,6 +146,27 @@ export const GAME_CONFIG = {
       pressBox: 200,       // press box adds some capacity (raised from 50)
       secondDeck: 8000,    // major capacity jump
       championshipPavilion: 5000, // final expansion brings total to ~19,200
+      rallyRaccoon: 0,
+      neonFoodCourt: 200,       // food court draws a few more fans
+      foulBallPhysics: 0,
+      staffTrainingCenter: 0,
+      groundskeeperGarden: 0,
+      marketExchangeTerminal: 0,
+      seventhInningStretch: 0,
+      oldTimersWall: 300,        // hall of fame draws visitors
+      complianceOffice: 0,
+      phantomFrequency: 0,
+      broadcastDroneRack: 0,
+      steamForge: 0,
+      scoutingBureau: 0,
+      luxuryAquariumWall: 500,   // premium experience adds luxury seats
+      rustysRetirementClock: 0,
+      emergencyResponseCenter: 0,
+      winterizationBay: 0,
+      fireworksLauncherArray: 1000, // fireworks are a huge draw
+      stadiumBlimp: 0,
+      weatherStationTower: 0,
+      jumbotronUpgrade: 500, // improved fan experience adds some seats
     },
   },
 
@@ -158,13 +179,14 @@ export const GAME_CONFIG = {
 
   // ── Staff RPG Config ──────────────────────────────────────────────────
   staffConfig: {
-    hireCosts: { general: 1000, airTech: 1500, plumber: 1500, electrician: 1500 },
+    hireCosts: { general: 1000, airTech: 1500, plumber: 1500, electrician: 1500, sanitarian: 1500 },
     wageRange: { min: 100, max: 400 }, // per game day
     levelXpThresholds: [0, 50, 150, 300, 500, 750], // XP to reach each level (0-5)
     specializationBonuses: {
       airTech: { domain: 'air', speedMultiplier: 1.5, earlyWarningChance: 0.15 },
       plumber: { domain: 'water', speedMultiplier: 1.5, earlyWarningChance: 0.15 },
-      electrician: { domain: 'hvac', speedMultiplier: 1.5, earlyWarningChance: 0.15 },
+      electrician: { domain: 'electrical', speedMultiplier: 1.5, earlyWarningChance: 0.15 },
+      sanitarian: { domain: 'pest', speedMultiplier: 1.5, earlyWarningChance: 0.15 },
       general: { domain: null, speedMultiplier: 1.0, earlyWarningChance: 0.05 },
     },
     maxStaffRPG: 12,
@@ -218,6 +240,7 @@ export const GAME_CONFIG = {
       components: {
         hepaFilter: {
           name: 'HEPA Filter',
+          role: 'Captures airborne particles — protects fan comfort, concessions air quality, and press box ventilation',
           tiers: [
             { tier: 1, name: 'Basic Fiber Filter', brand: 'FilterRite', description: 'The duct tape of air filtration. Cheap, cheerful, and better than nothing.', cost: 500, energyPerDay: 25, lifespanGames: 8, qualityBonus: 10, domainHealthBonus: 5, sprite: 'filter_air_t1' },
             { tier: 2, name: 'Pleated HEPA', brand: 'CleanSweep', description: 'Folds more pleats than a Scottish kilt. Catches what the cheap stuff misses.', cost: 2000, energyPerDay: 45, lifespanGames: 18, qualityBonus: 25, domainHealthBonus: 8, sprite: 'filter_air_t2' },
@@ -227,6 +250,7 @@ export const GAME_CONFIG = {
         },
         ventFan: {
           name: 'Ventilation Fan',
+          role: 'Moves air through ducts — keeps concourse breathable, suites ventilated, and odors circulating out',
           tiers: [
             { tier: 1, name: 'Basic Axial Fan', brand: 'BreezeRookie', description: 'Spins like a reliever warming up. Gets air moving on a budget.', cost: 300, energyPerDay: 8, lifespanGames: 20, qualityBonus: 8, domainHealthBonus: 0, sprite: 'fan_t1' },
             { tier: 2, name: 'Centrifugal Fan', brand: 'WhirlWind', description: 'Throws air harder than a center fielder nailing home plate.', cost: 1200, energyPerDay: 15, lifespanGames: 40, qualityBonus: 18, domainHealthBonus: 1, sprite: 'fan_t2' },
@@ -236,6 +260,7 @@ export const GAME_CONFIG = {
         },
         airScrubber: {
           name: 'Air Scrubber',
+          role: 'Neutralizes contaminants — shields against weather degradation and maintains air purity',
           tiers: [
             { tier: 1, name: 'Activated Carbon', brand: 'CharcoalChamp', description: 'Absorbs odors like a bullpen catcher absorbs wild pitches.', cost: 1000, energyPerDay: 15, lifespanGames: 12, qualityBonus: 10, domainHealthBonus: 3, passive: 'weatherShield', sprite: 'scrubber_t1' },
             { tier: 2, name: 'Carbon + HEPA Combo', brand: 'DualThreat', description: 'A solid double-play combo. Handles particles AND smells.', cost: 4000, energyPerDay: 25, lifespanGames: 28, qualityBonus: 22, domainHealthBonus: 5, passive: 'weatherShield', sprite: 'scrubber_t2' },
@@ -255,6 +280,7 @@ export const GAME_CONFIG = {
       components: {
         waterFilter: {
           name: 'Water Filter',
+          role: 'Purifies drinking water — keeps restrooms, concession stands, and field irrigation clean',
           tiers: [
             { tier: 1, name: 'Sediment Screens', brand: 'SiftStarter', description: 'Catches the big stuff. Think of it as your infield defense.', cost: 400, energyPerDay: 20, lifespanGames: 10, qualityBonus: 10, domainHealthBonus: 5, sprite: 'water_filter_t1' },
             { tier: 2, name: 'Carbon Block Filter', brand: 'AquaPure', description: 'Carbon filtration so reliable, it\'s your everyday lineup water filter.', cost: 1800, energyPerDay: 35, lifespanGames: 20, qualityBonus: 25, domainHealthBonus: 8, sprite: 'water_filter_t2' },
@@ -264,6 +290,7 @@ export const GAME_CONFIG = {
         },
         plumbing: {
           name: 'Plumbing',
+          role: 'Carries water through the stadium — prevents pipe bursts, restroom flooding, and freeze damage',
           tiers: [
             { tier: 1, name: 'Galvanized Steel', brand: 'IronHorse', description: 'Tough old-school pipes. They\'ll rust eventually, but they show up every day.', cost: 2000, energyPerDay: 0, lifespanGames: 40, qualityBonus: 5, domainHealthBonus: 0, sprite: 'plumbing_t1' },
             { tier: 2, name: 'Copper Piping', brand: 'CopperClassic', description: 'The gold glove of plumbing. Reliable, time-tested, and looks great doing it.', cost: 8000, energyPerDay: 0, lifespanGames: 80, qualityBonus: 12, domainHealthBonus: 1, sprite: 'plumbing_t2' },
@@ -273,6 +300,7 @@ export const GAME_CONFIG = {
         },
         coolingSystem: {
           name: 'Cooling System',
+          role: 'Chills water for HVAC — cross-domain synergy keeps temperatures down stadium-wide',
           tiers: [
             { tier: 1, name: 'Basic Evaporative', brand: 'MistRunner', description: 'Sprays a fine mist and hopes for the best. Hey, it\'s cool-ish.', cost: 1500, energyPerDay: 20, lifespanGames: 20, qualityBonus: 8, domainHealthBonus: 3, passive: 'crossDomain', sprite: 'cooling_t1' },
             { tier: 2, name: 'Chilled Water Loop', brand: 'ChillZone', description: 'Circulates cold water like a well-run double play. Smooth and efficient.', cost: 6000, energyPerDay: 35, lifespanGames: 45, qualityBonus: 18, domainHealthBonus: 5, passive: 'crossDomain', sprite: 'cooling_t2' },
@@ -292,6 +320,7 @@ export const GAME_CONFIG = {
       components: {
         hvacUnit: {
           name: 'HVAC Unit',
+          role: 'Heats and cools all zones — maintains fan comfort, food safety temperatures, and ball storage humidity',
           tiers: [
             { tier: 1, name: 'Window Units', brand: 'BenchWarmer', description: 'Rattles louder than a stadium organ. But hey, cold air is cold air.', cost: 800, energyPerDay: 35, lifespanGames: 10, efficiency: 0.60, comfortBonus: 10, domainHealthBonus: 5, sprite: 'hvac_t1' },
             { tier: 2, name: 'Split System', brand: 'SplitDecision', description: 'Half inside, half outside. Gets the job done like a reliable middle reliever.', cost: 5000, energyPerDay: 65, lifespanGames: 25, efficiency: 0.75, comfortBonus: 25, domainHealthBonus: 8, sprite: 'hvac_t2' },
@@ -301,6 +330,7 @@ export const GAME_CONFIG = {
         },
         climateController: {
           name: 'Climate Zone Controller',
+          role: 'Regulates temperature per zone — keeps luxury suites, press box, and concourse at target temps',
           tiers: [
             { tier: 1, name: 'Manual Thermostat', brand: 'OldSchool', description: 'Turn the dial and pray. Like managing by gut feeling.', cost: 200, energyPerDay: 0, lifespanGames: 50, comfortBonus: 3, domainHealthBonus: 0, sprite: 'climate_t1' },
             { tier: 2, name: 'Programmable Thermostat', brand: 'ClockWork', description: 'Set it and forget it. Your bullpen schedule for temperature.', cost: 1500, energyPerDay: 5, lifespanGames: 80, comfortBonus: 8, domainHealthBonus: 1, sprite: 'climate_t2' },
@@ -310,6 +340,7 @@ export const GAME_CONFIG = {
         },
         ductwork: {
           name: 'Ductwork',
+          role: 'Distributes conditioned air — reduces maintenance costs and prevents energy waste from leaks',
           tiers: [
             { tier: 1, name: 'Basic Flex Duct', brand: 'FlexRookie', description: 'Bendy tubes that get air where it needs to go. The rookie utility player of HVAC.', cost: 400, energyPerDay: 5, lifespanGames: 25, comfortBonus: 5, domainHealthBonus: 3, passive: 'maintenanceSaver', sprite: 'duct_t1' },
             { tier: 2, name: 'Rigid Metal Duct', brand: 'SteelBreeze', description: 'Straight-shooting metal ducts. Reliable airflow like a consistent batting average.', cost: 2500, energyPerDay: 8, lifespanGames: 50, comfortBonus: 10, domainHealthBonus: 5, passive: 'maintenanceSaver', sprite: 'duct_t2' },
@@ -336,6 +367,7 @@ export const GAME_CONFIG = {
       components: {
         drainSystem: {
           name: 'Drain System',
+          role: 'Moves rainwater and runoff — prevents flooding, protects field conditions, and feeds storm sewers',
           tiers: [
             { tier: 1, name: 'Basic Gravity Drains', brand: 'FlowRookie', description: 'Water goes down. That\'s the whole pitch. Simple but honest.', cost: 600, energyPerDay: 15, lifespanGames: 14, capacityGPM: 500, integrityBonus: 10, domainHealthBonus: 5, sprite: 'drain_t1' },
             { tier: 2, name: 'Pump-Assisted Drains', brand: 'PumpAction', description: 'When gravity isn\'t enough, pump it out. Like a pinch-hit double.', cost: 3000, energyPerDay: 40, lifespanGames: 28, capacityGPM: 1200, integrityBonus: 25, domainHealthBonus: 8, sprite: 'drain_t2' },
@@ -345,6 +377,7 @@ export const GAME_CONFIG = {
         },
         fieldDrainage: {
           name: 'Field Drainage',
+          role: 'Keeps the playing surface dry — prevents rain delays, muddy conditions, and turf damage',
           tiers: [
             { tier: 1, name: 'Basic French Drains', brand: 'DirtDog', description: 'Simple trenches filled with gravel. The workhorse of field drainage.', cost: 2000, energyPerDay: 0, lifespanGames: 30, capacityGPM: 300, integrityBonus: 8, domainHealthBonus: 0, sprite: 'field_drain_t1' },
             { tier: 2, name: 'Gravel Trench System', brand: 'DiamondDrain', description: 'Keeps the diamond dry and playable. No more mudball in the 5th inning.', cost: 7000, energyPerDay: 5, lifespanGames: 60, capacityGPM: 800, integrityBonus: 18, domainHealthBonus: 1, sprite: 'field_drain_t2' },
@@ -354,11 +387,94 @@ export const GAME_CONFIG = {
         },
         sewage: {
           name: 'Sewage Processing',
+          role: 'Processes stadium waste — reduces crisis reputation penalties and prevents sewage backups',
           tiers: [
             { tier: 1, name: 'Basic Septic', brand: 'StinkStop', description: 'Nobody wants to think about sewage, but someone has to. That someone is StinkStop.', cost: 1000, energyPerDay: 10, lifespanGames: 25, capacityGPM: 200, integrityBonus: 5, domainHealthBonus: 3, passive: 'crisisArmor', sprite: 'sewage_t1' },
             { tier: 2, name: 'Pump Station', brand: 'FlushForce', description: 'Pumps waste like a slugger launches dingers. Out of the park, out of mind.', cost: 5000, energyPerDay: 25, lifespanGames: 50, capacityGPM: 600, integrityBonus: 15, domainHealthBonus: 5, passive: 'crisisArmor', sprite: 'sewage_t2' },
             { tier: 3, name: 'Aeration System', brand: 'BubbleUp', description: 'Adds oxygen to break down waste. Science doing the dirty work so you don\'t have to.', cost: 14000, energyPerDay: 35, lifespanGames: 80, capacityGPM: 1200, integrityBonus: 30, domainHealthBonus: 7, passive: 'crisisArmor', sprite: 'sewage_t3' },
             { tier: 4, name: 'Aerobic Treatment', brand: 'BioClean Elite', description: 'Full aerobic treatment that outputs near-clean water. The MVP of waste management.', cost: 25000, energyPerDay: 30, lifespanGames: 140, capacityGPM: 2500, integrityBonus: 45, domainHealthBonus: 8, passive: 'crisisArmor', sprite: 'sewage_t4' },
+          ],
+        },
+      },
+    },
+
+    electrical: {
+      name: 'Electrical Grid',
+      color: '#ffcc00', // amber
+      metricName: 'Load',
+      warningThreshold: 55,
+      criticalThreshold: 25,
+      cascadeAmplifier: true, // unique: below 30%, all other domains degrade 25% faster
+      components: {
+        circuitBreaker: {
+          name: 'Circuit Breaker',
+          role: 'Distributes power load — protects HVAC compressors, scoreboard, lighting, and pump stations',
+          tiers: [
+            { tier: 1, name: 'Fuse Box', brand: 'SparkRookie', description: 'The original overcurrent protection. Blows a fuse so your stadium doesn\'t.', cost: 700, energyPerDay: 20, lifespanGames: 10, qualityBonus: 10, domainHealthBonus: 5, sprite: 'breaker_t1' },
+            { tier: 2, name: 'Molded Case Breaker', brand: 'GridGuard', description: 'Industrial-grade breaker that trips clean. Your bullpen arm for load management.', cost: 3500, energyPerDay: 35, lifespanGames: 22, qualityBonus: 25, domainHealthBonus: 8, sprite: 'breaker_t2' },
+            { tier: 3, name: 'Digital Breaker Array', brand: 'VoltStar', description: 'Microsecond response times and remote monitoring. Sabermetrics for your power grid.', cost: 14000, energyPerDay: 50, lifespanGames: 45, qualityBonus: 40, domainHealthBonus: 12, sprite: 'breaker_t3' },
+            { tier: 4, name: 'Smart Distribution Hub', brand: 'PowerPlay Elite', description: 'AI-managed load balancing across all zones. The franchise player of electrical systems.', cost: 38000, energyPerDay: 40, lifespanGames: 75, qualityBonus: 55, domainHealthBonus: 15, sprite: 'breaker_t4' },
+          ],
+        },
+        surgeProtector: {
+          name: 'Surge Protector',
+          role: 'Absorbs voltage spikes — shields electronics, broadcast equipment, and sensitive controls from surges',
+          tiers: [
+            { tier: 1, name: 'Basic Power Strip', brand: 'ZapStop', description: 'Better than plugging straight into the wall. Barely.', cost: 350, energyPerDay: 5, lifespanGames: 30, qualityBonus: 5, domainHealthBonus: 0, sprite: 'surge_t1' },
+            { tier: 2, name: 'Metal Oxide Varistor', brand: 'LineSafe', description: 'Absorbs voltage spikes like a catcher absorbs fastballs. Solid defense.', cost: 2000, energyPerDay: 8, lifespanGames: 60, qualityBonus: 12, domainHealthBonus: 1, sprite: 'surge_t2' },
+            { tier: 3, name: 'Transient Voltage Suppressor', brand: 'SurgeMaster Pro', description: 'Clamps transients in nanoseconds. Lightning doesn\'t stand a chance.', cost: 8000, energyPerDay: 12, lifespanGames: 100, qualityBonus: 22, domainHealthBonus: 1, sprite: 'surge_t3' },
+            { tier: 4, name: 'Active Surge Isolation', brand: 'ThunderWall', description: 'Complete galvanic isolation from grid disturbances. Hall of Fame protection.', cost: 16000, energyPerDay: 10, lifespanGames: 170, qualityBonus: 32, domainHealthBonus: 2, sprite: 'surge_t4' },
+          ],
+        },
+        generator: {
+          name: 'Generator',
+          role: 'Provides backup power — halves Power Outage impact; T3+ prevents cascade to other domains',
+          tiers: [
+            { tier: 1, name: 'Portable Generator', brand: 'JuiceBox', description: 'Pull-start backup power. Loud, smelly, and absolutely essential.', cost: 1200, energyPerDay: 30, lifespanGames: 15, qualityBonus: 8, domainHealthBonus: 3, passive: 'powerBackup', sprite: 'gen_t1' },
+            { tier: 2, name: 'Transfer Switch + Genset', brand: 'BackStop', description: 'Automatic transfer to backup power. Your closer for blackout situations.', cost: 5500, energyPerDay: 45, lifespanGames: 35, qualityBonus: 18, domainHealthBonus: 5, passive: 'powerBackup', sprite: 'gen_t2' },
+            { tier: 3, name: 'Diesel Generator Array', brand: 'IronVolt', description: 'Multi-unit redundancy. If one goes down, the others pick up the slack.', cost: 18000, energyPerDay: 55, lifespanGames: 60, qualityBonus: 32, domainHealthBonus: 7, passive: 'powerBackup', sprite: 'gen_t3' },
+            { tier: 4, name: 'Battery + Solar Microgrid', brand: 'SunField UPS', description: 'Clean energy independence. The stadium practically powers itself.', cost: 42000, energyPerDay: 25, lifespanGames: 100, qualityBonus: 48, domainHealthBonus: 8, passive: 'powerBackup', sprite: 'gen_t4' },
+          ],
+        },
+      },
+    },
+
+    pest: {
+      name: 'Pest Control',
+      color: '#cc44cc', // magenta
+      metricName: 'Sanitation',
+      warningThreshold: 60,
+      criticalThreshold: 35,
+      infestationEscalation: true, // unique: below 40% degrades 1.5x, below 20% degrades 2x
+      components: {
+        trapSystem: {
+          name: 'Trap System',
+          role: 'Catches pests at entry points — protects concourse, tunnels, and equipment rooms from infestation',
+          tiers: [
+            { tier: 1, name: 'Snap Traps', brand: 'CritterOut', description: 'Old-school mouse control. If it ain\'t broke, don\'t fix it.', cost: 400, energyPerDay: 5, lifespanGames: 12, qualityBonus: 10, domainHealthBonus: 5, sprite: 'trap_t1' },
+            { tier: 2, name: 'Glue Board Stations', brand: 'StickyStrike', description: 'Strategic sticky traps at key entry points. Nothing gets past the infield.', cost: 2200, energyPerDay: 10, lifespanGames: 25, qualityBonus: 25, domainHealthBonus: 8, sprite: 'trap_t2' },
+            { tier: 3, name: 'Electronic Trap Array', brand: 'ZapTrap Pro', description: 'Motion-sensor activated. High-voltage pest control with zero chemicals.', cost: 9000, energyPerDay: 20, lifespanGames: 45, qualityBonus: 38, domainHealthBonus: 12, sprite: 'trap_t3' },
+            { tier: 4, name: 'Integrated Pest Intelligence', brand: 'BugOff AI', description: 'AI monitors pest activity, deploys countermeasures automatically. Front office analytics for vermin.', cost: 28000, energyPerDay: 15, lifespanGames: 70, qualityBonus: 52, domainHealthBonus: 15, sprite: 'trap_t4' },
+          ],
+        },
+        sealant: {
+          name: 'Structural Sealant',
+          role: 'Blocks pest entry routes — seals cracks, gaps, and openings to prevent rodent and insect access',
+          tiers: [
+            { tier: 1, name: 'Steel Wool Plugs', brand: 'RatBlock', description: 'Stuff steel wool in every crack. Simple, effective, and satisfying.', cost: 300, energyPerDay: 0, lifespanGames: 35, qualityBonus: 5, domainHealthBonus: 0, sprite: 'seal_t1' },
+            { tier: 2, name: 'Foam Sealant System', brand: 'GapGuard', description: 'Expanding foam fills gaps rodents love. Think of it as gap coverage for your stadium.', cost: 1500, energyPerDay: 0, lifespanGames: 65, qualityBonus: 12, domainHealthBonus: 1, sprite: 'seal_t2' },
+            { tier: 3, name: 'Metal Mesh Barrier', brand: 'FortressScreen', description: 'Woven steel mesh over every opening. Nothing bigger than air gets through.', cost: 6000, energyPerDay: 5, lifespanGames: 110, qualityBonus: 20, domainHealthBonus: 1, sprite: 'seal_t3' },
+            { tier: 4, name: 'Smart Perimeter System', brand: 'ShieldWall X', description: 'Sensor-equipped barriers that alert you to breach attempts. Fort Knox for pest prevention.', cost: 14000, energyPerDay: 8, lifespanGames: 180, qualityBonus: 28, domainHealthBonus: 2, sprite: 'seal_t4' },
+          ],
+        },
+        sanitizer: {
+          name: 'Sanitizer',
+          role: 'Eliminates pest attractants — reduces infestation damage; T3+ can prevent events entirely',
+          tiers: [
+            { tier: 1, name: 'Basic Dumpster Seal', brand: 'StinkGuard', description: 'Sealed dumpster lids keep pests from feasting on yesterday\'s hot dogs.', cost: 800, energyPerDay: 10, lifespanGames: 18, qualityBonus: 8, domainHealthBonus: 3, passive: 'infestationShield', sprite: 'sanitizer_t1' },
+            { tier: 2, name: 'Compactor + UV Treatment', brand: 'CleanSweep Pro', description: 'Compacts waste and UV-sterilizes surfaces. Two outs with one pitch.', cost: 4000, energyPerDay: 25, lifespanGames: 38, qualityBonus: 18, domainHealthBonus: 5, passive: 'infestationShield', sprite: 'sanitizer_t2' },
+            { tier: 3, name: 'Ozone Treatment System', brand: 'PureZone', description: 'Ozone breaks down organic attractants. Pests lose interest and move on.', cost: 12000, energyPerDay: 35, lifespanGames: 55, qualityBonus: 30, domainHealthBonus: 7, passive: 'infestationShield', sprite: 'sanitizer_t3' },
+            { tier: 4, name: 'Bioremediation Station', brand: 'EcoClean Elite', description: 'Engineered microbes devour waste at the molecular level. Nature doing your dirty work.', cost: 24000, energyPerDay: 20, lifespanGames: 95, qualityBonus: 42, domainHealthBonus: 8, passive: 'infestationShield', sprite: 'sanitizer_t4' },
           ],
         },
       },
@@ -429,11 +545,11 @@ export const GAME_CONFIG = {
     },
     {
       name: 'Heatwave',
-      description: 'Extreme heat stresses HVAC and water cooling systems for days.',
+      description: 'Extreme heat stresses HVAC, water cooling, and electrical systems for days.',
       seasons: ['summer'],
       probability: 0.08,
       durationHours: [72, 168], // 3-7 days
-      systemEffects: { hvac: 'extreme', water: 'high', air: 'medium' },
+      systemEffects: { hvac: 'extreme', water: 'high', air: 'medium', electrical: 'medium' },
       degradeMultiplier: 2.0,
       revenueMultiplier: 1.2,
     },
@@ -524,6 +640,28 @@ export const GAME_CONFIG = {
       degradeMultiplier: 2.2,
       revenueMultiplier: 0.4,
     },
+    {
+      name: 'Lightning Storm',
+      description: 'Severe lightning activity threatens electrical infrastructure. Surge protectors working overtime.',
+      seasons: ['spring', 'summer'],
+      probability: 0.06,
+      durationHours: [2, 8],
+      systemStress: { electrical: 2.5, drainage: 1.3 },
+      reputationImpact: -2,
+      degradeMultiplier: 1.8,
+      revenueMultiplier: 0.6,
+    },
+    {
+      name: 'Humid Summer Nights',
+      description: 'Oppressive humidity drives pests indoors and fouls air filtration. Pest and air systems under stress.',
+      seasons: ['summer'],
+      probability: 0.10,
+      durationHours: [24, 72],
+      systemStress: { pest: 2.0, air: 1.2 },
+      reputationImpact: -1,
+      degradeMultiplier: 1.3,
+      revenueMultiplier: 0.9,
+    },
   ],
 
   // ── Random Events ───────────────────────────────────────────────────
@@ -603,14 +741,14 @@ export const GAME_CONFIG = {
     },
     {
       name: 'Pest Infestation',
-      description: 'Pests detected in ventilation system. Air quality compromised.',
-      probability: 0.03,
-      triggerConditions: { poorAirFiltration: true },
-      affectedSystem: 'air',
+      description: 'Pests overrunning stadium areas! Sanitation systems overwhelmed.',
+      probability: 0.05,
+      triggerConditions: { poorPestControl: true },
+      affectedSystem: 'pest',
       degradeMultiplier: 1.5,
-      revenueMultiplier: 0.8,
+      revenueMultiplier: 0.7,
       responseWindowSec: 86400, // multi-day resolution
-      reputationPenalty: -4,
+      reputationPenalty: -6,
     },
     {
       name: 'Sponsor Inspection',
@@ -646,6 +784,29 @@ export const GAME_CONFIG = {
       revenueMultiplier: 1.8,
       responseWindowSec: 810, // ~3 games warning
       reputationBonus: 3,
+    },
+    {
+      name: 'Grid Surge',
+      description: 'Power grid voltage spike! Electrical systems taking heavy damage.',
+      probability: 0.05,
+      triggerConditions: { storm: true },
+      affectedSystem: 'electrical',
+      degradeMultiplier: 2.5,
+      revenueMultiplier: 0.8,
+      responseWindowSec: 300,
+      reputationPenalty: -4,
+    },
+    {
+      name: 'Health Department Raid',
+      description: 'Surprise health department inspection focused on pest and sanitation conditions!',
+      probability: 0.04,
+      triggerConditions: {},
+      affectedSystem: 'pest',
+      degradeMultiplier: 1.0,
+      revenueMultiplier: 1.0,
+      responseWindowSec: 0,
+      reputationPenalty: -8,
+      reputationBonus: 6,
     },
   ],
 
@@ -687,12 +848,37 @@ export const GAME_CONFIG = {
   // milestone purchase that transforms the player's capability, not just
   // a routine upgrade. The required new systems mean expansions also
   // increase ongoing maintenance burden — growth comes with responsibility.
+  // BALANCE: Total max revenue boost capped at +100% in EconomySystem.
+  // Non-special day total: ~60%. Special event day: ~100% (hits cap).
+  // Attendance bonuses are additive with 30% cap. Cost reduction capped at 30%.
+  // Individual values tuned so no single expansion feels game-breaking.
   expansions: [
-    { id: 'luxuryBoxWing', name: 'Luxury Box Wing', reputationRequired: 41, cost: 15000, revenueBoost: 0.30, newSystemsRequired: ['hvac', 'water'] },
-    { id: 'pressBox', name: 'Press Box Level', reputationRequired: 56, cost: 12000, revenueBoost: 0.10, newSystemsRequired: ['air'], mediaReputationBoost: true },
-    { id: 'undergroundHub', name: 'Underground Utility Hub', reputationRequired: 71, cost: 20000, revenueBoost: 0, operatingCostReduction: 0.20, newSystemsRequired: ['drainage'] },
-    { id: 'secondDeck', name: 'Second Deck Expansion', reputationRequired: 80, cost: 50000, revenueBoost: 0.50, newSystemsRequired: ['air', 'water', 'hvac', 'drainage'] },
-    { id: 'championshipPavilion', name: 'Championship Pavilion', reputationRequired: 90, cost: 80000, revenueBoost: 1.0, newSystemsRequired: ['air', 'water', 'hvac', 'drainage'], specialEventsOnly: true },
+    { id: 'rallyRaccoon', name: 'Rally Raccoon', reputationRequired: 38, cost: 8000, revenueBoost: 0, newSystemsRequired: [], description: 'A scrappy raccoon mascot roams the outfield, delighting fans and generating headlines.' },
+    { id: 'luxuryBoxWing', name: 'Luxury Box Wing', reputationRequired: 41, cost: 18000, revenueBoost: 0.12, newSystemsRequired: ['hvac', 'water'], description: 'Premium skybox suites for VIP guests. Requires climate and water service to operate.' },
+    { id: 'neonFoodCourt', name: 'Neon Food Court', reputationRequired: 42, cost: 14000, revenueBoost: 0, newSystemsRequired: ['water'], description: 'A glowing concourse eatery with neon signs. Fans spend more on food and drinks.' },
+    { id: 'foulBallPhysics', name: 'Foul Ball Physics Lab', reputationRequired: 43, cost: 9000, revenueBoost: 0, newSystemsRequired: [], description: 'Track and display wild foul ball trajectories. Fans love the spectacle.' },
+    { id: 'staffTrainingCenter', name: 'Staff Training Center', reputationRequired: 44, cost: 10000, revenueBoost: 0, newSystemsRequired: [], description: 'A dedicated facility for staff development. Training is faster and more effective.' },
+    { id: 'groundskeeperGarden', name: "Groundskeeper's Garden", reputationRequired: 45, cost: 12000, revenueBoost: 0, newSystemsRequired: ['water'], description: 'A lush garden strip along the outfield wall. Boosts water health and reduces drainage penalties.' },
+    { id: 'marketExchangeTerminal', name: 'Market Exchange Terminal', reputationRequired: 46, cost: 11000, revenueBoost: 0, newSystemsRequired: [], description: 'Real-time market data stabilizes filter prices and improves sell-back value.' },
+    { id: 'seventhInningStretch', name: 'Seventh Inning Stretch Pavilion', reputationRequired: 48, cost: 12000, revenueBoost: 0, newSystemsRequired: [], description: 'A mid-game entertainment stage. Concession revenue surges in the late innings.' },
+    { id: 'stadiumBlimp', name: 'Stadium Blimp', reputationRequired: 50, cost: 20000, revenueBoost: 0.05, newSystemsRequired: [], description: 'An advertising blimp circles the stadium, boosting sponsor revenue and media attention.' },
+    { id: 'oldTimersWall', name: "Old-Timer's Wall of Fame", reputationRequired: 50, cost: 14000, revenueBoost: 0.03, newSystemsRequired: [], description: 'A hall of fame honoring stadium legends. Fans pay tribute and reputation milestones feel sweeter.' },
+    { id: 'complianceOffice', name: 'Compliance Office', reputationRequired: 52, cost: 13000, revenueBoost: 0, operatingCostReduction: 0.04, newSystemsRequired: [], description: 'A dedicated compliance team. Inspections go smoother and fines are reduced.' },
+    { id: 'phantomFrequency', name: 'Phantom Frequency Radio', reputationRequired: 54, cost: 15000, revenueBoost: 0, newSystemsRequired: [], description: 'A mysterious old radio picks up strange signals. Occasionally delivers unexpected windfalls.' },
+    { id: 'broadcastDroneRack', name: 'Broadcast Drone Rack', reputationRequired: 55, cost: 18000, revenueBoost: 0, newSystemsRequired: [], mediaReputationBoost: true, description: 'Camera drones capture stunning aerial footage, boosting media coverage and sponsor value.' },
+    { id: 'pressBox', name: 'Press Box Level', reputationRequired: 56, cost: 15000, revenueBoost: 0.08, newSystemsRequired: ['air'], mediaReputationBoost: true, description: 'Official press level with media facilities. Boosts coverage and spins negative headlines.' },
+    { id: 'weatherStationTower', name: 'Weather Station Tower', reputationRequired: 56, cost: 17000, revenueBoost: 0, newSystemsRequired: [], description: 'Advanced weather monitoring reduces filter stress and extends forecast range.' },
+    { id: 'steamForge', name: 'Steam Forge', reputationRequired: 57, cost: 16000, revenueBoost: 0, newSystemsRequired: ['hvac'], description: 'A geothermal steam system in the underground. Reduces HVAC and air filter wear.' },
+    { id: 'scoutingBureau', name: 'Scouting Bureau', reputationRequired: 58, cost: 17000, revenueBoost: 0, newSystemsRequired: [], description: 'Intelligence on rival operations. Sabotage damage is significantly reduced.' },
+    { id: 'luxuryAquariumWall', name: 'Luxury Aquarium Wall', reputationRequired: 60, cost: 25000, revenueBoost: 0.08, newSystemsRequired: ['water'], description: 'A stunning floor-to-ceiling aquarium in the luxury suites. Premium guests pay more and water health improves.' },
+    { id: 'rustysRetirementClock', name: "Rusty's Retirement Clock", reputationRequired: 62, cost: 16000, revenueBoost: 0, newSystemsRequired: [], description: 'A tribute to veteran staff. Experienced workers perform even better.' },
+    { id: 'emergencyResponseCenter', name: 'Emergency Response Center', reputationRequired: 64, cost: 22000, revenueBoost: 0, operatingCostReduction: 0.04, newSystemsRequired: [], description: 'A crisis management hub. Event chain damage reduced and emergency repairs are cheaper.' },
+    { id: 'jumbotronUpgrade', name: 'Jumbotron Upgrade', reputationRequired: 65, cost: 28000, revenueBoost: 0.04, newSystemsRequired: [], description: 'LED chase lights and pulsing spotlights wow the crowd, boosting attendance and concessions.' },
+    { id: 'winterizationBay', name: 'Winterization Bay', reputationRequired: 68, cost: 20000, revenueBoost: 0, operatingCostReduction: 0.05, newSystemsRequired: [], description: 'Seasonal prep facility. Off-season filter degradation halved and cold weather is less punishing.' },
+    { id: 'undergroundHub', name: 'Underground Utility Hub', reputationRequired: 71, cost: 25000, revenueBoost: 0, operatingCostReduction: 0.12, newSystemsRequired: ['drainage'], description: 'Central utility hub beneath the stadium. Major efficiency gains for all infrastructure.' },
+    { id: 'fireworksLauncherArray', name: 'Fireworks Launcher Array', reputationRequired: 72, cost: 35000, revenueBoost: 0.05, newSystemsRequired: [], description: 'Spectacular pyrotechnics for big game days. Attendance surge on special events.' },
+    { id: 'secondDeck', name: 'Second Deck Expansion', reputationRequired: 80, cost: 60000, revenueBoost: 0.20, newSystemsRequired: ['air', 'water', 'hvac', 'drainage'], description: 'A full second deck of seating. Massive capacity increase but demands top-tier infrastructure.' },
+    { id: 'championshipPavilion', name: 'Championship Pavilion', reputationRequired: 90, cost: 90000, revenueBoost: 0.35, newSystemsRequired: ['air', 'water', 'hvac', 'drainage'], specialEventsOnly: true, description: 'The crown jewel. Championship-worthy facilities that shine on the biggest game days.' },
   ],
 
   // ── Win / Lose Conditions ───────────────────────────────────────────
@@ -740,6 +926,17 @@ export const GAME_CONFIG = {
     { source: 'drainage', target: 'water', effect: 'backupContamination', severity: 'high' },
     { source: 'drainage', target: 'air', effect: 'floodingAirQuality', severity: 'medium' },
     { source: 'air', target: 'water', effect: 'scrubberWaterDemand', severity: 'low' },
+    // Electrical cascades — backbone domain affects everything when critical
+    { source: 'electrical', target: 'hvac', effect: 'powerLossHVACShutdown', severity: 'high' },
+    { source: 'electrical', target: 'water', effect: 'pumpStationFailure', severity: 'medium' },
+    { source: 'electrical', target: 'air', effect: 'ventilationPowerLoss', severity: 'medium' },
+    { source: 'electrical', target: 'drainage', effect: 'sumpPumpFailure', severity: 'low' },
+    // Pest cascades — sanitation failures contaminate other systems
+    { source: 'pest', target: 'air', effect: 'pestContaminationAir', severity: 'medium' },
+    { source: 'pest', target: 'water', effect: 'pestContaminationWater', severity: 'low' },
+    // Cross-domain cascades INTO pest — standing water and leaks attract pests
+    { source: 'drainage', target: 'pest', effect: 'standingWaterBreeding', severity: 'high' },
+    { source: 'water', target: 'pest', effect: 'leakAttractionPests', severity: 'low' },
   ],
 
   // ── Monthly Challenges (Post-Win Content) ──────────────────────────

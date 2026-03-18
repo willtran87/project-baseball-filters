@@ -81,6 +81,78 @@ const SABOTAGE_TYPES = [
   },
 ];
 
+// -- Absurd Baseball-Flavored Sabotage Announcements -------------------------
+
+const SABOTAGE_FLAVOR = {
+  supplyDisruption: [
+    'Victor hired a fleet of trained raccoons to reroute your filter deliveries to a Little League field in Tuscaloosa.',
+    'A man matching Victor\'s description was seen bribing your filter supplier with season tickets and a signed Babe Ruth "replica." Supplier says the deal was too good.',
+    'Your supply truck was last seen doing laps around a roundabout in New Jersey. The driver says a Glendale Grizzlies GPS was "helpfully" installed overnight.',
+    'Victor allegedly paid a group of retired umpires to form a human barricade around your loading dock. They keep yelling "SAFE!" whenever a delivery tries to get through.',
+    'Customs just flagged your filter shipment. Someone labeled every box "LIVE BEES — HANDLE WITH EXTREME CAUTION." Filter costs up 20%.',
+    'Your filter vendor called. He says a man in a Grizzlies windbreaker offered him a "once-in-a-lifetime timeshare opportunity" and he\'ll be unavailable for a week.',
+    'A suspiciously specific traffic jam has blocked every road to Ridgemont. Eyewitnesses report a fleet of Glendale mascot trucks doing 5 mph in every lane.',
+    'Your delivery was rerouted to the Glendale stadium loading dock. Victor says it was "an honest mistake" and that he\'ll "get around to returning it eventually."',
+    'Someone filed 200 separate building permits in your name at City Hall. Your supplier can\'t get through the parking lot. Victor was seen leaving with a briefcase full of forms.',
+    'The filter warehouse burned down. Just kidding — but Victor did convince the landlord to convert it into a Grizzlies fan merchandise store. Supply disrupted.',
+  ],
+  bribeInspector: [
+    'The health inspector was spotted at a steakhouse with Victor, ordering two porterhouses and "casually discussing stadium grades." Your next inspection just got personal.',
+    'The inspector\'s new golf bag has a Glendale Grizzlies logo on it. His handicap also mysteriously improved. Expect a thorough visit.',
+    'Victor gifted the health inspector a luxury suite at Glendale, a monogrammed clipboard, and what sources describe as "an unreasonable amount of beef jerky."',
+    'An anonymous tip line received a 47-page complaint about your stadium signed only as "Definitely Not Victor." The inspector is taking it very seriously.',
+    'The inspector just returned from a "totally unrelated" vacation in Glendale. He\'s wearing a Grizzlies hat and keeps muttering about "real stadium standards."',
+    'Victor enrolled the health inspector in a "Stadium Excellence Masterclass" held exclusively at Glendale. The graduation ceremony included a very thorough grading rubric.',
+    'A gift basket arrived at the inspector\'s office containing artisanal cheese, a bottle of wine, and a 14-point memo titled "Concerns About Ridgemont Stadium (Confidential)."',
+    'The inspector\'s kids were spotted at Glendale wearing VIP lanyards and eating free nachos. The inspector insists this will not affect his professional judgment.',
+  ],
+  poachStaff: [
+    'Victor left a trail of baseball cards and a pamphlet titled "Glendale: Where Dreams Come True (Better Dental Plan)" leading from your dugout to the parking lot.',
+    'A carrier pigeon landed on your stadium with a Glendale job offer strapped to its leg, a tiny Grizzlies jersey, and a miniature signing bonus.',
+    'Your unhappiest employee received a singing telegram from Victor. The song was "Take Me Out to the (Other) Ballgame." They were moved to tears.',
+    'Victor set up a lemonade stand outside your employee entrance offering "free career counseling" and suspiciously competitive salary packages.',
+    'A Glendale recruitment blimp has been hovering over your parking lot for three hours. It\'s playing "Don\'t Stop Believin\'" on a loop and dropping tiny parachute résumé forms.',
+    'Victor personally hand-delivered a fruit basket to your break room with a card reading "You deserve better. Call me. — V" and a burner phone taped to a banana.',
+    'Someone slid Glendale employment brochures under every bathroom stall door in your stadium. The benefits package includes a "dedicated nap room."',
+    'Victor hired a mariachi band to serenade your lowest-morale employee during their lunch break. The final song was "Adiós Ridgemont, Hola Glendale."',
+    'A stretch limo with Glendale plates has been idling outside your staff entrance since 6 AM. The chauffeur is holding a sign that says "YOUR NAME HERE."',
+  ],
+  smearCampaign: [
+    'The Ridgemont Herald is running a 3-part exposé titled "Is Casey Peralta Actually Three Raccoons in a Trenchcoat?" Reputation taking daily hits.',
+    'Victor hired a skywriter to spell "RIDGEMONT SMELLS" over the stadium. Unfortunately, it was a clear day and everyone saw it. Including your mother.',
+    'Someone bought every billboard on the highway to Ridgemont and replaced them with a photo of Victor giving a thumbs up next to the text "AT LEAST OUR PIPES WORK."',
+    'A new podcast called "Filtration Nation: A Disaster Story" just dropped with 5 episodes about your stadium. It already has more listeners than your PA announcer.',
+    'Victor released a line of novelty t-shirts reading "I Survived Ridgemont Stadium (Barely)." They\'re the #1 seller at every gas station in the tri-county area.',
+    'A fake Yelp page for Ridgemont Stadium appeared overnight with 400 one-star reviews. Every single one mentions "suspicious odors" and "a man named Victor recommended I visit Glendale instead."',
+    'The local news ran a segment called "Ridgemont: Stadium or Haunted House?" after receiving an anonymous VHS tape of your mechanical room set to horror movie music.',
+    'Victor funded a children\'s coloring book titled "Great Stadiums of America." Ridgemont is conspicuously absent. Glendale gets a two-page spread with a pop-up section.',
+    'A food truck parked outside your gates is selling a sandwich called "The Ridgemont Disaster." It\'s just wet bread. The truck has Glendale branding on the back.',
+    'Someone created a TikTok account called @RidgemontFails posting compilation videos of your worst moments. It has 50,000 followers. Victor follows it from his verified account.',
+  ],
+  infrastructureStress: [
+    'Someone loosened every bolt in your {domain} system with what witnesses describe as "a comically large wrench" and "surprisingly good technique."',
+    'Victor\'s guys allegedly poured maple syrup into your {domain} pipes. Maintenance reports the system now smells "delicious but deeply wrong."',
+    'A Glendale Grizzlies intern was caught trying to feed hot dogs to your {domain} equipment. He claims he was "just being friendly." System health declining.',
+    'Your {domain} system was discovered wrapped entirely in Glendale promotional banners. Removing them will take days. Victor denies everything while grinning.',
+    'Security footage shows a figure in a full Grizzlies mascot costume doing what can only be described as "aggressive maintenance" on your {domain} system at 3 AM.',
+    'Someone replaced all the warning labels on your {domain} equipment with motivational quotes attributed to Victor. "Winners don\'t need working pipes. — V. Harrison"',
+    'A family of possums was released into your {domain} system. Each one was wearing a tiny Glendale jersey. Animal control says they\'ve "never seen anything like it."',
+    'Your {domain} control panel was reprogrammed to play the Glendale Grizzlies fight song every time it activates. The password was changed to "VictorRules69."',
+    'Maintenance found a note duct-taped to your {domain} mainline reading: "Sorry about your system. Actually, no I\'m not. — Hugs, Victor."',
+    'Every gauge on your {domain} system was replaced with a novelty gauge that only reads "GLENDALE IS BETTER." Actual readings unavailable for days.',
+  ],
+};
+
+// -- Sabotage Impact Descriptions -------------------------------------------
+
+const SABOTAGE_IMPACT = {
+  supplyDisruption: 'Filter costs increased 20% for 5 days',
+  bribeInspector: 'Next health inspection will be 30% stricter',
+  poachStaff: null, // dynamic — handled in code
+  smearCampaign: 'Reputation -1 per day for 3 days',
+  infrastructureStress: null, // dynamic — includes domain name
+};
+
 // -- Rival Defense Definitions -----------------------------------------------
 
 const RIVAL_DEFENSE_DEFS = {
@@ -253,7 +325,8 @@ export class RivalSystem {
     // Player domain crisis (any domain < 25%): momentum +1
     const health = this.state.domainHealth;
     if (health) {
-      for (const key of ['air', 'water', 'hvac', 'drainage']) {
+      const domainKeys = Object.keys(this.state.config?.filtrationSystems ?? { air: 1, water: 1, hvac: 1, drainage: 1 });
+      for (const key of domainKeys) {
         if ((health[key] ?? 100) < 25) {
           momentum = Math.min(3, momentum + 1);
           break; // Only +1 per day even if multiple crises
@@ -479,7 +552,8 @@ export class RivalSystem {
       // Find weakest domain
       let weakest = null;
       let weakestScore = Infinity;
-      for (const key of ['air', 'water', 'hvac', 'drainage']) {
+      const allDomainKeys = Object.keys(this.state.config?.filtrationSystems ?? { air: 1, water: 1, hvac: 1, drainage: 1 });
+      for (const key of allDomainKeys) {
         const score = health[key] ?? 100;
         if (score < weakestScore) {
           weakestScore = score;
@@ -583,29 +657,36 @@ export class RivalSystem {
     const momentum = this.state.rivalMomentum ?? 0;
     this.state.rivalMomentum = Math.min(3, momentum + 1);
 
-    const victor = NPC_DATA.victor;
-    const portrait = victor?.portraits?.smug ?? 'portrait_victor_smug';
+    // Pick absurd flavor text
+    const flavorPool = SABOTAGE_FLAVOR[picked.id] ?? [];
+    let flavor = flavorPool[Math.floor(Math.random() * flavorPool.length)] ?? picked.description;
+    if (picked.id === 'infrastructureStress' && targetDomain) {
+      flavor = flavor.replace(/\{domain\}/g, targetDomain);
+    }
 
-    this.eventBus.emit('ui:message', {
-      text: picked.description,
-      type: 'danger',
-      portrait,
-      npcName: victor?.name ?? 'Victor Salazar',
+    // Build impact description
+    let impact = SABOTAGE_IMPACT[picked.id] ?? '';
+    if (picked.id === 'poachStaff') {
+      impact = this.state._lastPoachedStaff
+        ? `${this.state._lastPoachedStaff} defected to Glendale!`
+        : 'Your staff held firm — nobody took the bait. This time.';
+      this.state._lastPoachedStaff = null;
+    } else if (picked.id === 'infrastructureStress' && targetDomain) {
+      impact = `${targetDomain.toUpperCase()} system: -5% health/day for 3 days`;
+    }
+
+    // Show sabotage notification toast
+    this.eventBus.emit('rival:sabotageAlert', {
+      title: picked.name,
+      flavor,
+      impact,
     });
+
     this.eventBus.emit('rival:sabotage', {
       type: picked.id,
       name: picked.name,
       description: picked.description,
     });
-
-    // Special notification for staff poaching
-    if (picked.id === 'poachStaff' && this.state._lastPoachedStaff) {
-      this.eventBus.emit('ui:message', {
-        text: `${this.state._lastPoachedStaff} left to work for Glendale! Low morale made them vulnerable.`,
-        type: 'danger',
-      });
-      this.state._lastPoachedStaff = null;
-    }
   }
 
   /**
@@ -804,7 +885,10 @@ export class RivalSystem {
     const season = this.state.season ?? 1;
     const seasonScale = 1 + (season - 1) * 0.15;
     const reductionFlag = this.state.storyFlags?.reducedSabotage ?? 1.0;
-    return seasonScale * reductionFlag;
+    // Scouting Bureau expansion: 30% reduction to sabotage damage
+    const hasScoutingBureau = (this.state.purchasedExpansions ?? []).some(p => p.key === 'scoutingBureau');
+    const scoutingMult = hasScoutingBureau ? 0.70 : 1.0;
+    return seasonScale * reductionFlag * scoutingMult;
   }
 
   // -- Public getters ---------------------------------------------------

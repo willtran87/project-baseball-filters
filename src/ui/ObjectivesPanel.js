@@ -67,7 +67,7 @@ export class ObjectivesPanel {
       border: 2px solid #8b4513;
       border-radius: 4px;
       font-family: monospace; color: #e0e0e0;
-      font-size: 11px; z-index: 30;
+      font-size: 14px; z-index: 30;
       display: flex; flex-direction: column;
       overflow: hidden;
       box-shadow: 0 0 20px rgba(139,69,19,0.2);
@@ -92,8 +92,8 @@ export class ObjectivesPanel {
     // --- Header ---
     const header = `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #8b4513;background:rgba(139,69,19,0.08)">
-        <span style="color:#ffec27;font-size:13px;letter-spacing:2px">\u{1f3c6} OBJECTIVES</span>
-        <span data-action="close" style="cursor:pointer;color:#888;font-size:12px;padding:0 4px" title="Close (O)">\u2715</span>
+        <span style="color:#ffec27;font-size:16px;letter-spacing:2px">\u{1f3c6} OBJECTIVES</span>
+        <span data-action="close" style="cursor:pointer;color:#888;font-size:14px;padding:0 6px" title="Close (O)">\u2715</span>
       </div>
     `;
 
@@ -104,20 +104,20 @@ export class ObjectivesPanel {
     const championshipDone = !!s.championshipHosted;
     const ultimateGoal = `
       <div style="padding:10px 12px;border-bottom:1px solid #333">
-        <div style="color:#ffec27;font-size:10px;letter-spacing:1px;margin-bottom:4px">\u{1f3c6} ULTIMATE GOAL</div>
-        <div style="color:#c0c0d0;font-size:10px;margin-bottom:6px">
+        <div style="color:#ffec27;font-size:12px;letter-spacing:1px;margin-bottom:4px">\u{1f3c6} ULTIMATE GOAL</div>
+        <div style="color:#c0c0d0;font-size:12px;margin-bottom:6px">
           Take the Raptors from the minors to Major League status and host the championship at Ridgemont
         </div>
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-          <span style="color:#888;font-size:9px;min-width:60px">Reputation</span>
+          <span style="color:#888;font-size:11px;min-width:60px">Reputation</span>
           <span style="flex:1;height:8px;background:#222;border:1px solid #444;border-radius:2px;overflow:hidden">
             <span style="display:block;width:${goalPct}%;height:100%;background:${goalBarColor};transition:width 0.3s"></span>
           </span>
-          <span style="color:${goalBarColor};font-size:9px;min-width:50px;text-align:right">${rep} / ${goalTarget}</span>
+          <span style="color:${goalBarColor};font-size:11px;min-width:50px;text-align:right">${rep} / ${goalTarget}</span>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
-          <span style="color:#888;font-size:9px;min-width:60px">Championship</span>
-          <span style="color:${championshipDone ? '#00e436' : '#888'};font-size:9px">${championshipDone ? '\u2713 Hosted' : '\u2717 Not yet hosted'}</span>
+          <span style="color:#888;font-size:11px;min-width:60px">Championship</span>
+          <span style="color:${championshipDone ? '#00e436' : '#888'};font-size:11px">${championshipDone ? '\u2713 Hosted' : '\u2717 Not yet hosted'}</span>
         </div>
       </div>
     `;
@@ -137,50 +137,78 @@ export class ObjectivesPanel {
         .join(', ') || 'None';
       milestoneSection = `
         <div style="padding:10px 12px;border-bottom:1px solid #333">
-          <div style="color:#29adff;font-size:10px;letter-spacing:1px;margin-bottom:4px">\u25c6 NEXT MILESTONE</div>
-          <div style="color:#c0c0d0;font-size:10px;margin-bottom:2px">
+          <div style="color:#29adff;font-size:12px;letter-spacing:1px;margin-bottom:4px">\u25c6 NEXT MILESTONE</div>
+          <div style="color:#c0c0d0;font-size:12px;margin-bottom:2px">
             <span style="color:#fff">${nextTier.name}</span> (requires ${nextTier.min}+ reputation)
           </div>
-          <div style="color:#888;font-size:9px;margin-bottom:6px">Unlocks: ${unlockList}</div>
+          <div style="color:#888;font-size:11px;margin-bottom:6px">Unlocks: ${unlockList}</div>
           <div style="display:flex;align-items:center;gap:6px">
-            <span style="color:#888;font-size:9px;min-width:60px">Progress</span>
+            <span style="color:#888;font-size:11px;min-width:60px">Progress</span>
             <span style="flex:1;height:6px;background:#222;border:1px solid #444;border-radius:2px;overflow:hidden">
               <span style="display:block;width:${tierPct}%;height:100%;background:#29adff;transition:width 0.3s"></span>
             </span>
-            <span style="color:#29adff;font-size:9px;min-width:50px;text-align:right">${rep} / ${nextTier.min}</span>
+            <span style="color:#29adff;font-size:11px;min-width:50px;text-align:right">${rep} / ${nextTier.min}</span>
           </div>
         </div>
       `;
     } else {
       milestoneSection = `
         <div style="padding:10px 12px;border-bottom:1px solid #333">
-          <div style="color:#29adff;font-size:10px;letter-spacing:1px;margin-bottom:4px">\u25c6 NEXT MILESTONE</div>
-          <div style="color:#00e436;font-size:10px">\u2713 Maximum tier reached!</div>
+          <div style="color:#29adff;font-size:12px;letter-spacing:1px;margin-bottom:4px">\u25c6 NEXT MILESTONE</div>
+          <div style="color:#00e436;font-size:12px">\u2713 Maximum tier reached!</div>
         </div>
       `;
     }
 
     // --- 3. Today's Goal ---
     const daily = s._progressionSystem?._dailyObjective ?? null;
+    const currentInning = s.inning ?? 1;
     let dailySection;
     if (daily) {
       const statusColor = daily.completed ? '#00e436' : '#ffec27';
       const statusText = daily.completed ? '\u2713 Completed!' : '\u25cb In progress';
+
+      // Urgency: late inning + not yet completed
+      const isLateInning = currentInning >= 6 && !daily.completed;
+      // Progress-based badge
+      const dailyProgress = daily.progress ?? 0;
+      const dailyTarget = daily.target ?? 1;
+      const dailyPct = dailyTarget > 0 ? dailyProgress / dailyTarget : 0;
+      const isAlmostDone = !daily.completed && dailyPct >= 0.8;
+      // Deadline urgency (for multi-day objectives)
+      const daysLeft = daily.daysRemaining ?? null;
+      const isDueSoon = daysLeft !== null && daysLeft <= 2 && !daily.completed;
+
+      let urgencyBadge = '';
+      let borderStyle = 'border-bottom:1px solid #333';
+      if (daily.completed) {
+        // no urgency
+      } else if (isLateInning || isDueSoon) {
+        urgencyBadge = `<span style="color:#ff004d;font-size:10px;font-weight:bold;background:rgba(255,0,77,0.15);padding:1px 6px;border-radius:2px;margin-left:6px">[URGENT]</span>`;
+        borderStyle = 'border-bottom:1px solid #333;border-left:3px solid #ff004d';
+      } else if (isAlmostDone) {
+        urgencyBadge = `<span style="color:#00e436;font-size:10px;font-weight:bold;background:rgba(0,228,54,0.12);padding:1px 6px;border-radius:2px;margin-left:6px">Almost done!</span>`;
+        borderStyle = 'border-bottom:1px solid #333;border-left:3px solid #00e436';
+      }
+
+      const dueSoonNote = isDueSoon ? `<div style="color:#ffa300;font-size:10px;margin-top:2px">Due soon! ${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining</div>` : '';
+
       dailySection = `
-        <div style="padding:10px 12px;border-bottom:1px solid #333">
-          <div style="color:#ffa300;font-size:10px;letter-spacing:1px;margin-bottom:4px">\u{1f3af} TODAY'S LINEUP</div>
-          <div style="color:#e0e0e0;font-size:10px;margin-bottom:4px">${daily.description}</div>
+        <div style="padding:10px 12px;${borderStyle}">
+          <div style="color:#ffa300;font-size:12px;letter-spacing:1px;margin-bottom:4px">\u{1f3af} TODAY'S LINEUP${urgencyBadge}</div>
+          <div style="color:#e0e0e0;font-size:12px;margin-bottom:4px">${daily.description}</div>
+          ${dueSoonNote}
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span style="color:#888;font-size:9px">Reward: <span style="color:#00e436">+$${daily.reward}</span>${daily.repBonus ? ` <span style="color:#29adff">+${daily.repBonus} rep</span>` : ''}</span>
-            <span style="color:${statusColor};font-size:9px">${statusText}</span>
+            <span style="color:#888;font-size:11px">Reward: <span style="color:#00e436">+$${daily.reward}</span>${daily.repBonus ? ` <span style="color:#29adff">+${daily.repBonus} rep</span>` : ''}</span>
+            <span style="color:${statusColor};font-size:11px">${statusText}</span>
           </div>
         </div>
       `;
     } else {
       dailySection = `
         <div style="padding:10px 12px;border-bottom:1px solid #333">
-          <div style="color:#ffa300;font-size:10px;letter-spacing:1px;margin-bottom:4px">\u{1f3af} TODAY'S LINEUP</div>
-          <div style="color:#888;font-size:10px">No special assignment today — keep the systems running smooth</div>
+          <div style="color:#ffa300;font-size:12px;letter-spacing:1px;margin-bottom:4px">\u{1f3af} TODAY'S LINEUP</div>
+          <div style="color:#888;font-size:12px">No special assignment today — keep the systems running smooth</div>
         </div>
       `;
     }
@@ -200,19 +228,26 @@ export class ObjectivesPanel {
       nextStreakThreshold = nextMilestone; nextStreakReward = '+$3,000 milestone bonus';
     }
     const streakBarPct = nextStreakThreshold > 0 ? Math.min(100, Math.floor((streak / nextStreakThreshold) * 100)) : 0;
+    const streakAlmostDone = streakBarPct >= 80;
+    const streakBadge = streakAlmostDone
+      ? `<span style="color:#00e436;font-size:10px;font-weight:bold;background:rgba(0,228,54,0.12);padding:1px 6px;border-radius:2px;margin-left:6px">Almost there!</span>`
+      : '';
+    const streakBorderStyle = streakAlmostDone
+      ? 'border-bottom:1px solid #333;border-left:3px solid #00e436'
+      : 'border-bottom:1px solid #333';
     const streakSection = `
-      <div style="padding:10px 12px;border-bottom:1px solid #333">
-        <div style="color:#ff77a8;font-size:10px;letter-spacing:1px;margin-bottom:4px">\u{1f525} WIN STREAK</div>
+      <div style="padding:10px 12px;${streakBorderStyle}">
+        <div style="color:#ff77a8;font-size:12px;letter-spacing:1px;margin-bottom:4px">\u{1f525} WIN STREAK${streakBadge}</div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="color:#e0e0e0;font-size:10px">Current: <span style="color:#ffec27;font-weight:bold">${streak}</span> clean games</span>
-          <span style="color:#888;font-size:9px">Best: ${bestStreak} games</span>
+          <span style="color:#e0e0e0;font-size:12px">Current: <span style="color:#ffec27;font-weight:bold">${streak}</span> clean games</span>
+          <span style="color:#888;font-size:11px">Best: ${bestStreak} games</span>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
-          <span style="color:#888;font-size:9px;min-width:60px">Next at ${nextStreakThreshold}</span>
+          <span style="color:#888;font-size:11px;min-width:60px">Next at ${nextStreakThreshold}</span>
           <span style="flex:1;height:6px;background:#222;border:1px solid #444;border-radius:2px;overflow:hidden">
             <span style="display:block;width:${streakBarPct}%;height:100%;background:#ff77a8;transition:width 0.3s"></span>
           </span>
-          <span style="color:#888;font-size:8px">${nextStreakReward}</span>
+          <span style="color:#888;font-size:10px">${nextStreakReward}</span>
         </div>
       </div>
     `;
@@ -226,15 +261,25 @@ export class ObjectivesPanel {
     const estGradeColor = estGrade === 'A' ? '#00e436' : estGrade === 'B' ? '#29adff' : estGrade === 'C' ? '#ffec27' : '#ff004d';
     const urgencyColor = daysUntilInsp <= 3 ? '#ff004d' : daysUntilInsp <= 7 ? '#ffa300' : '#888';
     const showEstimate = daysUntilInsp <= 3;
+    const inspUrgencyBadge = daysUntilInsp <= 3
+      ? `<span style="color:#ff004d;font-size:10px;font-weight:bold;background:rgba(255,0,77,0.15);padding:1px 6px;border-radius:2px;margin-left:6px">[URGENT]</span>`
+      : daysUntilInsp <= 7
+        ? `<span style="color:#ffa300;font-size:10px;font-weight:bold;background:rgba(255,163,0,0.12);padding:1px 6px;border-radius:2px;margin-left:6px">Due soon!</span>`
+        : '';
+    const inspBorderStyle = daysUntilInsp <= 3
+      ? 'border-bottom:1px solid #333;border-left:3px solid #ff004d'
+      : daysUntilInsp <= 7
+        ? 'border-bottom:1px solid #333;border-left:3px solid #ffa300'
+        : 'border-bottom:1px solid #333';
     const inspectionSection = `
-      <div style="padding:10px 12px;border-bottom:1px solid #333">
-        <div style="color:#c8c8c8;font-size:10px;letter-spacing:1px;margin-bottom:4px">\u{1f50d} HEALTH INSPECTION</div>
+      <div style="padding:10px 12px;${inspBorderStyle}">
+        <div style="color:#c8c8c8;font-size:12px;letter-spacing:1px;margin-bottom:4px">\u{1f50d} HEALTH INSPECTION${inspUrgencyBadge}</div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="color:#e0e0e0;font-size:10px">Next inspection in: <span style="color:${urgencyColor};font-weight:bold">${daysUntilInsp} days</span></span>
-          <span style="color:#888;font-size:9px">Last grade: <span style="font-weight:bold">${lastGrade}</span></span>
+          <span style="color:#e0e0e0;font-size:12px">Next inspection in: <span style="color:${urgencyColor};font-weight:bold">${daysUntilInsp} days</span></span>
+          <span style="color:#888;font-size:11px">Last grade: <span style="font-weight:bold">${lastGrade}</span></span>
         </div>
         ${showEstimate ? `
-          <div style="color:#e0e0e0;font-size:9px;padding:4px 6px;background:rgba(255,255,255,0.03);border-left:2px solid ${estGradeColor}">
+          <div style="color:#e0e0e0;font-size:11px;padding:6px 8px;background:rgba(255,255,255,0.03);border-left:2px solid ${estGradeColor}">
             Estimated grade: <span style="color:${estGradeColor};font-weight:bold">${estGrade}</span>
             <span style="color:#888;margin-left:6px">(avg domain health: ${Math.floor(avgHealth)}%)</span>
           </div>
@@ -268,24 +313,38 @@ export class ObjectivesPanel {
     const notesFound = s.hanksNotes?.length ?? 0;
     const storySection = `
       <div style="padding:10px 12px">
-        <div style="color:#cc44cc;font-size:10px;letter-spacing:1px;margin-bottom:4px">\u{1f4d6} STORY</div>
-        <div style="color:#e0e0e0;font-size:10px;margin-bottom:4px">
+        <div style="color:#cc44cc;font-size:12px;letter-spacing:1px;margin-bottom:4px">\u{1f4d6} STORY</div>
+        <div style="color:#e0e0e0;font-size:12px;margin-bottom:4px">
           Chapter ${chapter}: <span style="color:#ff77a8">${chapterName}</span>
         </div>
-        <div style="color:#888;font-size:9px">
+        <div style="color:#888;font-size:11px">
           Hank's Notes: ${notesFound} / 8 found
         </div>
       </div>
     `;
 
+    // Sort time-sensitive sections: urgent items bubble up after the fixed top sections
+    const urgentSections = [];
+    const normalSections = [];
+
+    // Daily objective urgency check
+    const dailyIsUrgent = daily && !daily.completed && (currentInning >= 6 || (daily.daysRemaining != null && daily.daysRemaining <= 2));
+    (dailyIsUrgent ? urgentSections : normalSections).push(dailySection);
+
+    // Inspection urgency check
+    const inspIsUrgent = daysUntilInsp <= 3;
+    (inspIsUrgent ? urgentSections : normalSections).push(inspectionSection);
+
+    // Streak and rivalry are not time-critical for sorting
+    normalSections.push(streakSection);
+    if (rivalrySection) normalSections.push(rivalrySection);
+
     this._el.innerHTML = header + `
       <div style="flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#8b4513 #111">
         ${ultimateGoal}
         ${milestoneSection}
-        ${dailySection}
-        ${streakSection}
-        ${inspectionSection}
-        ${rivalrySection}
+        ${urgentSections.join('')}
+        ${normalSections.join('')}
         ${storySection}
       </div>
     `;
@@ -331,14 +390,14 @@ export class ObjectivesPanel {
     if (smearDays > 0 || supplyDays > 0 || inspPenalty) {
       activeEffectsHtml += '<div style="margin-top:6px;margin-bottom:4px">';
       if (smearDays > 0) {
-        activeEffectsHtml += `<div style="color:#ff6b35;font-size:9px">Smear Campaign: ${smearDays}d remaining (-1 rep/day)</div>`;
+        activeEffectsHtml += `<div style="color:#ff6b35;font-size:11px">Smear Campaign: ${smearDays}d remaining (-1 rep/day)</div>`;
       }
       if (supplyDays > 0) {
         const mult = s._supplyCostMultiplier ?? 1.0;
-        activeEffectsHtml += `<div style="color:#ff6b35;font-size:9px">Supply Disruption: ${supplyDays}d remaining (+${Math.round((mult - 1) * 100)}% filter cost)</div>`;
+        activeEffectsHtml += `<div style="color:#ff6b35;font-size:11px">Supply Disruption: ${supplyDays}d remaining (+${Math.round((mult - 1) * 100)}% filter cost)</div>`;
       }
       if (inspPenalty) {
-        activeEffectsHtml += '<div style="color:#ff6b35;font-size:9px">Inspector Bribe: next inspection 30% stricter</div>';
+        activeEffectsHtml += '<div style="color:#ff6b35;font-size:11px">Inspector Bribe: next inspection 30% stricter</div>';
       }
       activeEffectsHtml += '</div>';
     }
@@ -367,20 +426,20 @@ export class ObjectivesPanel {
           statusText = `Active (${state.daysLeft}d)`;
         }
         defensesHtml += `
-          <div style="display:flex;align-items:center;gap:6px;padding:3px 6px;margin-bottom:2px;background:rgba(0,228,54,0.08);border-left:2px solid #00e436">
-            <span style="flex:1;color:#e0e0e0;font-size:9px">${def.name}</span>
-            <span style="color:#00e436;font-size:9px">${statusText}</span>
+          <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;margin-bottom:2px;background:rgba(0,228,54,0.08);border-left:2px solid #00e436">
+            <span style="flex:1;color:#e0e0e0;font-size:11px">${def.name}</span>
+            <span style="color:#00e436;font-size:11px">${statusText}</span>
           </div>
         `;
       } else {
         defensesHtml += `
-          <div style="display:flex;align-items:center;gap:6px;padding:3px 6px;margin-bottom:2px;background:rgba(255,255,255,0.02);border-left:2px solid #444">
-            <span style="flex:1;color:#aaa;font-size:9px" title="${def.desc}">${def.name}</span>
-            <span style="color:${canAfford ? '#00e436' : '#555'};font-size:9px">$${def.cost.toLocaleString()}</span>
+          <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;margin-bottom:2px;background:rgba(255,255,255,0.02);border-left:2px solid #444">
+            <span style="flex:1;color:#aaa;font-size:11px" title="${def.desc}">${def.name}</span>
+            <span style="color:${canAfford ? '#00e436' : '#555'};font-size:11px">$${def.cost.toLocaleString()}</span>
             <button data-action="buy-defense" data-defense-type="${key}"
               style="background:${canAfford ? '#1a3a2a' : '#2a2a2a'};color:${canAfford ? '#00e436' : '#555'};
-              border:1px solid ${canAfford ? '#3a6a4a' : '#333'};padding:1px 6px;font-family:monospace;
-              cursor:${canAfford ? 'pointer' : 'not-allowed'};font-size:8px">BUY</button>
+              border:1px solid ${canAfford ? '#3a6a4a' : '#333'};padding:1px 8px;font-family:monospace;
+              cursor:${canAfford ? 'pointer' : 'not-allowed'};font-size:10px">BUY</button>
           </div>
         `;
       }
@@ -390,14 +449,14 @@ export class ObjectivesPanel {
     return `
       <div style="padding:10px 12px;border-bottom:1px solid #333">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span style="color:#333366;font-size:10px;letter-spacing:1px">\u2694 RIVALRY</span>
-          <span style="color:${threatColor};font-size:9px;font-weight:bold">${threatLabel}</span>
+          <span style="color:#333366;font-size:12px;letter-spacing:1px">\u2694 RIVALRY</span>
+          <span style="color:${threatColor};font-size:11px;font-weight:bold">${threatLabel}</span>
         </div>
-        <div style="color:#888;font-size:9px;margin-bottom:2px">
+        <div style="color:#888;font-size:11px;margin-bottom:2px">
           Victor Salazar -- Glendale Grizzlies (Rep: ${Math.floor(s.rivalRep ?? 60)})
         </div>
         ${activeEffectsHtml}
-        <div style="color:#aaa;font-size:9px;margin-top:4px;margin-bottom:2px">Counter-Strategies:</div>
+        <div style="color:#aaa;font-size:11px;margin-top:4px;margin-bottom:2px">Counter-Strategies:</div>
         ${defensesHtml}
       </div>
     `;

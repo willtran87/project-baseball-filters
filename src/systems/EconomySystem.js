@@ -21,9 +21,9 @@ export class EconomySystem {
     // New players get an income boost that tapers gradually so there's no
     // harsh cliff. Days 1-7 get the full 1.5x boost; days 8-12 taper
     // linearly from 1.5x down to 1.0x; day 13+ is normal (1.0x).
-    this._earlyBoostFullEnd = 7;    // last day of full boost
-    this._earlyBoostTaperEnd = 12;  // last day of any boost
-    this._earlyGameBoostMultiplier = 1.5;
+    this._earlyBoostFullEnd = 5;    // last day of full boost
+    this._earlyBoostTaperEnd = 10;  // last day of any boost
+    this._earlyGameBoostMultiplier = 1.25;
 
     // Warn the player when the taper begins
     this.eventBus.on('game:newDay', ({ day }) => {
@@ -145,7 +145,8 @@ export class EconomySystem {
 
     this.state.set('income', offSeasonRevenue);
     this.state.set('expenses', totalExpenses);
-    this.state.set('money', this.state.money + netIncome);
+    const offMoney = this.state.money + netIncome;
+    this.state.set('money', Number.isFinite(offMoney) ? offMoney : this.state.money);
     this.state.set('attendance', 0);
     this.state.set('attendancePercent', 0);
 
@@ -208,7 +209,15 @@ export class EconomySystem {
       seasonalLabel = 'Championship Push';
     }
 
-    const attendance = Math.floor(baseCapacity * attendanceRatio * teamPerfMod * consequenceAttMod * inningVariance * diegoAttBoost * seasonalAttMult);
+    // Expansion attendance boosts (additive, capped at 30%)
+    const expansionAttBonus = Math.min(0.30,
+      this._getJumbotronAttendanceBoost() +
+      this._getChampionshipAttendanceBoost() +
+      this._getRallyRaccoonAttendanceBoost() +
+      this._getFoulBallAttendanceBoost() +
+      this._getFireworksAttendanceBoost()
+    );
+    const attendance = Math.floor(baseCapacity * attendanceRatio * teamPerfMod * consequenceAttMod * inningVariance * diegoAttBoost * seasonalAttMult * (1 + expansionAttBonus));
 
     // Store attendance data for HUD and other systems
     const attendancePercent = Math.min(100, Math.max(0, Math.round((attendance / baseCapacity) * 100)));
@@ -224,7 +233,8 @@ export class EconomySystem {
     // Staff efficiency bonus: specialists with high morale grant +5% per domain (up to +20%)
     const staffEfficiencyBonus = this.state._staffEfficiencyBonus ?? 0;
     const satisfactionMod = this._lastQuality * (econ.concessionSatisfactionWeight ?? 0.5) + 0.5;
-    const concessionIncome = Math.floor(attendance * (econ.concessionPerFan ?? 12) * satisfactionMod * (1 + staffEfficiencyBonus) * seasonalConcessionMult);
+    const concessionBoostTotal = 1 + this._getJumbotronConcessionBoost() + this._getNeonFoodCourtConcessionBoost() + this._getSeventhInningStretchBoost();
+    const concessionIncome = Math.floor(attendance * (econ.concessionPerFan ?? 12) * satisfactionMod * (1 + staffEfficiencyBonus) * seasonalConcessionMult * concessionBoostTotal);
 
     // Revenue source 3: Sponsorships (flat per-game from active sponsors)
     const sponsorIncome = this._calculateSponsorIncome(econ);
@@ -283,7 +293,8 @@ export class EconomySystem {
 
     this.state.set('income', inningIncome);
     this.state.set('expenses', totalExpenses);
-    this.state.set('money', this.state.money + netIncome);
+    const newMoney = this.state.money + netIncome;
+    this.state.set('money', Number.isFinite(newMoney) ? newMoney : this.state.money);
     this.state.set('attendance', attendance);
 
     // Advance inning
@@ -404,7 +415,8 @@ export class EconomySystem {
     const staffSpecDomains = new Set();
     const specDomainMap = {
       airTech: ['air', 'hvac'], plumber: ['water', 'drainage'],
-      electrician: ['hvac'], general: ['air', 'water', 'hvac', 'drainage'],
+      electrician: ['hvac', 'electrical'], sanitarian: ['pest'],
+      general: ['air', 'water', 'hvac', 'drainage', 'electrical', 'pest'],
     };
     const staffList = this.state.staffList ?? [];
     for (const staff of staffList) {
@@ -496,7 +508,14 @@ export class EconomySystem {
     const aiQuirksCost = this.state.researchEffects?.riskOfAIQuirks ?? 0;
     const aiQuirksMult = aiQuirksCost > 0 ? (1 + aiQuirksCost) : 1.0;
 
-    return Math.floor((base + filterEnergy) * energyMultiplier * attEnergyMult * peakMult * aiQuirksMult);
+    // Electrical grid health modulates energy costs
+    const elecHealth = this.state.domainHealth?.electrical ?? 100;
+    let elecMult = 1.0;
+    if (elecHealth > 80) elecMult = 0.90;       // efficient grid: -10%
+    else if (elecHealth < 20) elecMult = 1.30;   // failing grid: +30%
+    else if (elecHealth < 40) elecMult = 1.15;   // degraded grid: +15%
+
+    return Math.floor((base + filterEnergy) * energyMultiplier * attEnergyMult * peakMult * aiQuirksMult * elecMult);
   }
 
   /**
@@ -526,20 +545,126 @@ export class EconomySystem {
 
   /**
    * Sum revenue boost multipliers from all purchased expansions.
+   * Applies specialEventsOnly and newSystemsRequired penalties.
    */
   _getExpansionRevenueBoost() {
     const expansions = this.state.config.expansions ?? [];
     const purchased = this.state.purchasedExpansions ?? [];
+    const gameDayType = this.state.currentGameDayType ?? 'weekdayRegular';
+    const isSpecialEvent = gameDayType === 'playoffGame' || gameDayType === 'championshipGame';
     let total = 0;
     for (const pe of purchased) {
       const def = expansions.find(e => e.id === pe.key);
-      if (def?.revenueBoost) total += def.revenueBoost;
+      if (!def?.revenueBoost) continue;
+      let boost = def.revenueBoost;
+      // Championship Pavilion: revenue boost only during playoff/championship
+      if (def.specialEventsOnly && !isSpecialEvent) boost = 0;
+      // newSystemsRequired penalty: 50% reduction if required domains lack filters
+      boost *= this._getNewSystemsPenalty(def);
+      total += boost;
     }
-    return total;
+    return Math.min(total, 1.0); // cap at +100% max revenue boost
+  }
+
+  /**
+   * Check if an expansion's required domains have installed filters.
+   * Returns 0.5 if any required domain lacks filters, 1.0 otherwise.
+   */
+  _getNewSystemsPenalty(def) {
+    const required = def.newSystemsRequired ?? [];
+    if (required.length === 0) return 1.0;
+    for (const domain of required) {
+      const hasFilter = this.state.filters.some(f => f.domain === domain);
+      if (!hasFilter) return 0.5;
+    }
+    return 1.0;
+  }
+
+  /**
+   * Get Jumbotron attendance boost (8% when purchased).
+   */
+  _getJumbotronAttendanceBoost() {
+    const purchased = this.state.purchasedExpansions ?? [];
+    return purchased.some(p => p.key === 'jumbotronUpgrade') ? 0.08 : 0;
+  }
+
+  /**
+   * Get Championship Pavilion flat attendance bonus (6% when purchased, always applies).
+   */
+  _getChampionshipAttendanceBoost() {
+    const purchased = this.state.purchasedExpansions ?? [];
+    return purchased.some(p => p.key === 'championshipPavilion') ? 0.06 : 0;
+  }
+
+  /**
+   * Get Jumbotron concession revenue boost (3% when purchased).
+   */
+  _getJumbotronConcessionBoost() {
+    const purchased = this.state.purchasedExpansions ?? [];
+    return purchased.some(p => p.key === 'jumbotronUpgrade') ? 0.03 : 0;
+  }
+
+  /**
+   * Get Neon Food Court concession revenue boost (8% when purchased).
+   */
+  _getNeonFoodCourtConcessionBoost() {
+    const purchased = this.state.purchasedExpansions ?? [];
+    return purchased.some(p => p.key === 'neonFoodCourt') ? 0.08 : 0;
+  }
+
+  /**
+   * Get Rally Raccoon attendance boost (3% when purchased).
+   */
+  _getRallyRaccoonAttendanceBoost() {
+    const purchased = this.state.purchasedExpansions ?? [];
+    return purchased.some(p => p.key === 'rallyRaccoon') ? 0.03 : 0;
+  }
+
+  /**
+   * Get Foul Ball Physics attendance boost (3% when purchased).
+   */
+  _getFoulBallAttendanceBoost() {
+    const purchased = this.state.purchasedExpansions ?? [];
+    return purchased.some(p => p.key === 'foulBallPhysics') ? 0.03 : 0;
+  }
+
+  /**
+   * Get Seventh Inning Stretch concession boost (6% in innings 7-9 when purchased).
+   */
+  _getSeventhInningStretchBoost() {
+    const purchased = this.state.purchasedExpansions ?? [];
+    if (!purchased.some(p => p.key === 'seventhInningStretch')) return 0;
+    const currentInning = this.state.currentInning ?? this.state.inning ?? 0;
+    return currentInning >= 7 ? 0.06 : 0;
+  }
+
+  /**
+   * Get Fireworks Launcher Array attendance boost (8% during special events when purchased).
+   */
+  _getFireworksAttendanceBoost() {
+    const purchased = this.state.purchasedExpansions ?? [];
+    if (!purchased.some(p => p.key === 'fireworksLauncherArray')) return 0;
+    const gameDayType = this.state.currentGameDayType ?? 'weekdayRegular';
+    const specialTypes = ['playoffGame', 'championshipGame', 'openingDay', 'rivalryGame'];
+    return specialTypes.includes(gameDayType) ? 0.08 : 0;
+  }
+
+  /**
+   * Get the effective emergency repair multiplier, reduced by 25% if
+   * Emergency Response Center is purchased.
+   */
+  _getEmergencyRepairMultiplier() {
+    const baseMult = this.state.config.economy?.emergencyRepairMultiplier ?? 2.5;
+    const purchased = this.state.purchasedExpansions ?? [];
+    if (purchased.some(p => p.key === 'emergencyResponseCenter')) {
+      return baseMult * 0.75;
+    }
+    return baseMult;
   }
 
   /**
    * Sum operating cost reduction from purchased expansions.
+   * Applies newSystemsRequired penalty.
    */
   _getExpansionCostReduction() {
     const expansions = this.state.config.expansions ?? [];
@@ -547,9 +672,10 @@ export class EconomySystem {
     let total = 0;
     for (const pe of purchased) {
       const def = expansions.find(e => e.id === pe.key);
-      if (def?.operatingCostReduction) total += def.operatingCostReduction;
+      if (!def?.operatingCostReduction) continue;
+      total += def.operatingCostReduction * this._getNewSystemsPenalty(def);
     }
-    return Math.min(total, 0.5); // cap at 50% reduction
+    return Math.min(total, 0.30); // cap at 30% reduction
   }
 
   // ── Loan System ──────────────────────────────────────────────────
@@ -579,7 +705,8 @@ export class EconomySystem {
 
     activeLoans.push(loan);
     this.state.activeLoans = activeLoans;
-    this.state.set('money', this.state.money + loanAmount);
+    const loanMoney = this.state.money + loanAmount;
+    this.state.set('money', Number.isFinite(loanMoney) ? loanMoney : this.state.money);
     this.eventBus.emit('loan:taken', loan);
     this.eventBus.emit('ui:message', {
       text: `Loan taken: +$${loanAmount.toLocaleString()} (${Math.round(interestRate * 100)}% interest, owe $${totalOwed.toLocaleString()})`,
@@ -672,7 +799,8 @@ export class EconomySystem {
     }
 
     if (totalDeducted > 0) {
-      this.state.set('money', this.state.money - totalDeducted);
+      const afterRepay = this.state.money - totalDeducted;
+      this.state.set('money', Number.isFinite(afterRepay) ? afterRepay : this.state.money);
     }
     this.state.activeLoans = remaining;
   }

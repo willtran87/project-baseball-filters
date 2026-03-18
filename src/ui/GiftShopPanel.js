@@ -81,7 +81,7 @@ export class GiftShopPanel {
       border-radius: 4px;
       font-family: monospace;
       color: #d0d0e0;
-      font-size: 11px;
+      font-size: 14px;
       box-shadow: 0 0 24px rgba(139,69,19,0.3);
       scrollbar-width: thin;
       scrollbar-color: #8b4513 #111;
@@ -117,8 +117,8 @@ export class GiftShopPanel {
       background: rgba(139, 69, 19, 0.1);
     `;
     header.innerHTML = `
-      <span style="color:#ffec27;font-size:13px;letter-spacing:2px">\uD83C\uDF81 GIFT SHOP</span>
-      <span data-action="close" style="cursor:pointer;color:#888;font-size:13px;padding:0 4px" title="Close">\u2715</span>
+      <span style="color:#ffec27;font-size:16px;letter-spacing:2px">\uD83C\uDF81 GIFT SHOP</span>
+      <span data-action="close" style="cursor:pointer;color:#888;font-size:16px;padding:0 6px" title="Close">\u2715</span>
     `;
     header.querySelector('[data-action="close"]').addEventListener('mousedown', (e) => {
       e.preventDefault();
@@ -150,12 +150,12 @@ export class GiftShopPanel {
       width: 160px;
       flex-shrink: 0;
       border-right: 1px solid #8b4513;
-      padding: 6px 0;
+      padding: 8px 0;
       overflow-y: auto;
     `;
 
     const label = document.createElement('div');
-    label.style.cssText = 'padding: 4px 10px 6px; color: #888; font-size: 9px; text-transform: uppercase; letter-spacing: 1px;';
+    label.style.cssText = 'padding: 6px 10px 8px; color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;';
     label.textContent = 'Give gift to...';
     col.appendChild(label);
 
@@ -176,7 +176,7 @@ export class GiftShopPanel {
     const card = document.createElement('div');
     card.style.cssText = `
       display: flex; align-items: center; gap: 6px;
-      padding: 6px 10px;
+      padding: 8px 10px;
       cursor: pointer;
       background: ${isSelected ? 'rgba(139, 69, 19, 0.2)' : 'transparent'};
       border-left: 3px solid ${isSelected ? npc.themeColor : 'transparent'};
@@ -186,9 +186,9 @@ export class GiftShopPanel {
     card.innerHTML = `
       <span style="font-size:16px">${NPC_EMOJIS[npcId] || '\uD83D\uDC64'}</span>
       <div style="flex:1;min-width:0">
-        <div style="color:${npc.themeColor};font-size:10px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${npc.name.split(' ')[0]}</div>
-        <div style="color:#777;font-size:9px">${npc.role}</div>
-        <div style="color:#999;font-size:9px">\u2764 ${relValue}</div>
+        <div style="color:${npc.themeColor};font-size:12px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${npc.name.split(' ')[0]}</div>
+        <div style="color:#777;font-size:11px">${npc.role}</div>
+        <div style="color:#999;font-size:11px">\u2764 ${relValue}</div>
       </div>
     `;
 
@@ -215,7 +215,7 @@ export class GiftShopPanel {
     const col = document.createElement('div');
     col.style.cssText = `
       flex: 1;
-      padding: 6px 10px;
+      padding: 8px 10px;
       overflow-y: auto;
     `;
 
@@ -226,7 +226,7 @@ export class GiftShopPanel {
 
     const selectedNpc = NPC_DATA[this._selectedNpc];
     const label = document.createElement('div');
-    label.style.cssText = 'padding: 4px 0 8px; color: #888; font-size: 9px; text-transform: uppercase; letter-spacing: 1px;';
+    label.style.cssText = 'padding: 6px 0 8px; color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;';
     label.textContent = `Gifts for ${selectedNpc ? selectedNpc.name.split(' ')[0] : this._selectedNpc}`;
     col.appendChild(label);
 
@@ -269,7 +269,7 @@ export class GiftShopPanel {
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex; align-items: center; gap: 8px;
-      padding: 6px 8px;
+      padding: 8px 8px;
       background: ${disabled ? 'rgba(30, 30, 40, 0.5)' : 'rgba(30, 30, 50, 0.6)'};
       border: 1px solid ${disabled ? '#333' : '#555'};
       border-radius: 3px;
@@ -290,11 +290,11 @@ export class GiftShopPanel {
     const bonusLabel = multiplier > 1.0 ? ' \u2605' : '';
 
     info.innerHTML = `
-      <div style="color:${disabled ? '#777' : '#ddd'};font-size:10px;font-weight:bold">${gift.name}</div>
-      <div style="color:#666;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${gift.description}</div>
+      <div style="color:${disabled ? '#777' : '#ddd'};font-size:12px;font-weight:bold">${gift.name}</div>
+      <div style="color:#666;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${gift.description}</div>
       <div style="display:flex;gap:8px;margin-top:2px">
-        <span style="color:#c8a84e;font-size:9px">$${gift.cost}</span>
-        <span style="color:${bonusColor};font-size:9px">+${adjustedBonus} rel${bonusLabel}</span>
+        <span style="color:#c8a84e;font-size:11px">$${gift.cost}</span>
+        <span style="color:${bonusColor};font-size:11px">+${adjustedBonus} rel${bonusLabel}</span>
       </div>
     `;
     row.appendChild(info);
@@ -304,14 +304,14 @@ export class GiftShopPanel {
     action.style.cssText = 'flex-shrink: 0; text-align: right;';
 
     if (repLocked) {
-      action.innerHTML = `<div style="color:#886644;font-size:9px;white-space:nowrap">Requires ${gift.reputationReq}% rep</div>`;
+      action.innerHTML = `<div style="color:#886644;font-size:11px;white-space:nowrap">Requires ${gift.reputationReq}% rep</div>`;
     } else if (onCooldown) {
-      action.innerHTML = `<div style="color:#888;font-size:9px;white-space:nowrap">Available in ${daysRemaining}d</div>`;
+      action.innerHTML = `<div style="color:#888;font-size:11px;white-space:nowrap">Available in ${daysRemaining}d</div>`;
     } else {
       const btn = document.createElement('button');
       btn.style.cssText = cantAfford
-        ? 'background:#3a3a3a;color:#666;border:1px solid #4a4a4a;padding:4px 8px;font-family:monospace;font-size:9px;cursor:default;border-radius:2px;white-space:nowrap;'
-        : 'background:#2a6a2a;color:#fff;border:1px solid #4a8a4a;padding:4px 8px;font-family:monospace;font-size:9px;cursor:pointer;border-radius:2px;white-space:nowrap;';
+        ? 'background:#3a3a3a;color:#666;border:1px solid #4a4a4a;padding:6px 8px;font-family:monospace;font-size:11px;cursor:default;border-radius:2px;white-space:nowrap;'
+        : 'background:#2a6a2a;color:#fff;border:1px solid #4a8a4a;padding:6px 8px;font-family:monospace;font-size:11px;cursor:pointer;border-radius:2px;white-space:nowrap;';
       btn.textContent = cantAfford ? 'Can\'t afford' : 'Buy & Give';
       btn.disabled = cantAfford;
 
@@ -369,7 +369,7 @@ export class GiftShopPanel {
       padding: 8px 16px;
       border-radius: 3px;
       font-family: monospace;
-      font-size: 11px;
+      font-size: 14px;
       z-index: 40;
       pointer-events: none;
       white-space: nowrap;

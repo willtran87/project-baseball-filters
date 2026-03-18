@@ -13,8 +13,8 @@ export class ZoneNavigator {
 
     this._el = document.createElement('div');
     this._el.style.cssText = `
-      position: absolute; bottom: 28px; left: 8px;
-      width: 140px; height: 100px;
+      position: absolute; bottom: 46px; left: 8px;
+      width: 200px; height: 140px;
       background: rgba(10,8,20,0.92);
       border: 2px solid #8b4513;
       border-radius: 3px;
@@ -93,16 +93,16 @@ export class ZoneNavigator {
     }
 
     const zones = [
-      { id: 'pressbox',    label: 'PRESS',       x: 30, y: 2,  w: 80,  h: 10, color: '#ff77a8' },
-      { id: 'luxury',      label: 'LUXURY',      x: 20, y: 14, w: 100, h: 11, color: '#ffec27' },
-      { id: 'concourse',   label: 'CONCOURSE',   x: 8,  y: 27, w: 124, h: 12, color: '#29adff' },
+      { id: 'pressbox',    label: 'PRESS BOX',   x: 42, y: 3,  w: 114, h: 15, color: '#ff77a8' },
+      { id: 'luxury',      label: 'LUXURY',      x: 28, y: 20, w: 142, h: 16, color: '#ffec27' },
+      { id: 'concourse',   label: 'CONCOURSE',   x: 12, y: 38, w: 176, h: 17, color: '#29adff' },
       { id: 'field',       label: 'FIELD',        x: 0,  y: 0,  w: 0,   h: 0,  color: '#00e436' }, // drawn as diamond
-      { id: 'mechanical',  label: 'MECH',        x: 6,  y: 76, w: 38,  h: 14, color: '#ffa300' },
-      { id: 'underground', label: 'UNDERGROUND', x: 6,  y: 84, w: 128, h: 12, color: '#7e2553' },
+      { id: 'mechanical',  label: 'MECH',        x: 8,  y: 108, w: 54, h: 18, color: '#ffa300' },
+      { id: 'underground', label: 'UNDERGROUND', x: 8,  y: 120, w: 182, h: 16, color: '#7e2553' },
     ];
 
-    let html = `<div style="position:relative;width:100%;height:100%;font-size:7px;color:#888;">`;
-    html += `<div style="position:absolute;top:1px;left:4px;font-size:5px;color:#555;letter-spacing:1px">STADIUM MAP</div>`;
+    let html = `<div style="position:relative;width:100%;height:100%;font-size:9px;color:#888;">`;
+    html += `<div style="position:absolute;top:2px;left:6px;font-size:7px;color:#555;letter-spacing:1px">STADIUM MAP</div>`;
 
     for (const z of zones) {
       if (z.id === 'field') continue; // drawn separately as diamond
@@ -126,7 +126,7 @@ export class ZoneNavigator {
 
       // Empty slot indicator: green dot if slots available
       const emptyIndicator = zEmpty > 0
-        ? `<span style="position:absolute;top:-1px;left:1px;width:6px;height:6px;border-radius:50%;background:#00e436;border:1px solid #004d00;font-size:5px;line-height:6px;text-align:center;color:#000;font-weight:bold;" title="${zEmpty} empty slot${zEmpty !== 1 ? 's' : ''}">${zEmpty}</span>`
+        ? `<span style="position:absolute;top:-2px;left:1px;width:8px;height:8px;border-radius:50%;background:#00e436;border:1px solid #004d00;font-size:7px;line-height:8px;text-align:center;color:#000;font-weight:bold;" title="${zEmpty} empty slot${zEmpty !== 1 ? 's' : ''}">${zEmpty}</span>`
         : '';
 
       html += `
@@ -136,7 +136,7 @@ export class ZoneNavigator {
           background: ${z.color}; opacity: ${opacity};
           border: ${border}; border-radius: 2px;
           display:flex; align-items:center; justify-content:center;
-          font-size: 6px; color: ${textColor};
+          font-size: 8px; color: ${textColor};
           letter-spacing: 0.5px;
           filter: ${brightness};
           box-shadow: ${glow};
@@ -171,8 +171,8 @@ export class ZoneNavigator {
 
     html += `
       <div data-zone="field" style="
-        position:absolute; left:46px; top:44px;
-        width:28px; height:28px;
+        position:absolute; left:64px; top:62px;
+        width:40px; height:40px;
         background: ${fColor}; opacity: ${fOpacity};
         border: ${fBorder}; border-radius: 2px;
         transform: rotate(45deg);
@@ -181,7 +181,7 @@ export class ZoneNavigator {
         box-shadow: ${fGlow};
         transition: opacity 0.2s, filter 0.2s;
       " title="${fieldTooltip}">
-        <span style="transform:rotate(-45deg);font-size:6px;color:${fTextColor};letter-spacing:0.5px">FIELD</span>
+        <span style="transform:rotate(-45deg);font-size:8px;color:${fTextColor};letter-spacing:0.5px">FIELD</span>
         ${fieldWarnIcon}${fieldEmptyIndicator}
       </div>
     `;
@@ -189,8 +189,8 @@ export class ZoneNavigator {
     // Outfield arc: a subtle curved region around the diamond
     html += `
       <div style="
-        position:absolute; left:16px; top:40px;
-        width:88px; height:36px;
+        position:absolute; left:22px; top:56px;
+        width:126px; height:50px;
         border: 1px solid rgba(0,228,54,0.15);
         border-radius: 50% 50% 0 0;
         pointer-events:none;
@@ -200,12 +200,12 @@ export class ZoneNavigator {
     // Base lines from diamond corners
     html += `
       <div style="
-        position:absolute; left:28px; top:58px; width:30px; height:1px;
+        position:absolute; left:38px; top:82px; width:42px; height:1px;
         background:rgba(255,255,255,0.08); transform:rotate(-35deg); transform-origin:right center;
         pointer-events:none;
       "></div>
       <div style="
-        position:absolute; left:62px; top:58px; width:30px; height:1px;
+        position:absolute; left:88px; top:82px; width:42px; height:1px;
         background:rgba(255,255,255,0.08); transform:rotate(35deg); transform-origin:left center;
         pointer-events:none;
       "></div>

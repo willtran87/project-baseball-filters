@@ -163,7 +163,7 @@ export class EconomyPanel {
       border: 2px solid #8b4513;
       border-radius: 4px;
       font-family: monospace; color: #e0e0e0;
-      font-size: 11px; z-index: 30;
+      font-size: 14px; z-index: 30;
       display: flex; flex-direction: column;
       overflow: hidden;
       box-shadow: 0 0 20px rgba(139,69,19,0.2);
@@ -179,11 +179,11 @@ export class EconomyPanel {
       <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #8b4513;background:linear-gradient(180deg,rgba(139,69,19,0.15),rgba(0,0,0,0.3));">
         <strong style="color:#ffec27;letter-spacing:1px">FINANCE REPORT</strong>
         <div style="display:flex;align-items:center;gap:12px;">
-          <span style="color:#aaa;font-size:9px">
+          <span style="color:#aaa;font-size:11px">
             Game Day <span style="color:#fff">${s.gameDay}</span> |
             Cash: <span style="color:#00e436;font-weight:bold">$${s.money.toLocaleString()}</span>
           </span>
-          <span data-action="close-economy" style="cursor:pointer;color:#888;font-size:12px">\u2715</span>
+          <span data-action="close-economy" style="cursor:pointer;color:#888;font-size:14px">\u2715</span>
         </div>
       </div>
     `;
@@ -197,10 +197,10 @@ export class EconomyPanel {
     const mColor = marketColors[marketCondition] ?? '#888';
     html += `
       <div style="margin-bottom:6px;display:flex;align-items:center;gap:8px;">
-        <span style="color:#aaa;font-size:9px;">Market:</span>
-        <span style="color:${mColor};font-size:10px;font-weight:bold;border:1px solid ${mColor}44;padding:1px 6px;border-radius:2px;">${marketLabels[marketCondition] ?? 'Normal'}</span>
-        ${marketRevMult !== 1.0 ? `<span style="color:${mColor};font-size:8px;">Revenue x${marketRevMult.toFixed(2)}</span>` : ''}
-        ${marketCostMult !== 1.0 ? `<span style="color:#ff004d;font-size:8px;">Costs x${marketCostMult.toFixed(2)}</span>` : ''}
+        <span style="color:#aaa;font-size:11px;">Market:</span>
+        <span style="color:${mColor};font-size:12px;font-weight:bold;border:1px solid ${mColor}44;padding:1px 8px;border-radius:2px;">${marketLabels[marketCondition] ?? 'Normal'}</span>
+        ${marketRevMult !== 1.0 ? `<span style="color:${mColor};font-size:10px;">Revenue x${marketRevMult.toFixed(2)}</span>` : ''}
+        ${marketCostMult !== 1.0 ? `<span style="color:#ff004d;font-size:10px;">Costs x${marketCostMult.toFixed(2)}</span>` : ''}
       </div>
     `;
 
@@ -209,8 +209,8 @@ export class EconomyPanel {
       const tourIncome = Math.floor((s.reputation ?? 0) * 8);
       const maintContractIncome = (s.staffList ?? []).length * 25;
       html += `
-        <div style="margin-bottom:8px;padding:6px;border:1px solid #29adff44;border-radius:3px;background:#29adff08;">
-          <div style="color:#29adff;font-weight:bold;font-size:9px;margin-bottom:4px;">OFF-SEASON REVENUE</div>
+        <div style="margin-bottom:8px;padding:8px;border:1px solid #29adff44;border-radius:3px;background:#29adff08;">
+          <div style="color:#29adff;font-weight:bold;font-size:11px;margin-bottom:4px;">OFF-SEASON REVENUE</div>
           ${this._row('Stadium Tours', `+$${tourIncome.toLocaleString()}`, '#29adff', `Rep ${s.reputation}% x $8`)}
           ${this._row('Maint. Contracts', `+$${maintContractIncome.toLocaleString()}`, '#29adff', `${(s.staffList ?? []).length} staff x $25`)}
           ${this._row('Total off-season income', `+$${(tourIncome + maintContractIncome).toLocaleString()}`, '#00e436')}
@@ -225,9 +225,9 @@ export class EconomyPanel {
       let sDesc = `Attendance +${sAttPct}%`;
       if (sConcPct > 0) sDesc += `, Concessions +${sConcPct}%`;
       html += `
-        <div style="margin-bottom:6px;padding:3px 8px;border:1px solid #ffec2744;border-radius:2px;background:#ffec2708;display:flex;align-items:center;gap:8px;">
-          <span style="color:#ffec27;font-size:10px;font-weight:bold;">${seasonalLabel}</span>
-          <span style="color:#aaa;font-size:8px;">${sDesc}</span>
+        <div style="margin-bottom:6px;padding:5px 8px;border:1px solid #ffec2744;border-radius:2px;background:#ffec2708;display:flex;align-items:center;gap:8px;">
+          <span style="color:#ffec27;font-size:12px;font-weight:bold;">${seasonalLabel}</span>
+          <span style="color:#aaa;font-size:10px;">${sDesc}</span>
         </div>
       `;
     }
@@ -246,7 +246,7 @@ export class EconomyPanel {
     }
 
     if (revenueMultiplier !== 1.0 || earlyBoost !== 1.0 || expansionRevBoost > 0 || marketRevMult !== 1.0) {
-      html += `<div style="margin-top:4px;padding-top:4px;border-top:1px solid #222;color:#888;font-size:9px;">Multipliers applied:</div>`;
+      html += `<div style="margin-top:4px;padding-top:4px;border-top:1px solid #222;color:#888;font-size:11px;">Multipliers applied:</div>`;
       if (revenueMultiplier !== 1.0) html += this._row('Game day bonus', `x${revenueMultiplier.toFixed(2)}`, '#ffec27');
       if (earlyBoost !== 1.0) html += this._row('Early season boost', `x${earlyBoost.toFixed(2)}`, '#29adff');
       if (expansionRevBoost > 0) html += this._row('Expansion bonus', `+${Math.round(expansionRevBoost * 100)}%`, '#ffa300');
@@ -272,7 +272,7 @@ export class EconomyPanel {
     html += this._row('Staff wages', `$${staffWages.toLocaleString()}`, '#aaa', `${(s.staffList ?? []).length} staff`);
 
     if (expansionCostReduction > 0 || difficultyExpenseMult !== 1.0 || marketCostMult !== 1.0) {
-      html += `<div style="margin-top:4px;padding-top:4px;border-top:1px solid #222;color:#888;font-size:9px;">Modifiers applied:</div>`;
+      html += `<div style="margin-top:4px;padding-top:4px;border-top:1px solid #222;color:#888;font-size:11px;">Modifiers applied:</div>`;
       if (expansionCostReduction > 0) html += this._row('Expansion savings', `-${Math.round(expansionCostReduction * 100)}%`, '#29adff');
       if (marketCostMult !== 1.0) html += this._row('Recession cost increase', `x${marketCostMult.toFixed(2)}`, '#ff004d');
       if (difficultyExpenseMult !== 1.0) html += this._row('Difficulty modifier', `x${difficultyExpenseMult.toFixed(2)}`, '#888');
@@ -291,7 +291,7 @@ export class EconomyPanel {
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <div>
             <span style="color:#aaa;">Net per game: </span>
-            <span style="color:${netColor};font-weight:bold;font-size:12px;">${netSign}$${Math.abs(netPerGame).toLocaleString()}</span>
+            <span style="color:${netColor};font-weight:bold;font-size:14px;">${netSign}$${Math.abs(netPerGame).toLocaleString()}</span>
           </div>
           <div>
             <span style="color:#aaa;">Per inning: </span>
@@ -304,6 +304,12 @@ export class EconomyPanel {
         </div>
       </div>
     `;
+
+    // --- Charts section ---
+    html += this._renderCharts({
+      ticketRevenue, concessionRevenue, contractIncome,
+      adjustedGameRevenue, adjustedExpenses,
+    });
 
     // --- Active modifiers section ---
     const modifiers = [];
@@ -320,9 +326,9 @@ export class EconomyPanel {
 
     if (modifiers.length > 0) {
       html += `<div style="margin-top:8px;padding-top:6px;border-top:1px solid #3a3a5a;">`;
-      html += `<div style="color:#888;font-size:9px;margin-bottom:4px;">ACTIVE MODIFIERS</div>`;
+      html += `<div style="color:#888;font-size:11px;margin-bottom:4px;">ACTIVE MODIFIERS</div>`;
       for (const mod of modifiers) {
-        html += `<span style="display:inline-block;color:${mod.color};font-size:8px;border:1px solid ${mod.color}44;padding:1px 5px;border-radius:2px;margin:1px 2px;">${mod.label}</span>`;
+        html += `<span style="display:inline-block;color:${mod.color};font-size:10px;border:1px solid ${mod.color}44;padding:1px 5px;border-radius:2px;margin:1px 2px;">${mod.label}</span>`;
       }
       html += `</div>`;
     }
@@ -357,11 +363,11 @@ export class EconomyPanel {
 
   _row(label, value, valueColor, hint) {
     return `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;">
-        <span style="color:#aaa;font-size:9px;">${label}</span>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;">
+        <span style="color:#aaa;font-size:11px;">${label}</span>
         <span style="display:flex;align-items:center;gap:6px;">
-          ${hint ? `<span style="color:#555;font-size:8px;">${hint}</span>` : ''}
-          <span style="color:${valueColor};font-size:10px;">${value}</span>
+          ${hint ? `<span style="color:#555;font-size:10px;">${hint}</span>` : ''}
+          <span style="color:${valueColor};font-size:12px;">${value}</span>
         </span>
       </div>
     `;
@@ -397,8 +403,8 @@ export class EconomyPanel {
     let html = `
       <div style="margin-top:8px;border-top:1px solid #3a3a5a;">
         <div data-action="toggle-forecast" style="cursor:pointer;padding:6px 0;display:flex;justify-content:space-between;align-items:center;">
-          <span style="color:#29adff;font-weight:bold;font-size:9px;letter-spacing:1px;">BUDGET FORECAST</span>
-          <span style="color:#555;font-size:8px;">click to expand</span>
+          <span style="color:#29adff;font-weight:bold;font-size:11px;letter-spacing:1px;">BUDGET FORECAST</span>
+          <span style="color:#555;font-size:10px;">click to expand</span>
         </div>
         <div data-forecast-body style="display:none;padding-bottom:6px;">
     `;
@@ -407,7 +413,7 @@ export class EconomyPanel {
     html += this._row(`Projected ${forecastDays}-Day Income`, `$${projectedRevenue.toLocaleString()}`, '#29adff', `~$${dailyIncome.toLocaleString()}/day`);
 
     // Recurring cost breakdown
-    html += `<div style="margin-top:4px;padding-top:4px;border-top:1px solid #222;color:#888;font-size:9px;">Daily Cost Breakdown</div>`;
+    html += `<div style="margin-top:4px;padding-top:4px;border-top:1px solid #222;color:#888;font-size:11px;">Daily Cost Breakdown</div>`;
     html += this._row('Staff Wages', `-$${staffWages.toLocaleString()}/day`, '#aaa');
     html += this._row('Energy', `-$${totalEnergyCost.toLocaleString()}/day`, '#aaa');
     html += this._row('Maintenance', `-$${maintenanceCost.toLocaleString()}/day`, '#aaa');
@@ -451,7 +457,7 @@ export class EconomyPanel {
       const def = expansions.find(e => e.id === pe.key);
       if (def?.revenueBoost) total += def.revenueBoost;
     }
-    return total;
+    return Math.min(total, 1.0); // cap at +100%
   }
 
   _getExpansionCostReduction() {
@@ -462,7 +468,7 @@ export class EconomyPanel {
       const def = expansions.find(e => e.id === pe.key);
       if (def?.operatingCostReduction) total += def.operatingCostReduction;
     }
-    return Math.min(total, 0.5);
+    return Math.min(total, 0.30); // cap at 30%
   }
 
   _getFilterTierDef(filter) {
@@ -506,5 +512,195 @@ export class EconomyPanel {
       return total;
     }
     return (this.state.staffCount ?? 1) * (econ.staffWagePerDay ?? 100);
+  }
+
+  // ── Charts ────────────────────────────────────────────────────────────
+
+  _renderCharts({ ticketRevenue, concessionRevenue, contractIncome, adjustedGameRevenue, adjustedExpenses }) {
+    const history = this.state.stats?.dailyHistory ?? [];
+    let html = '';
+
+    // Revenue breakdown stacked bar (kept as is — not a time series)
+    const totalRev = ticketRevenue + concessionRevenue + contractIncome;
+    if (totalRev > 0) {
+      const tPct = Math.round(ticketRevenue / totalRev * 100);
+      const cPct = Math.round(concessionRevenue / totalRev * 100);
+      const sPct = 100 - tPct - cPct;
+      html += `
+        <div style="margin-top:10px;">
+          <div style="color:#888;font-size:10px;margin-bottom:3px;">REVENUE BREAKDOWN</div>
+          <div style="display:flex;height:10px;border-radius:2px;overflow:hidden;border:1px solid #333;">
+            <div style="width:${tPct}%;background:#29adff;" title="Tickets ${tPct}%"></div>
+            <div style="width:${cPct}%;background:#ffa300;" title="Concessions ${cPct}%"></div>
+            <div style="width:${sPct}%;background:#a78bfa;" title="Contracts ${sPct}%"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:2px;">
+            <span style="color:#29adff;font-size:9px;">\u25CF Tickets ${tPct}%</span>
+            <span style="color:#ffa300;font-size:9px;">\u25CF Concessions ${cPct}%</span>
+            <span style="color:#a78bfa;font-size:9px;">\u25CF Contracts ${sPct}%</span>
+          </div>
+        </div>
+      `;
+    }
+
+    if (history.length >= 2) {
+      const recent = history.slice(-15);
+
+      // Income vs Expenses — dual line graph
+      html += this._svgLineChart({
+        title: 'INCOME vs EXPENSES',
+        data: recent,
+        lines: [
+          { key: 'income', color: '#00e436', label: 'Income' },
+          { key: 'expenses', color: '#ff004d', label: 'Expenses' },
+        ],
+        format: v => `$${Math.round(v).toLocaleString()}`,
+        height: 70,
+      });
+
+      // Net Profit — single line with zero line and trend
+      html += this._svgLineChart({
+        title: 'NET PROFIT TREND',
+        data: recent,
+        lines: [
+          { key: 'net', color: '#ffec27', label: 'Net', fill: true },
+        ],
+        showZeroLine: true,
+        showTrend: true,
+        format: v => `${v >= 0 ? '+' : ''}$${Math.round(v).toLocaleString()}`,
+        height: 60,
+      });
+
+      // Cash Balance — single line with trend
+      html += this._svgLineChart({
+        title: 'CASH BALANCE',
+        data: recent,
+        lines: [
+          { key: 'money', color: '#00e436', label: 'Cash', fill: true },
+        ],
+        showTrend: true,
+        format: v => `$${Math.round(v).toLocaleString()}`,
+        height: 55,
+      });
+    } else {
+      html += `<div style="margin-top:10px;color:#555;font-size:10px;font-style:italic;">Time-series charts available after 2+ game days.</div>`;
+    }
+
+    return html;
+  }
+
+  /**
+   * Render an SVG time-series line chart.
+   * @param {object} opts - { title, data[], lines[{key, color, label, fill?}], format?, height?, showZeroLine?, showTrend? }
+   */
+  _svgLineChart({ title, data, lines, format, height = 60, showZeroLine = false, showTrend = false }) {
+    if (data.length < 2) return '';
+    const W = 320, H = height, PAD = { top: 4, right: 8, bottom: 14, left: 42 };
+    const plotW = W - PAD.left - PAD.right;
+    const plotH = H - PAD.top - PAD.bottom;
+
+    // Compute global min/max across all line series
+    let allVals = [];
+    for (const line of lines) {
+      for (const d of data) allVals.push(d[line.key] ?? 0);
+    }
+    let yMin = Math.min(...allVals);
+    let yMax = Math.max(...allVals);
+    if (showZeroLine) { yMin = Math.min(yMin, 0); yMax = Math.max(yMax, 0); }
+    if (yMin === yMax) { yMin -= 1; yMax += 1; }
+    const yRange = yMax - yMin;
+
+    const toX = (i) => PAD.left + (i / (data.length - 1)) * plotW;
+    const toY = (v) => PAD.top + (1 - (v - yMin) / yRange) * plotH;
+    const fmt = format ?? (v => String(Math.round(v)));
+
+    let svg = `<svg width="100%" viewBox="0 0 ${W} ${H}" style="display:block;margin-top:8px;" xmlns="http://www.w3.org/2000/svg">`;
+
+    // Background
+    svg += `<rect x="${PAD.left}" y="${PAD.top}" width="${plotW}" height="${plotH}" fill="#0a0a14" rx="2"/>`;
+
+    // Horizontal grid lines (3 lines)
+    for (let g = 0; g <= 2; g++) {
+      const gv = yMin + (yRange * g / 2);
+      const gy = toY(gv);
+      svg += `<line x1="${PAD.left}" y1="${gy}" x2="${PAD.left + plotW}" y2="${gy}" stroke="#222" stroke-width="0.5"/>`;
+      svg += `<text x="${PAD.left - 3}" y="${gy + 3}" text-anchor="end" fill="#555" font-size="7" font-family="monospace">${fmt(gv)}</text>`;
+    }
+
+    // Zero line
+    if (showZeroLine && yMin < 0 && yMax > 0) {
+      const zy = toY(0);
+      svg += `<line x1="${PAD.left}" y1="${zy}" x2="${PAD.left + plotW}" y2="${zy}" stroke="#555" stroke-width="0.5" stroke-dasharray="3,2"/>`;
+    }
+
+    // Day labels on x-axis
+    const labelStep = Math.max(1, Math.floor(data.length / 5));
+    for (let i = 0; i < data.length; i += labelStep) {
+      svg += `<text x="${toX(i)}" y="${H - 2}" text-anchor="middle" fill="#555" font-size="7" font-family="monospace">${data[i].day}</text>`;
+    }
+    // Always show last day label
+    if ((data.length - 1) % labelStep !== 0) {
+      svg += `<text x="${toX(data.length - 1)}" y="${H - 2}" text-anchor="middle" fill="#555" font-size="7" font-family="monospace">${data[data.length - 1].day}</text>`;
+    }
+
+    // Draw each line series
+    for (const line of lines) {
+      const vals = data.map(d => d[line.key] ?? 0);
+      const points = vals.map((v, i) => `${toX(i).toFixed(1)},${toY(v).toFixed(1)}`);
+      const polyline = points.join(' ');
+
+      // Filled area under the line
+      if (line.fill) {
+        const baseline = showZeroLine ? toY(0) : PAD.top + plotH;
+        const areaPoints = `${toX(0).toFixed(1)},${baseline} ${polyline} ${toX(data.length - 1).toFixed(1)},${baseline}`;
+        svg += `<polygon points="${areaPoints}" fill="${line.color}" opacity="0.1"/>`;
+      }
+
+      // Line
+      svg += `<polyline points="${polyline}" fill="none" stroke="${line.color}" stroke-width="0.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+
+      // Data point dots
+      for (let i = 0; i < vals.length; i++) {
+        svg += `<circle cx="${toX(i).toFixed(1)}" cy="${toY(vals[i]).toFixed(1)}" r="1.5" fill="${line.color}">`;
+        svg += `<title>Day ${data[i].day}: ${fmt(vals[i])}</title></circle>`;
+      }
+
+      // Trend line (linear regression)
+      if (showTrend && vals.length >= 3) {
+        const n = vals.length;
+        let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+        for (let i = 0; i < n; i++) {
+          sumX += i; sumY += vals[i]; sumXY += i * vals[i]; sumXX += i * i;
+        }
+        const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+        const intercept = (sumY - slope * sumX) / n;
+        const trendStart = intercept;
+        const trendEnd = intercept + slope * (n - 1);
+        const trendColor = slope >= 0 ? '#00e436' : '#ff004d';
+        svg += `<line x1="${toX(0).toFixed(1)}" y1="${toY(trendStart).toFixed(1)}" x2="${toX(n - 1).toFixed(1)}" y2="${toY(trendEnd).toFixed(1)}" stroke="${trendColor}" stroke-width="0.8" stroke-dasharray="4,3" opacity="0.6"/>`;
+        // Trend arrow label
+        const trendDir = slope >= 0 ? '\u2191' : '\u2193';
+        const trendPct = vals[0] !== 0 ? Math.abs(Math.round(slope * (n - 1) / Math.abs(vals[0]) * 100)) : 0;
+        svg += `<text x="${toX(n - 1).toFixed(1)}" y="${toY(trendEnd).toFixed(1) - 4}" text-anchor="end" fill="${trendColor}" font-size="7" font-family="monospace">${trendDir}${trendPct}%</text>`;
+      }
+    }
+
+    svg += `</svg>`;
+
+    // Legend
+    let legend = '<div style="display:flex;gap:10px;margin-top:1px;">';
+    for (const line of lines) {
+      legend += `<span style="color:${line.color};font-size:9px;">\u25CF ${line.label}</span>`;
+    }
+    if (showTrend) legend += `<span style="color:#888;font-size:8px;margin-left:auto;">--- trend</span>`;
+    legend += '</div>';
+
+    return `
+      <div style="margin-top:10px;">
+        <div style="color:#888;font-size:10px;margin-bottom:1px;">${title}</div>
+        ${svg}
+        ${legend}
+      </div>
+    `;
   }
 }

@@ -16,7 +16,10 @@ export class Shop {
     this._visible = false;
     this._activeTab = 'air';
 
-    this.eventBus.on('ui:toggleShop', () => this.toggle());
+    this.eventBus.on('ui:toggleShop', (data) => {
+      if (data?.domain) this._activeTab = data.domain;
+      this.toggle();
+    });
     this.eventBus.on('ui:closeShop', () => this.hide());
     this.eventBus.on('ui:closeAllPanels', (result) => {
       if (this._visible) {
@@ -47,7 +50,7 @@ export class Shop {
       border: 2px solid #8b4513;
       border-radius: 4px;
       font-family: monospace; color: #e0e0e0;
-      font-size: 11px; z-index: 30;
+      font-size: 14px; z-index: 30;
       display: flex; flex-direction: column;
       overflow: hidden;
       box-shadow: 0 0 20px rgba(139,69,19,0.3);
@@ -79,8 +82,8 @@ export class Shop {
     const header = `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:2px solid #8b4513;background:linear-gradient(180deg,rgba(139,69,19,0.15),rgba(0,0,0,0.3))">
         <strong style="color:#ffec27;letter-spacing:1px">\u{1f6d2} DUGOUT SUPPLY SHOP</strong>
-        <span style="color:#888;font-size:10px">Budget: <span style="color:#00e436;font-weight:bold">$${this.state.money.toLocaleString()}</span></span>
-        <span data-action="close-shop" style="cursor:pointer;color:#888;font-size:12px">\u2715</span>
+        <span style="color:#888;font-size:12px">Budget: <span style="color:#00e436;font-weight:bold">$${this.state.money.toLocaleString()}</span></span>
+        <span data-action="close-shop" style="cursor:pointer;color:#888;font-size:14px">\u2715</span>
       </div>
     `;
 
@@ -101,9 +104,9 @@ export class Shop {
           if (key === 'upgrades') {
             const active = key === this._activeTab;
             const upgradeCount = this._getUpgradeableFilters().length;
-            const badge = upgradeCount > 0 ? ` <span style="color:#ffec27;font-size:10px">${upgradeCount}</span>` : '';
+            const badge = upgradeCount > 0 ? ` <span style="color:#ffec27;font-size:12px">${upgradeCount}</span>` : '';
             return `<span data-tab="upgrades" style="
-              padding:6px 12px;cursor:pointer;
+              padding:8px 12px;cursor:pointer;
               color:${active ? '#ffec27' : '#888'};
               border-bottom:${active ? '2px solid #ffec27' : '2px solid transparent'};
               background:${active ? 'rgba(255,255,255,0.05)' : 'transparent'};
@@ -112,9 +115,9 @@ export class Shop {
           if (key === 'emergency') {
             const active = key === this._activeTab;
             const stockCount = this.state.emergencyFilters ?? 0;
-            const stockBadge = stockCount > 0 ? ` <span style="color:#ff004d;font-size:10px">${stockCount}</span>` : '';
+            const stockBadge = stockCount > 0 ? ` <span style="color:#ff004d;font-size:12px">${stockCount}</span>` : '';
             return `<span data-tab="emergency" style="
-              padding:6px 12px;cursor:pointer;
+              padding:8px 12px;cursor:pointer;
               color:${active ? '#ff004d' : '#888'};
               border-bottom:${active ? '2px solid #ff004d' : '2px solid transparent'};
               background:${active ? 'rgba(255,255,255,0.05)' : 'transparent'};
@@ -123,9 +126,9 @@ export class Shop {
           if (key === 'sell') {
             const active = key === this._activeTab;
             const invCount = (this.state.filterInventory ?? []).length;
-            const invBadge = invCount > 0 ? ` <span style="color:#00e436;font-size:10px">${invCount}</span>` : '';
+            const invBadge = invCount > 0 ? ` <span style="color:#00e436;font-size:12px">${invCount}</span>` : '';
             return `<span data-tab="sell" style="
-              padding:6px 12px;cursor:pointer;
+              padding:8px 12px;cursor:pointer;
               color:${active ? '#00e436' : '#888'};
               border-bottom:${active ? '2px solid #00e436' : '2px solid transparent'};
               background:${active ? 'rgba(255,255,255,0.05)' : 'transparent'};
@@ -135,9 +138,9 @@ export class Shop {
           const active = key === this._activeTab;
           const domainH = health[key] ?? 100;
           const warn = domainH < 50;
-          const badge = warn ? ` <span style="color:#ff6b35;font-size:10px" title="${sys.name} health: ${Math.round(domainH)}%">\u26a0</span>` : '';
+          const badge = warn ? ` <span style="color:#ff6b35;font-size:12px" title="${sys.name} health: ${Math.round(domainH)}%">\u26a0</span>` : '';
           return `<span data-tab="${key}" style="
-            padding:6px 12px;cursor:pointer;
+            padding:8px 12px;cursor:pointer;
             color:${active ? sys.color ?? '#fff' : '#888'};
             border-bottom:${active ? `2px solid ${sys.color ?? '#fff'}` : '2px solid transparent'};
             background:${active ? 'rgba(255,255,255,0.05)' : 'transparent'};
@@ -163,7 +166,7 @@ export class Shop {
       // Show which zones accept this domain
       const zoneSlotInfo = this._getZoneSlotsForDomain(this._activeTab);
       if (zoneSlotInfo) {
-        contentHtml += `<div style="color:#888;font-size:9px;margin-bottom:8px;padding:4px 6px;background:rgba(255,255,255,0.03);border-left:2px solid ${activeSys.color ?? '#555'}">
+        contentHtml += `<div style="color:#888;font-size:11px;margin-bottom:8px;padding:6px 8px;background:rgba(255,255,255,0.03);border-left:2px solid ${activeSys.color ?? '#555'}">
           Install in: ${zoneSlotInfo}
         </div>`;
       }
@@ -172,7 +175,7 @@ export class Shop {
       for (const [compKey, comp] of Object.entries(components)) {
         contentHtml += `
           <div style="margin-bottom:12px">
-            <div style="color:${activeSys.color ?? '#aaa'};margin-bottom:4px;font-size:12px">
+            <div style="color:${activeSys.color ?? '#aaa'};margin-bottom:4px;font-size:14px">
               <strong>${comp.name}</strong>
             </div>
         `;
@@ -186,7 +189,10 @@ export class Shop {
         const archetypeColors = { WORKHORSE: '#7ec850', BOOSTER: '#ff6c24', SPECIALIST: '#a78bfa' };
         const archetypeColor = archetypeColors[archetype] ?? '#888';
 
-        contentHtml += `<div style="color:${archetypeColor};font-size:8px;margin-bottom:3px;letter-spacing:1px">${archetype}</div>`;
+        contentHtml += `<div style="color:${archetypeColor};font-size:10px;margin-bottom:3px;letter-spacing:1px">${archetype}</div>`;
+        if (comp.role) {
+          contentHtml += `<div style="color:#777;font-size:10px;margin-bottom:4px;font-style:italic">${comp.role}</div>`;
+        }
 
         for (const tier of tiers) {
           const repTier = this._getReputationTier(tier.tier);
@@ -205,7 +211,7 @@ export class Shop {
           const supplyCostMult = this.state._supplyCostMultiplier ?? 1.0;
           if (supplyCostMult > 1.0) displayCost = Math.ceil(displayCost * supplyCostMult);
           // Apply dynamic market multiplier
-          const marketMult = MarketSystem.getMarketMultiplier(this.state.market, this._activeTab, tier.tier);
+          const marketMult = MarketSystem.getMarketMultiplier(this.state.market, this._activeTab, tier.tier, this.state.purchasedExpansions);
           displayCost = Math.round(displayCost * marketMult);
           const canAfford = this.state.money >= displayCost;
 
@@ -217,9 +223,9 @@ export class Shop {
             const tierMatch = !mktEvt.tierFilter || (tier.tier >= mktEvt.tierFilter.minTier && tier.tier <= mktEvt.tierFilter.maxTier);
             if (domMatch && tierMatch) {
               if (mktEvt.multiplier < 1) {
-                marketBadge = `<span style="color:#00e436;font-size:8px;background:rgba(0,228,54,0.15);padding:0 3px;border-radius:2px;margin-left:4px">SALE</span>`;
+                marketBadge = `<span style="color:#00e436;font-size:10px;background:rgba(0,228,54,0.15);padding:0 5px;border-radius:2px;margin-left:4px">SALE</span>`;
               } else {
-                marketBadge = `<span style="color:#ff004d;font-size:8px;background:rgba(255,0,77,0.15);padding:0 3px;border-radius:2px;margin-left:4px">SHORTAGE</span>`;
+                marketBadge = `<span style="color:#ff004d;font-size:10px;background:rgba(255,0,77,0.15);padding:0 5px;border-radius:2px;margin-left:4px">SHORTAGE</span>`;
               }
             }
           }
@@ -232,7 +238,7 @@ export class Shop {
             const arrow = displayCost < tier.cost
               ? `<span style="color:#00e436">\u2193</span>`
               : `<span style="color:#ff004d">\u2191</span>`;
-            priceHtml = `<span style="color:${priceColor};width:80px;text-align:right"><s style="color:#555;font-size:8px">$${tier.cost.toLocaleString()}</s> ${arrow}$${displayCost.toLocaleString()}</span>`;
+            priceHtml = `<span style="color:${priceColor};width:80px;text-align:right"><s style="color:#555;font-size:10px">$${tier.cost.toLocaleString()}</s> ${arrow}$${displayCost.toLocaleString()}</span>`;
           } else {
             priceHtml = `<span style="color:${priceColor};width:80px;text-align:right">$${displayCost.toLocaleString()}</span>`;
           }
@@ -240,12 +246,12 @@ export class Shop {
           const zoneInfo = this._getZoneSlotsForDomain(this._activeTab) ?? 'Any zone';
           const tierTitle = `Lasts ~${tier.lifespanGames ?? 10} days | $${tier.energyPerDay}/day energy | Install in: ${zoneInfo}`;
           const recLabel = isRecommendedDomain && isUnlocked
-            ? `<span style="color:#ffec27;font-size:9px;margin-left:4px">\u2605 RECOMMENDED</span>`
+            ? `<span style="color:#ffec27;font-size:11px;margin-left:4px">\u2605 RECOMMENDED</span>`
             : '';
           const bonusVal = tier.qualityBonus ?? tier.comfortBonus ?? tier.integrityBonus ?? 0;
           const bonusLabel = activeSys.metricName ?? 'Bonus';
           const dhbVal = tier.domainHealthBonus ?? 0;
-          const dhbHtml = dhbVal > 0 ? `<span style="color:${isUnlocked ? '#4fc' : '#555'};width:55px;text-align:right;font-size:9px">+${dhbVal} Health</span>` : `<span style="width:55px"></span>`;
+          const dhbHtml = dhbVal > 0 ? `<span style="color:${isUnlocked ? '#4fc' : '#555'};width:55px;text-align:right;font-size:11px">+${dhbVal} Health</span>` : `<span style="width:55px"></span>`;
 
           // Passive description for Specialists
           const passiveDescs = {
@@ -253,33 +259,37 @@ export class Shop {
             crossDomain: 'Boosts HVAC domain health',
             maintenanceSaver: '25% reduced maintenance',
             crisisArmor: '50% less crisis rep penalty',
+            powerBackup: 'Halves Power Outage impact; T3+ prevents cascade',
+            infestationShield: 'Halves infestation damage; T3+ may prevent it',
           };
 
           contentHtml += `
-            <div style="display:flex;align-items:center;gap:8px;padding:4px 8px;margin-bottom:2px;
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:2px;
               background:${isUnlocked ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.2)'};
-              border-left:3px solid ${isUnlocked ? (activeSys.color ?? '#4a4a6a') : '#333'}" title="${tierTitle}">
+              border-left:3px solid ${isUnlocked ? (activeSys.color ?? '#4a4a6a') : '#333'};
+              opacity:${!isUnlocked ? '0.35' : (!canAfford ? '0.4' : '1')};
+              cursor:${!isUnlocked || !canAfford ? 'not-allowed' : 'default'}" title="${tierTitle}">
               <span style="color:${isUnlocked ? '#ffec27' : '#555'};width:24px">[T${tier.tier}]</span>
-              <span style="flex:1;color:${isUnlocked ? '#e0e0e0' : '#555'}">${tier.brand ? `<span style="color:${isUnlocked ? '#ffec27' : '#555'};font-size:9px">${tier.brand}</span> ` : ''}${tier.name}${recLabel}${marketBadge}</span>
-              <span style="color:${isUnlocked ? '#29adff' : '#555'};width:60px;text-align:right;font-size:9px">+${bonusVal} ${bonusLabel}</span>
+              <span style="flex:1;color:${isUnlocked ? '#e0e0e0' : '#555'}">${tier.brand ? `<span style="color:${isUnlocked ? '#ffec27' : '#555'};font-size:11px">${tier.brand}</span> ` : ''}${tier.name}${recLabel}${marketBadge}</span>
+              <span style="color:${isUnlocked ? '#29adff' : '#555'};width:60px;text-align:right;font-size:11px">+${bonusVal} ${bonusLabel}</span>
               ${dhbHtml}
-              <span style="color:${isUnlocked ? '#ab5236' : '#555'};width:55px;text-align:right;font-size:9px">${tier.lifespanGames ?? '?'}d life</span>
+              <span style="color:${isUnlocked ? '#ab5236' : '#555'};width:55px;text-align:right;font-size:11px">${tier.lifespanGames ?? '?'}d life</span>
               ${priceHtml}
-              <span style="color:#ffa300;width:70px;text-align:right;font-size:9px">\u26a1$${tier.energyPerDay}/day</span>
+              <span style="color:#ffa300;width:70px;text-align:right;font-size:11px">\u26a1$${tier.energyPerDay}/day</span>
               ${isUnlocked
                 ? `<button data-action="buy-tier" data-domain="${this._activeTab}" data-component="${compKey}" data-tier="${tier.tier}"
                     style="background:${canAfford ? '#1a3a2a' : '#2a2a2a'};color:${canAfford ? '#00e436' : '#555'};
-                    border:1px solid ${canAfford ? '#3a6a4a' : '#333'};padding:2px 8px;font-family:monospace;
-                    cursor:${canAfford ? 'pointer' : 'not-allowed'};font-size:9px;width:50px">
+                    border:1px solid ${canAfford ? '#3a6a4a' : '#333'};padding:4px 8px;font-family:monospace;
+                    cursor:${canAfford ? 'pointer' : 'not-allowed'};font-size:11px;width:50px">
                     BUY
                   </button>`
-                : `<span style="color:#555;font-size:9px;width:50px;text-align:center">LOCKED</span>`
+                : `<span style="color:#ff004d;font-size:11px;width:50px;text-align:center">\u{1f512} LOCKED</span>`
               }
             </div>
-            ${tier.description && isUnlocked ? `<div style="padding:1px 8px 3px 35px;color:#888;font-size:9px;font-style:italic;line-height:1.3">${tier.description}</div>` : ''}
-            ${tier.passive && isUnlocked ? `<div style="padding:0 8px 4px 35px;display:flex;align-items:center;gap:4px">
-              <span style="color:#1a1a2a;background:#a78bfa;font-size:7px;font-weight:bold;padding:1px 4px;border-radius:2px;letter-spacing:0.5px">PASSIVE</span>
-              <span style="color:#a78bfa;font-size:9px">${passiveDescs[tier.passive] ?? tier.passive}</span>
+            ${tier.description && isUnlocked ? `<div style="padding:1px 8px 5px 35px;color:#888;font-size:11px;font-style:italic;line-height:1.3">${tier.description}</div>` : ''}
+            ${tier.passive && isUnlocked ? `<div style="padding:0 8px 6px 35px;display:flex;align-items:center;gap:4px">
+              <span style="color:#1a1a2a;background:#a78bfa;font-size:9px;font-weight:bold;padding:1px 6px;border-radius:2px;letter-spacing:0.5px">PASSIVE</span>
+              <span style="color:#a78bfa;font-size:11px">${passiveDescs[tier.passive] ?? tier.passive}</span>
             </div>` : ''}
           `;
         }
@@ -295,7 +305,7 @@ export class Shop {
       ${header}
       ${tabsHtml}
       ${marketBannerHtml}
-      <div style="flex:1;overflow-y:auto;padding:8px 12px">
+      <div class="panel-content" style="flex:1;overflow-y:auto;padding:8px 12px;scroll-behavior:smooth">
         ${contentHtml}
       </div>
     `;
@@ -392,9 +402,9 @@ export class Shop {
     const supplyCostMult = this.state._supplyCostMultiplier ?? 1.0;
     if (supplyCostMult > 1.0) effectiveCost = Math.ceil(effectiveCost * supplyCostMult);
     // Dynamic market multiplier
-    const marketMult = MarketSystem.getMarketMultiplier(this.state.market, domain, tierNum);
+    const marketMult = MarketSystem.getMarketMultiplier(this.state.market, domain, tierNum, this.state.purchasedExpansions);
     effectiveCost = Math.round(effectiveCost * marketMult);
-    if (this.state.money < effectiveCost) {
+    if (!Number.isFinite(this.state.money) || this.state.money < effectiveCost) {
       this.eventBus.emit('ui:message', { text: 'Not enough money!', type: 'warning' });
       return;
     }
@@ -421,11 +431,12 @@ export class Shop {
     const market = this.state.market;
     if (!market) return '';
 
-    const domainNames = { air: 'Air', water: 'Water', hvac: 'HVAC', drainage: 'Drain' };
-    const domainColors = { air: '#ccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44' };
+    const domainNames = { air: 'Air', water: 'Water', hvac: 'HVAC', drainage: 'Drain', electrical: 'Elec', pest: 'Pest' };
+    const domainColors = { air: '#ccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44', electrical: '#ffcc00', pest: '#cc44cc' };
+    const domainKeys = Object.keys(this.state.config?.filtrationSystems ?? domainNames);
 
     let trendHtml = '';
-    for (const domain of ['air', 'water', 'hvac', 'drainage']) {
+    for (const domain of domainKeys) {
       const mult = market.domainMultipliers?.[domain] ?? 1.0;
       const trend = market.trend?.[domain] ?? 0;
       let arrow, arrowColor;
@@ -435,9 +446,9 @@ export class Shop {
       const pctOff = Math.round((mult - 1) * 100);
       const pctLabel = pctOff === 0 ? '' : (pctOff > 0 ? `+${pctOff}%` : `${pctOff}%`);
       const pctColor = pctOff > 0 ? '#ff004d' : (pctOff < 0 ? '#00e436' : '#888');
-      trendHtml += `<span style="color:${domainColors[domain]};font-size:9px">${domainNames[domain]}</span>`;
-      trendHtml += `<span style="color:${arrowColor};font-size:10px;margin:0 1px">${arrow}</span>`;
-      trendHtml += `<span style="color:${pctColor};font-size:8px;margin-right:8px">${pctLabel}</span>`;
+      trendHtml += `<span style="color:${domainColors[domain]};font-size:11px">${domainNames[domain]}</span>`;
+      trendHtml += `<span style="color:${arrowColor};font-size:12px;margin:0 1px">${arrow}</span>`;
+      trendHtml += `<span style="color:${pctColor};font-size:10px;margin-right:8px">${pctLabel}</span>`;
     }
 
     let eventHtml = '';
@@ -445,13 +456,13 @@ export class Shop {
     if (evt) {
       const evtColor = evt.multiplier < 1 ? '#00e436' : '#ff004d';
       const evtBg = evt.multiplier < 1 ? 'rgba(0,228,54,0.1)' : 'rgba(255,0,77,0.1)';
-      eventHtml = `<span style="color:${evtColor};background:${evtBg};padding:1px 6px;border-radius:2px;font-size:9px;margin-left:4px">
+      eventHtml = `<span style="color:${evtColor};background:${evtBg};padding:1px 8px;border-radius:2px;font-size:11px;margin-left:4px">
         ${evt.name} (${evt.daysLeft}d left)
       </span>`;
     }
 
-    return `<div style="display:flex;align-items:center;padding:3px 12px;background:rgba(0,0,0,0.3);border-bottom:1px solid #2a2a3a;gap:2px">
-      <span style="color:#888;font-size:8px;margin-right:6px;letter-spacing:1px">MARKET:</span>
+    return `<div style="display:flex;align-items:center;padding:5px 12px;background:rgba(0,0,0,0.3);border-bottom:1px solid #2a2a3a;gap:2px">
+      <span style="color:#888;font-size:10px;margin-right:6px;letter-spacing:1px">MARKET:</span>
       ${trendHtml}${eventHtml}
     </div>`;
   }
@@ -474,6 +485,8 @@ export class Shop {
       water: ['field', 'concourse', 'underground'],
       hvac: ['field', 'mechanical', 'luxury', 'pressbox'],
       drainage: ['field', 'underground'],
+      electrical: ['mechanical', 'underground', 'luxury', 'pressbox'],
+      pest: ['concourse', 'underground', 'mechanical', 'luxury'],
     };
     const zones = domainZones[domain];
     if (!zones) return null;
@@ -537,13 +550,13 @@ export class Shop {
       return `
         <div style="color:#888;text-align:center;padding:20px 12px;line-height:1.6">
           No filters eligible for upgrade.<br>
-          <span style="font-size:10px;color:#666">Install filters and build reputation to unlock higher tiers.</span>
+          <span style="font-size:12px;color:#666">Install filters and build reputation to unlock higher tiers.</span>
         </div>
       `;
     }
 
     let html = `
-      <div style="color:#aaa;font-size:9px;margin-bottom:8px;padding:4px 6px;background:rgba(255,255,255,0.03);border-left:2px solid #ffec27">
+      <div style="color:#aaa;font-size:11px;margin-bottom:8px;padding:6px 8px;background:rgba(255,255,255,0.03);border-left:2px solid #ffec27">
         Upgrade installed filters to the next tier. Trade-in value: 50% of current tier cost.
       </div>
     `;
@@ -571,32 +584,33 @@ export class Shop {
       const zoneName = zoneLabels[filter.zone] ?? filter.zone ?? '?';
 
       html += `
-        <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 8px;margin-bottom:4px;
           background:rgba(255,255,255,0.03);
           border-left:3px solid ${domainColor}">
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:2px">
-              <span style="color:${domainColor};font-size:9px">[${domainDef.name}]</span>
+              <span style="color:${domainColor};font-size:11px">[${domainDef.name}]</span>
               <span style="color:#e0e0e0"><strong>${currentTierDef.name}</strong></span>
-              <span style="color:#ffec27;font-size:9px">T${filter.tier}</span>
-              <span style="color:#555;font-size:9px">${zoneName}</span>
-              <span style="color:${condColor};font-size:9px">${condPct}% HP</span>
+              <span style="color:#ffec27;font-size:11px">T${filter.tier}</span>
+              <span style="color:#555;font-size:11px">${zoneName}</span>
+              <span style="color:${condColor};font-size:11px">${condPct}% HP</span>
             </div>
-            <div style="color:#888;font-size:9px;margin-bottom:2px">
+            <div style="color:#888;font-size:11px;margin-bottom:2px">
               \u2192 <span style="color:#ffec27">${nextTierDef.name}</span>
-              <span style="color:#ffec27;font-size:8px">T${filter.tier + 1}</span>
+              <span style="color:#ffec27;font-size:10px">T${filter.tier + 1}</span>
             </div>
-            <div style="display:flex;gap:10px;font-size:9px;color:#aaa">
+            <div style="display:flex;gap:10px;font-size:11px;color:#aaa">
               <span style="color:${bonusDiff > 0 ? '#29adff' : '#888'}">+${bonusDiff} ${metricName}</span>
               <span style="color:${lifeDiff > 0 ? '#00e436' : '#888'}">+${lifeDiff}d life</span>
               <span style="color:${energyDiff > 0 ? '#ffa300' : energyDiff < 0 ? '#00e436' : '#888'}">${energyDiff > 0 ? '+' : ''}${energyDiff} \u26a1/day</span>
             </div>
           </div>
-          <span style="color:${canAfford ? '#00e436' : '#555'};width:75px;text-align:right;font-size:10px">$${upgradeCost.toLocaleString()}</span>
+          <span style="color:${canAfford ? '#00e436' : '#555'};width:75px;text-align:right;font-size:12px">$${upgradeCost.toLocaleString()}</span>
           <button data-action="upgrade-filter" data-filter-id="${filter.id}" data-next-tier="${filter.tier + 1}"
             style="background:${canAfford ? '#2a3a2a' : '#2a2a2a'};color:${canAfford ? '#ffec27' : '#555'};
-            border:1px solid ${canAfford ? '#4a5a3a' : '#333'};padding:3px 10px;font-family:monospace;
-            cursor:${canAfford ? 'pointer' : 'not-allowed'};font-size:9px;width:65px;font-weight:bold">
+            border:1px solid ${canAfford ? '#4a5a3a' : '#333'};padding:5px 10px;font-family:monospace;
+            cursor:${canAfford ? 'pointer' : 'not-allowed'};font-size:11px;width:65px;font-weight:bold;
+            opacity:${canAfford ? '1' : '0.4'}">
             UPGRADE
           </button>
         </div>
@@ -620,6 +634,8 @@ export class Shop {
       water: ['field', 'concourse', 'underground'],
       hvac: ['field', 'mechanical', 'luxury', 'pressbox'],
       drainage: ['field', 'underground'],
+      electrical: ['mechanical', 'underground', 'luxury', 'pressbox'],
+      pest: ['concourse', 'underground', 'mechanical', 'luxury'],
     };
     const domainNames = { air: 'Air', water: 'Water', hvac: 'HVAC', drainage: 'Drainage' };
     const zoneLabels = {
@@ -654,32 +670,33 @@ export class Shop {
     const canAfford = this.state.money >= cost;
 
     return `
-      <div style="color:#aaa;font-size:9px;margin-bottom:8px;padding:4px 6px;background:rgba(255,255,255,0.03);border-left:2px solid #ff004d">
+      <div style="color:#aaa;font-size:11px;margin-bottom:8px;padding:6px 8px;background:rgba(255,255,255,0.03);border-left:2px solid #ff004d">
         Emergency filters are universal temporary filters that work in any domain slot. They expire after 1 game day.
       </div>
-      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 8px;margin-bottom:4px;
         background:rgba(255,255,255,0.03);border-left:3px solid #ff004d">
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:2px">
-            <span style="color:#ff004d;font-size:12px;font-weight:bold">Emergency Filter Pack</span>
-            <span style="color:#888;font-size:9px">Universal</span>
+            <span style="color:#ff004d;font-size:14px;font-weight:bold">Emergency Filter Pack</span>
+            <span style="color:#888;font-size:11px">Universal</span>
           </div>
-          <div style="color:#888;font-size:9px;line-height:1.4">
+          <div style="color:#888;font-size:11px;line-height:1.4">
             Universal temporary filter. <span style="color:#ffa300">30% efficiency</span>. Expires after <span style="color:#ffec27">1 game day</span>. Works in any domain.
           </div>
-          <div style="color:#ff004d;font-size:9px;margin-top:2px">
+          <div style="color:#ff004d;font-size:11px;margin-top:2px">
             In stock: <span style="color:#e0e0e0;font-weight:bold">${stock}</span>
           </div>
         </div>
-        <span style="color:${canAfford ? '#00e436' : '#555'};width:75px;text-align:right;font-size:11px;font-weight:bold">$${cost.toLocaleString()}</span>
+        <span style="color:${canAfford ? '#00e436' : '#555'};width:75px;text-align:right;font-size:14px;font-weight:bold">$${cost.toLocaleString()}</span>
         <button data-action="buy-emergency"
           style="background:${canAfford ? '#3a1a1a' : '#2a2a2a'};color:${canAfford ? '#ff004d' : '#555'};
-          border:1px solid ${canAfford ? '#6a3a3a' : '#333'};padding:4px 12px;font-family:monospace;
-          cursor:${canAfford ? 'pointer' : 'not-allowed'};font-size:10px;font-weight:bold">
+          border:1px solid ${canAfford ? '#6a3a3a' : '#333'};padding:6px 12px;font-family:monospace;
+          cursor:${canAfford ? 'pointer' : 'not-allowed'};font-size:12px;font-weight:bold;
+          opacity:${canAfford ? '1' : '0.4'}">
           BUY
         </button>
       </div>
-      <div style="color:#555;font-size:9px;font-style:italic;margin-top:8px;padding:4px 6px">
+      <div style="color:#555;font-size:11px;font-style:italic;margin-top:8px;padding:6px 8px">
         Tip: Click an empty vent slot to install emergency filters from your stock.
       </div>
     `;
@@ -690,7 +707,7 @@ export class Shop {
    */
   _handleBuyEmergency() {
     const cost = 600;
-    if (this.state.money < cost) {
+    if (!Number.isFinite(this.state.money) || this.state.money < cost) {
       this.eventBus.emit('ui:message', { text: 'Not enough money!', type: 'warning' });
       return;
     }
@@ -718,9 +735,9 @@ export class Shop {
       return `
         <div style="color:#888;text-align:center;padding:20px 12px;line-height:1.6">
           No used filters in inventory.<br>
-          <span style="font-size:10px;color:#666">Remove non-broken filters to add them to your inventory for resale.</span>
+          <span style="font-size:12px;color:#666">Remove non-broken filters to add them to your inventory for resale.</span>
         </div>
-        <div style="color:#555;font-size:9px;padding:4px 6px;border-top:1px solid #2a2a3a;margin-top:8px">
+        <div style="color:#555;font-size:11px;padding:6px 8px;border-top:1px solid #2a2a3a;margin-top:8px">
           Market: <span style="color:${marketColor}">${marketCondLabel.toUpperCase()}</span>
           (${Math.round(marketMult * 100)}% resale modifier)
         </div>
@@ -738,15 +755,15 @@ export class Shop {
       totalValue += item.resaleValue;
 
       itemsHtml += `
-        <div style="display:flex;align-items:center;gap:8px;padding:4px 8px;margin-bottom:2px;
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:2px;
           background:rgba(255,255,255,0.03);border-left:3px solid ${dColor}">
-          <span style="color:${dColor};width:50px;font-size:9px">[${dName}]</span>
-          <span style="flex:1;color:#e0e0e0">${item.name} <span style="color:#ffec27;font-size:9px">T${item.tier}</span></span>
-          <span style="color:${condColor};width:45px;text-align:right;font-size:9px">${item.conditionPercent}% HP</span>
-          <span style="color:#00e436;width:65px;text-align:right;font-size:10px">$${item.resaleValue.toLocaleString()}</span>
+          <span style="color:${dColor};width:50px;font-size:11px">[${dName}]</span>
+          <span style="flex:1;color:#e0e0e0">${item.name} <span style="color:#ffec27;font-size:11px">T${item.tier}</span></span>
+          <span style="color:${condColor};width:45px;text-align:right;font-size:11px">${item.conditionPercent}% HP</span>
+          <span style="color:#00e436;width:65px;text-align:right;font-size:12px">$${item.resaleValue.toLocaleString()}</span>
           <button data-action="sell-filter" data-idx="${i}"
             style="background:#1a3a2a;color:#00e436;border:1px solid #3a6a4a;
-            padding:2px 8px;font-family:monospace;cursor:pointer;font-size:9px;width:45px">
+            padding:4px 8px;font-family:monospace;cursor:pointer;font-size:11px;width:45px">
             SELL
           </button>
         </div>
@@ -754,10 +771,10 @@ export class Shop {
     }
 
     return `
-      <div style="color:#aaa;font-size:9px;margin-bottom:8px;padding:4px 6px;background:rgba(255,255,255,0.03);border-left:2px solid #00e436">
+      <div style="color:#aaa;font-size:11px;margin-bottom:8px;padding:6px 8px;background:rgba(255,255,255,0.03);border-left:2px solid #00e436">
         Sell removed filters for cash. Resale value: 20% of cost x condition x market.
       </div>
-      <div style="color:#555;font-size:9px;margin-bottom:6px;padding:4px 6px;border-bottom:1px solid #2a2a3a">
+      <div style="color:#555;font-size:11px;margin-bottom:6px;padding:6px 8px;border-bottom:1px solid #2a2a3a">
         Market: <span style="color:${marketColor}">${marketCondLabel.toUpperCase()}</span>
         (${Math.round(marketMult * 100)}% modifier)
         &nbsp;|&nbsp; Inventory: ${inventory.length} filter${inventory.length !== 1 ? 's' : ''}
@@ -768,7 +785,7 @@ export class Shop {
         <div style="margin-top:8px;text-align:right">
           <button data-action="sell-all"
             style="background:#1a3a2a;color:#00e436;border:1px solid #3a6a4a;
-            padding:4px 12px;font-family:monospace;cursor:pointer;font-size:10px;font-weight:bold">
+            padding:6px 12px;font-family:monospace;cursor:pointer;font-size:12px;font-weight:bold">
             SELL ALL ($${totalValue.toLocaleString()})
           </button>
         </div>
@@ -827,12 +844,12 @@ export class Shop {
     if (isOpen) {
       for (const p of passives) {
         guideContent += `
-          <div style="display:flex;gap:6px;align-items:flex-start;padding:3px 0">
-            <span style="color:#1a1a2a;background:#a78bfa;font-size:7px;font-weight:bold;padding:1px 4px;border-radius:2px;letter-spacing:0.5px;white-space:nowrap;margin-top:1px">PASSIVE</span>
+          <div style="display:flex;gap:6px;align-items:flex-start;padding:5px 0">
+            <span style="color:#1a1a2a;background:#a78bfa;font-size:9px;font-weight:bold;padding:1px 6px;border-radius:2px;letter-spacing:0.5px;white-space:nowrap;margin-top:1px">PASSIVE</span>
             <div>
-              <span style="color:${p.color};font-size:10px;font-weight:bold">${p.name}</span>
-              <span style="color:#666;font-size:8px;margin-left:4px">(${p.component})</span>
-              <div style="color:#aaa;font-size:9px;line-height:1.3">${p.desc}</div>
+              <span style="color:${p.color};font-size:12px;font-weight:bold">${p.name}</span>
+              <span style="color:#666;font-size:10px;margin-left:4px">(${p.component})</span>
+              <div style="color:#aaa;font-size:11px;line-height:1.3">${p.desc}</div>
             </div>
           </div>`;
       }
@@ -840,8 +857,8 @@ export class Shop {
 
     return `
       <div style="margin-top:12px;border-top:1px solid #2a2a3a;padding-top:8px">
-        <div data-action="toggle-passives-guide" style="cursor:pointer;color:#a78bfa;font-size:10px;margin-bottom:${isOpen ? '6' : '0'}px;user-select:none">
-          ${arrow} <strong>Passives Guide</strong> <span style="color:#666;font-size:9px">\u2014 Special abilities on specialist filters</span>
+        <div data-action="toggle-passives-guide" style="cursor:pointer;color:#a78bfa;font-size:12px;margin-bottom:${isOpen ? '6' : '0'}px;user-select:none">
+          ${arrow} <strong>Passives Guide</strong> <span style="color:#666;font-size:11px">\u2014 Special abilities on specialist filters</span>
         </div>
         ${guideContent}
       </div>

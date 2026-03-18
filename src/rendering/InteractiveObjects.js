@@ -22,26 +22,210 @@ export class InteractiveObjects {
     if (!zoneObjects) return null;
     return zoneObjects.find(obj =>
       col >= obj.col1 && col <= obj.col2 &&
-      row >= obj.row1 && row <= obj.row2
+      row >= obj.row1 && row <= obj.row2 &&
+      (!obj.visible || obj.visible(this.state))
     ) ?? null;
   }
 
   /**
    * Handle a click on an interactive object. Returns feedback text.
+   * Provides zone-specific domainHealth so flavor text reflects the current zone.
    */
   interact(obj) {
-    if (obj.action) return obj.action(this.state);
+    if (obj.action) {
+      // Create a lightweight view of state with zone-specific domainHealth
+      const zone = this.state.currentZone ?? 'field';
+      const zoneHealth = this.state.zoneDomainHealth?.[zone]
+        ?? this.state.domainHealth
+        ?? { air: 100, water: 100, hvac: 100, drainage: 100, electrical: 100, pest: 100 };
+      const stateView = Object.create(this.state);
+      stateView.domainHealth = zoneHealth;
+      return obj.action(stateView);
+    }
     return obj.description;
   }
 
   _buildRegistry() {
+    const exp = this._expansionObjects();
     return {
-      field: this._fieldObjects(),
-      concourse: this._concourseObjects(),
-      mechanical: this._mechanicalObjects(),
-      underground: this._undergroundObjects(),
-      luxury: this._luxuryObjects(),
-      pressbox: this._pressboxObjects(),
+      field: [...(exp.field ?? []), ...this._fieldObjects()],
+      concourse: [...(exp.concourse ?? []), ...this._concourseObjects()],
+      mechanical: [...(exp.mechanical ?? []), ...this._mechanicalObjects()],
+      underground: [...(exp.underground ?? []), ...this._undergroundObjects()],
+      luxury: [...(exp.luxury ?? []), ...this._luxuryObjects()],
+      pressbox: [...(exp.pressbox ?? []), ...this._pressboxObjects()],
+    };
+  }
+
+  /** Expansion visual tooltips — only visible when purchased. */
+  _expansionObjects() {
+    const _has = (s, id) => (s.purchasedExpansions ?? []).some(p => p.key === id);
+    return {
+      field: [
+        {
+          name: 'Stadium Blimp',
+          col1: 2, col2: 27, row1: 0, row2: 2,
+          icon: '\u{1f6e9}',
+          visible: (s) => _has(s, 'stadiumBlimp'),
+          action: (s) => {
+            const msgs = [
+              'The Ridgemont Blimp cruises overhead. Sponsors love the aerial coverage — +10% contract revenue.',
+              'Blimp circling the field. The rotating sponsor banner is a real crowd-pleaser. Bonus media headlines daily.',
+            ];
+            return msgs[Math.floor(Math.random() * msgs.length)];
+          },
+        },
+        {
+          name: 'Jumbotron Upgrade',
+          col1: 13, col2: 17, row1: 4, row2: 5,
+          icon: '\u{1f4fa}',
+          visible: (s) => _has(s, 'jumbotronUpgrade'),
+          action: () => 'Upgraded Jumbotron with LED chase lights. +15% attendance boost, +5% concession revenue. The fans can\'t look away.',
+        },
+        {
+          name: 'Groundskeeper\'s Garden',
+          col1: 4, col2: 8, row1: 9, row2: 9,
+          icon: '\u{1f33f}',
+          visible: (s) => _has(s, 'groundskeeperGarden'),
+          action: (s) => {
+            const wh = Math.floor(s.domainHealth?.water ?? 0);
+            if (wh > 60) return `Garden is thriving! Water health: ${wh}%. +10 water domain bonus, -50% drainage penalties.`;
+            if (wh > 30) return `Garden is yellowing... Water health: ${wh}%. Need better water filtration to keep it lush.`;
+            return `Garden is brown and dry. Water health: ${wh}%. The plants need water badly.`;
+          },
+        },
+        {
+          name: 'Fireworks Launchers',
+          col1: 1, col2: 5, row1: 16, row2: 18,
+          icon: '\u{1f386}',
+          visible: (s) => _has(s, 'fireworksLauncherArray'),
+          action: () => 'Fireworks launcher array. +15% attendance during special events, +10% base revenue. The night sky show is legendary.',
+        },
+      ],
+      concourse: [
+        {
+          name: 'Neon Food Court',
+          col1: 4, col2: 10, row1: 6, row2: 8,
+          icon: '\u{1f354}',
+          visible: (s) => _has(s, 'neonFoodCourt'),
+          action: () => 'Neon Food Court! Hot dogs, nachos, and cold beer under glowing neon signs. +15% concession revenue.',
+        },
+        {
+          name: 'Seventh Inning Stretch Stage',
+          col1: 13, col2: 17, row1: 6, row2: 8,
+          icon: '\u{1f3b6}',
+          visible: (s) => _has(s, 'seventhInningStretch'),
+          action: () => 'Entertainment stage for the 7th inning stretch. +10% concession revenue during innings 7-9. The crowd loves it.',
+        },
+      ],
+      mechanical: [
+        {
+          name: 'Weather Station Tower',
+          col1: 25, col2: 28, row1: 0, row2: 3,
+          icon: '\u{1f4e1}',
+          visible: (s) => _has(s, 'weatherStationTower'),
+          action: (s) => {
+            const hasEvent = !!s.activeEvent && s.activeEvent.category === 'weather';
+            if (hasEvent) return 'Weather Station radar is active! Storm tracking in progress. -20% weather stress on filters, +1 forecast day.';
+            return 'Weather Station Tower. Radar dish scanning... all clear. -20% filter weather stress, +1 day forecast window.';
+          },
+        },
+        {
+          name: 'Rusty\'s Retirement Clock',
+          col1: 1, col2: 5, row1: 0, row2: 2,
+          icon: '\u{1f570}',
+          visible: (s) => _has(s, 'rustysRetirementClock'),
+          action: (s) => {
+            const staff = s.staffList ?? [];
+            const vets = staff.filter(st => (st.level ?? 1) >= 3).length;
+            if (vets > 0) return `Rusty's Clock. ${vets} veteran staff member${vets > 1 ? 's' : ''} getting the +20% repair speed bonus. Old-timers know every bolt.`;
+            return 'Rusty\'s Retirement Clock. A tribute to long-serving staff. Veterans (Lv.3+) get +20% repair speed.';
+          },
+        },
+        {
+          name: 'Compliance Office',
+          col1: 12, col2: 16, row1: 5, row2: 7,
+          icon: '\u{1f4cb}',
+          visible: (s) => _has(s, 'complianceOffice'),
+          action: () => 'Compliance Office. Ensures stadium meets league standards. +10 inspection score, -5% operating costs.',
+        },
+      ],
+      underground: [
+        {
+          name: 'Steam Forge',
+          col1: 14, col2: 20, row1: 8, row2: 12,
+          icon: '\u{2699}',
+          visible: (s) => _has(s, 'steamForge'),
+          action: () => 'Steam Forge geothermal system. Copper pipes hiss with recycled steam. -15% HVAC and air filter degradation.',
+        },
+        {
+          name: 'Emergency Response Center',
+          col1: 2, col2: 6, row1: 8, row2: 10,
+          icon: '\u{1f6a8}',
+          visible: (s) => _has(s, 'emergencyResponseCenter'),
+          action: () => 'Emergency Response Center. Rapid deployment for crisis events. -30% event chain risk, -25% emergency repair costs.',
+        },
+        {
+          name: 'Winterization Bay',
+          col1: 22, col2: 27, row1: 8, row2: 10,
+          icon: '\u{2744}',
+          visible: (s) => _has(s, 'winterizationBay'),
+          action: () => 'Winterization Bay. Protects infrastructure during off-season. -50% off-season degradation, cold weather shielding.',
+        },
+      ],
+      luxury: [
+        {
+          name: 'Luxury Aquarium Wall',
+          col1: 26, col2: 29, row1: 4, row2: 14,
+          icon: '\u{1f420}',
+          visible: (s) => _has(s, 'luxuryAquariumWall'),
+          action: (s) => {
+            const wh = Math.floor(s.domainHealth?.water ?? 0);
+            if (wh > 60) return `Aquarium Wall. Tropical fish glide through crystal-clear water. +5 water health, +15% luxury revenue. Water health: ${wh}%.`;
+            return `Aquarium Wall. Water looks a bit murky... fish seem sluggish. +5 water health, +15% revenue. Water health: ${wh}%.`;
+          },
+        },
+        {
+          name: 'Old-Timer\'s Wall of Fame',
+          col1: 1, col2: 5, row1: 4, row2: 6,
+          icon: '\u{1f3c6}',
+          visible: (s) => _has(s, 'oldTimersWall'),
+          action: () => 'Old-Timer\'s Wall of Fame. Photos of Ridgemont legends. +5% base revenue — fans love the history.',
+        },
+      ],
+      pressbox: [
+        {
+          name: 'Broadcast Drone',
+          col1: 4, col2: 7, row1: 2, row2: 4,
+          icon: '\u{1f4f7}',
+          visible: (s) => _has(s, 'broadcastDroneRack'),
+          action: () => 'Broadcast Drone hovering with camera gimbal. +1 media rep on positive headlines, +5% sponsor revenue.',
+        },
+        {
+          name: 'Broadcast Drone',
+          col1: 20, col2: 23, row1: 2, row2: 4,
+          icon: '\u{1f4f7}',
+          visible: (s) => _has(s, 'broadcastDroneRack'),
+          action: () => 'Second broadcast drone on patrol. Getting the best angles for the evening highlights reel.',
+        },
+        {
+          name: 'Phantom Frequency Radio',
+          col1: 10, col2: 14, row1: 10, row2: 11,
+          icon: '\u{1f4fb}',
+          visible: (s) => _has(s, 'phantomFrequency'),
+          action: () => 'Phantom Frequency Radio. Strange signals from the old press tower. Mystery windfalls and phantom headlines...',
+        },
+        {
+          name: 'Scouting Bureau',
+          col1: 16, col2: 20, row1: 10, row2: 11,
+          icon: '\u{1f575}',
+          visible: (s) => _has(s, 'scoutingBureau'),
+          action: (s) => {
+            const rivalRep = s.rivalRep ?? 60;
+            return `Scouting Bureau. Intelligence on Glendale (rep: ${Math.floor(rivalRep)}%). -30% sabotage damage from rival operations.`;
+          },
+        },
+      ],
     };
   }
 

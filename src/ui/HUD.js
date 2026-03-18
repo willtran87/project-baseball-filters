@@ -21,9 +21,9 @@ export class HUD {
     this.el.id = 'hud';
     this.el.style.cssText = `
       position: absolute; top: 0; left: 0; right: 0;
-      padding: 2px 6px;
+      padding: 4px 8px;
       display: flex; justify-content: space-between; align-items: center;
-      font-size: 10px; font-family: monospace;
+      font-size: 12px; font-family: monospace;
       color: #e0e0e0;
       background: linear-gradient(180deg, #1a1a2e 0%, #0d0d1a 100%);
       border-bottom: 2px solid #8b4513;
@@ -37,9 +37,9 @@ export class HUD {
     this.bottomBar.id = 'hud-bottom';
     this.bottomBar.style.cssText = `
       position: absolute; bottom: 0; left: 0; right: 0;
-      padding: 2px 6px;
+      padding: 4px 8px;
       display: flex; justify-content: space-between; align-items: center;
-      font-size: 9px; font-family: monospace;
+      font-size: 11px; font-family: monospace;
       color: #c0c0d0;
       background: linear-gradient(0deg, #1a1a2e 0%, #0d0d1a 100%);
       border-top: 2px solid #8b4513;
@@ -65,14 +65,13 @@ export class HUD {
       document.head.appendChild(style);
     }
 
-    // Zone name flash overlay (center of screen, fades out on zone change)
+    // Zone name flash overlay (corner of screen, fades out on zone change)
     this._zoneFlash = document.createElement('div');
     this._zoneFlash.style.cssText = `
-      position: absolute; top: 40%; left: 50%;
-      transform: translate(-50%, -50%);
-      font-family: monospace; font-size: 22px; font-weight: bold;
-      letter-spacing: 4px; color: #ffec27;
-      text-shadow: 2px 2px 0 rgba(0,0,0,0.7), 0 0 12px rgba(255,236,39,0.4);
+      position: absolute; bottom: 150px; left: 8px;
+      font-family: monospace; font-size: 16px; font-weight: bold;
+      letter-spacing: 3px; color: #ffec27;
+      text-shadow: 1px 1px 0 rgba(0,0,0,0.7), 0 0 8px rgba(255,236,39,0.3);
       pointer-events: none; z-index: 20;
       opacity: 0; transition: none;
     `;
@@ -92,18 +91,18 @@ export class HUD {
     this.eventBus.on('zone:changed', ({ to }) => {
       const displayName = this._zoneDisplayNames[to] ?? to?.toUpperCase() ?? '';
       this._zoneFlash.textContent = displayName;
-      // Reset transition, show immediately
+      // Reset transition, show at reduced opacity
       this._zoneFlash.style.transition = 'none';
-      this._zoneFlash.style.opacity = '1';
-      // After brief hold, fade out
+      this._zoneFlash.style.opacity = '0.6';
+      // After brief hold, fade out quickly
       setTimeout(() => {
-        this._zoneFlash.style.transition = 'opacity 1.5s ease';
+        this._zoneFlash.style.transition = 'opacity 0.6s ease-out';
         this._zoneFlash.style.opacity = '0';
       }, 200);
     });
 
     // Track domain pulse states with hysteresis to prevent flicker
-    this._domainPulseActive = { air: false, water: false, hvac: false, drainage: false };
+    this._domainPulseActive = { air: false, water: false, hvac: false, drainage: false, electrical: false, pest: false };
 
     // Track quality data
     this._quality = { avgEfficiency: 0, filterCount: 0, healthyCount: 0, warningCount: 0, brokenCount: 0 };
@@ -135,10 +134,11 @@ export class HUD {
       const health = this.state.domainHealth;
       if (!health) return;
       if (!this.state.domainHealthHistory) {
-        this.state.domainHealthHistory = { air: [], water: [], hvac: [], drainage: [] };
+        this.state.domainHealthHistory = { air: [], water: [], hvac: [], drainage: [], electrical: [], pest: [] };
       }
       const hist = this.state.domainHealthHistory;
-      for (const key of ['air', 'water', 'hvac', 'drainage']) {
+      for (const key of ['air', 'water', 'hvac', 'drainage', 'electrical', 'pest']) {
+        if (!hist[key]) hist[key] = [];
         hist[key].push(health[key] ?? 100);
         if (hist[key].length > 5) hist[key].shift();
       }
@@ -171,49 +171,40 @@ export class HUD {
 
   _buildTopBar() {
     // -- Budget section --
-    const budgetSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '6px' });
+    const budgetSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '8px' });
     this._moneyEl = this._makeSpan({ fontWeight: 'bold' });
-    this._netIncomeEl = this._makeSpan({ color: '#666', fontSize: '8px' });
+    this._netIncomeEl = this._makeSpan({ color: '#666', fontSize: '10px' });
     budgetSection.appendChild(this._moneyEl);
     budgetSection.appendChild(this._netIncomeEl);
     this._budgetSection = budgetSection;
 
-    // -- Shop button --
-    const shopSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '2px' });
-    this._shopBtn = this._makeSpan({
-      cursor: 'pointer', color: '#ffa300', border: '1px solid #5a4a2a',
-      padding: '0 4px', borderRadius: '2px', fontSize: '8px', background: 'rgba(255,163,0,0.1)'
-    });
-    this._shopBtn.textContent = '\u{1f6d2} SHOP';
-    this._shopBtn.title = 'S to open shop';
-    this._shopBtn.dataset.shop = '';
-    shopSection.appendChild(this._shopBtn);
+    // (Systems button moved to bottom bar panel buttons)
 
     // -- Attendance section --
-    this._attSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '3px' });
-    this._attIcon = this._makeSpan({ fontSize: '8px' });
+    this._attSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '5px' });
+    this._attIcon = this._makeSpan({ fontSize: '10px' });
     this._attIcon.textContent = '\u{1f465}';
-    this._attCount = this._makeSpan({ fontWeight: 'bold', fontSize: '9px' });
-    this._attCap = this._makeSpan({ color: '#666', fontSize: '7px' });
-    this._attPctEl = this._makeSpan({ fontSize: '8px' });
-    this._attArrowEl = this._makeSpan({ fontSize: '7px' });
-    this._attStressEl = this._makeSpan({ fontSize: '6px', padding: '0 2px', borderRadius: '1px' });
+    this._attCount = this._makeSpan({ fontWeight: 'bold', fontSize: '11px' });
+    this._attCap = this._makeSpan({ color: '#666', fontSize: '9px' });
+    this._attPctEl = this._makeSpan({ fontSize: '10px' });
+    this._attArrowEl = this._makeSpan({ fontSize: '9px' });
+    this._attStressEl = this._makeSpan({ fontSize: '8px', padding: '0 4px', borderRadius: '1px' });
     this._attSection.append(this._attIcon, this._attCount, this._attCap, this._attPctEl, this._attArrowEl, this._attStressEl);
 
     // -- Game day / Off-season section --
-    this._gameSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '2px', padding: '2px 6px', borderRadius: '3px' });
+    this._gameSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '3px' });
 
     // Off-season sub-elements
-    this._offSeasonLabel = this._makeSpan({ color: '#29adff', fontWeight: 'bold', fontSize: '9px' });
+    this._offSeasonLabel = this._makeSpan({ color: '#29adff', fontWeight: 'bold', fontSize: '11px' });
     this._offSeasonLabel.textContent = 'OFF-SEASON';
     this._offSeasonSep = this._makeSpan({ color: '#555' });
     this._offSeasonSep.textContent = '|';
     this._offSeasonDays = this._makeSpan({ color: '#ffec27', fontWeight: 'bold' });
-    this._offSeasonDaysLabel = this._makeSpan({ color: '#888', fontSize: '8px' });
+    this._offSeasonDaysLabel = this._makeSpan({ color: '#888', fontSize: '10px' });
     this._offSeasonDaysLabel.textContent = 'days left';
 
     // In-season sub-elements
-    this._gameLabel = this._makeSpan({ color: '#888', fontSize: '8px' });
+    this._gameLabel = this._makeSpan({ color: '#888', fontSize: '10px' });
     this._gameLabel.textContent = 'GAME';
     this._gameDayEl = this._makeSpan({ color: '#ffec27', fontWeight: 'bold' });
     this._gameSep = this._makeSpan({ color: '#555' });
@@ -230,20 +221,20 @@ export class HUD {
     this._diamondB1.style.cssText = 'position:absolute;top:4px;left:8px;width:5px;height:5px;transform:rotate(45deg);border:1px solid #555';
     this._diamondWrap.append(this._diamondB2, this._diamondB3, this._diamondB1);
 
-    this._innLabel = this._makeSpan({ color: '#888', fontSize: '8px' });
+    this._innLabel = this._makeSpan({ color: '#888', fontSize: '10px' });
     this._innLabel.textContent = 'INN';
     this._innVal = this._makeSpan({ color: '#fff' });
-    this._innMax = this._makeSpan({ color: '#555', fontSize: '8px' });
+    this._innMax = this._makeSpan({ color: '#555', fontSize: '10px' });
     this._innMax.textContent = '/9';
-    this._dayTypeBadge = this._makeSpan({ color: '#ffec27', fontSize: '7px', marginLeft: '2px' });
-    this._eventBadge = this._makeSpan({ fontSize: '8px', marginLeft: '4px' });
-    this._chainBadge = this._makeSpan({ fontSize: '8px', marginLeft: '4px', padding: '0 3px', borderRadius: '2px' });
-    this._forecastBadge = this._makeSpan({ fontSize: '7px', marginLeft: '4px', color: '#29adff' });
+    this._dayTypeBadge = this._makeSpan({ color: '#ffec27', fontSize: '9px', marginLeft: '2px' });
+    this._eventBadge = this._makeSpan({ fontSize: '10px', marginLeft: '4px' });
+    this._chainBadge = this._makeSpan({ fontSize: '10px', marginLeft: '4px', padding: '0 5px', borderRadius: '2px' });
+    this._forecastBadge = this._makeSpan({ fontSize: '9px', marginLeft: '4px', color: '#29adff' });
 
     // -- Sandbox badge (visible only in post-win sandbox mode) --
     this._sandboxBadge = this._makeSpan({
-      color: '#ffec27', fontSize: '8px', fontWeight: 'bold',
-      border: '1px solid #ffec2744', padding: '0 4px', borderRadius: '2px',
+      color: '#ffec27', fontSize: '10px', fontWeight: 'bold',
+      border: '1px solid #ffec2744', padding: '0 6px', borderRadius: '2px',
       background: 'rgba(255,236,39,0.1)', display: 'none',
       letterSpacing: '1px'
     });
@@ -251,52 +242,52 @@ export class HUD {
     this._sandboxBadge.title = 'Post-win sandbox mode — pursue bonus challenges!';
 
     // -- Zone section --
-    this._zoneSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '4px' });
-    this._zoneNameEl = this._makeSpan({ fontSize: '9px', padding: '0 3px', borderRadius: '2px' });
-    this._zoneFiltersEl = this._makeSpan({ color: '#888', fontSize: '7px' });
+    this._zoneSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '6px' });
+    this._zoneNameEl = this._makeSpan({ fontSize: '11px', padding: '0 5px', borderRadius: '2px' });
+    this._zoneFiltersEl = this._makeSpan({ color: '#888', fontSize: '9px' });
     this._zoneSection.append(this._zoneNameEl, this._zoneFiltersEl);
 
     // -- Reputation section --
-    this._repSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '4px' });
-    this._repTierEl = this._makeSpan({ fontSize: '9px' });
-    this._repPctEl = this._makeSpan({ color: '#888', fontSize: '8px' });
+    this._repSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '6px' });
+    this._repTierEl = this._makeSpan({ fontSize: '11px' });
+    this._repPctEl = this._makeSpan({ color: '#888', fontSize: '10px' });
     this._repBarOuter = this._makeSpan({ display: 'inline-block', width: '30px', height: '4px', background: '#222', border: '1px solid #444', overflow: 'hidden', verticalAlign: 'middle', margin: '0 2px' });
     this._repBarFill = document.createElement('span');
     this._repBarFill.style.cssText = 'display:block;height:100%';
     this._repBarOuter.appendChild(this._repBarFill);
-    this._rivalEl = this._makeSpan({ fontSize: '8px', marginLeft: '2px' });
+    this._rivalEl = this._makeSpan({ fontSize: '10px', marginLeft: '2px' });
     this._repSection.append(this._repTierEl, this._repPctEl, this._repBarOuter, this._rivalEl);
 
     // -- Active Event Icons (3-slot status strip) --
     this._eventIconsSection = this._makeSpan({
-      display: 'flex', alignItems: 'center', gap: '3px',
-      padding: '0 4px', borderLeft: '1px solid #333', borderRight: '1px solid #333'
+      display: 'flex', alignItems: 'center', gap: '5px',
+      padding: '0 6px', borderLeft: '1px solid #333', borderRight: '1px solid #333'
     });
     // Slot 1: Active weather event
     this._eiWeather = this._makeSpan({
       display: 'inline-block', width: '16px', height: '14px', lineHeight: '14px',
-      textAlign: 'center', fontSize: '7px', fontWeight: 'bold',
+      textAlign: 'center', fontSize: '9px', fontWeight: 'bold',
       borderRadius: '2px', border: '1px solid #333', background: 'rgba(0,0,0,0.3)'
     });
     this._eiWeather.title = 'Active weather event';
     // Slot 2: Inspection countdown
     this._eiInspection = this._makeSpan({
       display: 'inline-block', width: '16px', height: '14px', lineHeight: '14px',
-      textAlign: 'center', fontSize: '7px', fontWeight: 'bold',
+      textAlign: 'center', fontSize: '9px', fontWeight: 'bold',
       borderRadius: '2px', border: '1px solid #333', background: 'rgba(0,0,0,0.3)'
     });
     this._eiInspection.title = 'Inspection countdown';
     // Slot 3: Rival threat status
     this._eiRival = this._makeSpan({
       display: 'inline-block', width: '16px', height: '14px', lineHeight: '14px',
-      textAlign: 'center', fontSize: '7px', fontWeight: 'bold',
+      textAlign: 'center', fontSize: '9px', fontWeight: 'bold',
       borderRadius: '2px', border: '1px solid #333', background: 'rgba(0,0,0,0.3)'
     });
     this._eiRival.title = 'Rival threat status';
     // Slot 4: Rival momentum badge (only visible chapter 2+)
     this._rivalMomentumBadge = this._makeSpan({
-      display: 'none', fontSize: '7px', fontWeight: 'bold',
-      padding: '0 3px', borderRadius: '2px', border: '1px solid #333',
+      display: 'none', fontSize: '9px', fontWeight: 'bold',
+      padding: '0 5px', borderRadius: '2px', border: '1px solid #333',
       background: 'rgba(0,0,0,0.3)', whiteSpace: 'nowrap', cursor: 'pointer'
     });
     this._rivalMomentumBadge.title = 'Victor threat level';
@@ -313,27 +304,34 @@ export class HUD {
 
     // -- Weather ticker (compact, in top bar) --
     this._weatherTickerSection = this._makeSpan({
-      display: 'flex', alignItems: 'center', gap: '3px',
-      padding: '0 4px', borderLeft: '1px solid #333', borderRight: '1px solid #333',
-      maxWidth: '150px', overflow: 'hidden', whiteSpace: 'nowrap'
+      display: 'flex', flexDirection: 'column', justifyContent: 'center',
+      padding: '0 6px', borderLeft: '1px solid #333', borderRight: '1px solid #333',
+      maxWidth: '240px', overflow: 'visible', whiteSpace: 'nowrap', lineHeight: '1.1'
     });
-    this._wtCurrent = this._makeSpan({ fontSize: '8px', fontWeight: 'bold' });
-    this._wtForecast = this._makeSpan({ fontSize: '7px', color: '#888' });
+    // Top row: current weather + forecast
+    const wtRow = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '5px' });
+    this._wtCurrent = this._makeSpan({ fontSize: '10px', fontWeight: 'bold' });
+    this._wtForecast = this._makeSpan({ fontSize: '9px', color: '#888' });
+    wtRow.append(this._wtCurrent, this._wtForecast);
+    // Warning row: sits below current/forecast
     this._wtWarning = this._makeSpan({
-      fontSize: '7px', fontWeight: 'bold', color: '#ff004d', display: 'none'
+      fontSize: '9px', fontWeight: 'bold', color: '#ff004d', display: 'none',
+      background: 'rgba(255,0,77,0.2)', padding: '1px 4px', borderRadius: '2px',
+      border: '1px solid rgba(255,0,77,0.4)', whiteSpace: 'nowrap', marginTop: '1px'
     });
-    this._weatherTickerSection.append(this._wtCurrent, this._wtForecast, this._wtWarning);
+    this._weatherTickerSection.append(wtRow, this._wtWarning);
+
 
     // -- Speed controls --
-    this._speedSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '2px' });
-    this._pauseBtn = this._makeSpan({ cursor: 'pointer', color: '#83769c', fontSize: '12px' });
+    this._speedSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '4px' });
+    this._pauseBtn = this._makeSpan({ cursor: 'pointer', color: '#83769c', fontSize: '14px' });
     this._pauseBtn.title = 'Space to toggle';
     this._pauseBtn.dataset.pause = '';
     this._speedBtns = [];
     const speedLabels = { 1: '1x Normal', 2: '2x Fast', 3: '3x Turbo' };
     this._speedSection.appendChild(this._pauseBtn);
     for (const sp of [1, 2, 3]) {
-      const btn = this._makeSpan({ cursor: 'pointer', padding: '0 2px', fontSize: '9px' });
+      const btn = this._makeSpan({ cursor: 'pointer', padding: '0 4px', fontSize: '11px' });
       btn.dataset.speed = String(sp);
       btn.title = speedLabels[sp];
       btn.textContent = `${sp}x`;
@@ -343,7 +341,7 @@ export class HUD {
 
     // Append all sections to top bar
     this.el.append(
-      budgetSection, shopSection, this._attSection,
+      budgetSection, this._attSection,
       this._gameSection, this._sandboxBadge, this._eventIconsSection,
       this._weatherTickerSection,
       this._zoneSection, this._repSection,
@@ -357,50 +355,59 @@ export class HUD {
 
   _buildBottomBar() {
     // -- Filter status section --
-    this._filterSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '2px' });
+    this._filterSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '4px' });
     this._filterEffEl = this._makeSpan({});
     this._filterBarOuter = this._makeSpan({ display: 'inline-block', height: '6px', background: '#222', border: '1px solid #444', borderRadius: '1px', verticalAlign: 'middle', margin: '0 3px', overflow: 'hidden' });
     this._filterBarOuter.style.width = '40px';
     this._filterBarFill = document.createElement('span');
     this._filterBarFill.style.cssText = 'display:block;height:100%';
     this._filterBarOuter.appendChild(this._filterBarFill);
-    this._filterCountEl = this._makeSpan({ color: '#888', fontSize: '8px' });
+    this._filterCountEl = this._makeSpan({ color: '#888', fontSize: '10px' });
     this._filterNoneEl = this._makeSpan({ color: '#555' });
     this._filterNoneEl.textContent = 'No filters \u2014 open SHOP to install';
     this._filterSection.append(this._filterEffEl, this._filterBarOuter, this._filterCountEl, this._filterNoneEl);
 
-    // -- Domain health bars --
-    this._domainSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '4px' });
+    // -- Domain health bars (3x2 grid) --
+    this._domainSection = document.createElement('span');
+    this._domainSection.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:1px;';
+    // Zone label above the grid
+    this._zoneHealthLabel = this._makeSpan({ fontSize: '7px', color: '#666', letterSpacing: '1px', textAlign: 'center' });
+    this._zoneHealthLabel.textContent = 'FIELD';
+    this._domainGrid = document.createElement('span');
+    this._domainGrid.style.cssText = 'display:grid;grid-template-columns:repeat(3,auto);gap:2px 6px;align-items:center;';
+    this._domainSection.append(this._zoneHealthLabel, this._domainGrid);
     const domains = [
-      { key: 'air',      icon: '\ud83d\udca8', label: 'AIR' },
-      { key: 'water',    icon: '\ud83d\udca7', label: 'WTR' },
-      { key: 'hvac',     icon: '\u2744',       label: 'HVAC' },
-      { key: 'drainage', icon: '\ud83d\udd27', label: 'DRN' },
+      { key: 'air',        icon: '\ud83d\udca8', label: 'AIR' },
+      { key: 'water',      icon: '\ud83d\udca7', label: 'WTR' },
+      { key: 'hvac',       icon: '\u2744',       label: 'HVAC' },
+      { key: 'drainage',   icon: '\ud83d\udd27', label: 'DRN' },
+      { key: 'electrical', icon: '\u26a1',       label: 'ELEC' },
+      { key: 'pest',       icon: '\ud83d\udc1b', label: 'PEST' },
     ];
     this._domainEls = {};
     for (const d of domains) {
       const wrap = this._makeSpan({ display: 'inline-flex', alignItems: 'center', gap: '1px' });
-      const icon = this._makeSpan({ fontSize: '7px' });
+      const icon = this._makeSpan({ fontSize: '9px' });
       icon.textContent = d.icon;
       const barOuter = document.createElement('span');
       barOuter.style.cssText = 'display:inline-block;width:40px;height:4px;background:#222;border:1px solid #444;border-radius:1px;overflow:hidden';
       const barFill = document.createElement('span');
       barFill.style.cssText = 'display:block;height:100%';
       barOuter.appendChild(barFill);
-      const pctEl = this._makeSpan({ fontSize: '6px', minWidth: '18px' });
-      const trendEl = this._makeSpan({ fontSize: '7px', fontWeight: 'bold', minWidth: '8px', textAlign: 'center' });
-      const statusSymbol = this._makeSpan({ fontSize: '7px', fontWeight: 'bold', minWidth: '10px', textAlign: 'center' });
-      const inlineLabel = this._makeSpan({ fontSize: '5px', maxWidth: '50px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' });
+      const pctEl = this._makeSpan({ fontSize: '8px', minWidth: '18px' });
+      const trendEl = this._makeSpan({ fontSize: '9px', fontWeight: 'bold', minWidth: '8px', textAlign: 'center' });
+      const statusSymbol = this._makeSpan({ fontSize: '9px', fontWeight: 'bold', minWidth: '10px', textAlign: 'center' });
+      const inlineLabel = this._makeSpan({ fontSize: '7px', maxWidth: '50px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' });
       wrap.append(icon, barOuter, pctEl, trendEl, statusSymbol, inlineLabel);
       this._domainEls[d.key] = { wrap, barFill, pctEl, trendEl, statusSymbol, inlineLabel, label: d.label };
-      this._domainSection.appendChild(wrap);
+      this._domainGrid.appendChild(wrap);
     }
 
     // -- Panel buttons --
     const btnStyle = {
-      cursor: 'pointer', padding: '2px 5px', margin: '0 1px',
+      cursor: 'pointer', padding: '4px 5px', margin: '0 1px',
       border: '1px solid #3a3a5a', borderRadius: '2px',
-      background: 'rgba(255,255,255,0.04)', fontSize: '8px',
+      background: 'rgba(255,255,255,0.04)', fontSize: '10px',
       transition: 'filter 0.12s ease'
     };
     const panelDefs = [
@@ -416,7 +423,7 @@ export class HUD {
       { panel: 'Objectives', color: '#ffec27', icon: '\u{1f4cb}', text: 'OBJ',     title: 'Objectives (O)' },
       { panel: 'Stats',      color: '#c8c8c8', icon: '\u{1f4ca}', text: 'STATS',   title: 'Statistics (Y)' },
     ];
-    this._panelBtnsSection = this._makeSpan({ display: 'flex', gap: '2px', alignItems: 'center' });
+    this._panelBtnsSection = this._makeSpan({ display: 'flex', gap: '4px', alignItems: 'center' });
     for (const def of panelDefs) {
       const btn = this._makeSpan({ ...btnStyle, color: def.color });
       btn.textContent = `${def.icon} ${def.text}`;
@@ -427,16 +434,16 @@ export class HUD {
 
     // -- Weather forecast icons (3-day) --
     this._forecastSection = this._makeSpan({
-      display: 'flex', alignItems: 'center', gap: '2px',
-      padding: '0 3px', borderLeft: '1px solid #333'
+      display: 'flex', alignItems: 'center', gap: '4px',
+      padding: '0 5px', borderLeft: '1px solid #333'
     });
-    this._forecastLabel = this._makeSpan({ color: '#666', fontSize: '6px', marginRight: '1px' });
+    this._forecastLabel = this._makeSpan({ color: '#666', fontSize: '8px', marginRight: '1px' });
     this._forecastLabel.textContent = 'WX';
     this._forecastSection.appendChild(this._forecastLabel);
     this._forecastIcons = [];
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {
       const icon = this._makeSpan({
-        display: 'inline-block', fontSize: '9px', cursor: 'default',
+        display: 'inline-block', fontSize: '11px', cursor: 'default',
         width: '14px', height: '14px', lineHeight: '14px',
         textAlign: 'center', borderRadius: '2px',
         border: '1px solid #333', background: 'rgba(0,0,0,0.2)'
@@ -446,7 +453,7 @@ export class HUD {
     }
 
     // -- Reputation budget indicator --
-    this._repBudgetSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '7px' });
+    this._repBudgetSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px' });
     this._repBudgetLabel = this._makeSpan({ color: '#888' });
     this._repBudgetLabel.textContent = 'REP:';
     this._repBudgetGain = this._makeSpan({});
@@ -466,8 +473,8 @@ export class HUD {
     this._repBudgetSection.title = 'Daily reputation budget: max +3 gain, -5 loss per day. Resets each game day.';
 
     // -- Alert section --
-    this._alertSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '4px' });
-    this._zoneHintEl = this._makeSpan({ color: '#555', fontSize: '7px' });
+    this._alertSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '6px' });
+    this._zoneHintEl = this._makeSpan({ color: '#555', fontSize: '9px' });
     this._zoneHintEl.title = 'Tab: Next Zone | Shift+Tab: Previous | `: Field';
     this._zoneHintEl.textContent = 'TAB: Zone';
     this._alertBadge = this._makeSpan({});
@@ -485,13 +492,6 @@ export class HUD {
   // ─────────────────────────────────────────────
 
   _wireTopBarEvents() {
-    // Shop button
-    this._shopBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      this.eventBus.emit('ui:click');
-      this.eventBus.emit('ui:toggleShop');
-    });
-
     // Pause button
     this._pauseBtn.addEventListener('click', (e) => {
       e.preventDefault();
@@ -579,12 +579,13 @@ export class HUD {
     this._wtCurrent.style.color = todayColor;
     this._wtCurrent.title = `Today: ${today.name}${today.domainsAffected?.length ? ' — affects ' + today.domainsAffected.join(', ') : ''}`;
 
-    // 2-day forecast inline
+    // Multi-day forecast inline
     const parts = [];
-    for (let i = 1; i < Math.min(3, forecast.length); i++) {
+    const dayLabels = { 1: 'Tmrw', 2: 'D+2', 3: 'D+3' };
+    for (let i = 1; i < forecast.length; i++) {
       const fc = forecast[i];
       const icon = weatherIcons[fc.name] ?? '\u2601';
-      const dayLabel = i === 1 ? 'Tmrw' : 'D+2';
+      const dayLabel = dayLabels[i] ?? `D+${i}`;
       parts.push(`${dayLabel}:${icon}`);
     }
     if (parts.length > 0) {
@@ -594,10 +595,10 @@ export class HUD {
       this._wtForecast.style.display = 'none';
     }
 
-    // Advance warning: check if a severe event (severity >= 2) is forecast in next 2 days
+    // Advance warning: check if a severe event (severity >= 2) is forecast in upcoming days
     let warningText = '';
     const domainLabels = { water: 'water', drainage: 'drainage', hvac: 'HVAC', air: 'air' };
-    for (let i = 1; i < Math.min(3, forecast.length); i++) {
+    for (let i = 1; i < forecast.length; i++) {
       const fc = forecast[i];
       if (fc.severity >= 2 && fc.name !== 'Clear') {
         const daysAway = i;
@@ -662,7 +663,8 @@ export class HUD {
     this._budgetSection.title = budgetTooltip;
 
     // Money display
-    this._moneyEl.textContent = `$${s.money.toLocaleString()}`;
+    const displayMoney = Number.isFinite(s.money) ? s.money : 0;
+    this._moneyEl.textContent = `$${displayMoney.toLocaleString()}`;
     this._moneyEl.style.color = moneyColor;
     this._moneyEl.style.textShadow = this._moneyFlashTimer > 0 ? `0 0 6px ${this._moneyFlashColor}` : '';
     this._netIncomeEl.textContent = `(${incomeSign}$${netIncome}/inn)`;
@@ -1020,14 +1022,22 @@ export class HUD {
       this._filterNoneEl.style.display = '';
     }
 
-    // Domain health bars
-    const health = s.domainHealth;
+    // Domain health bars — show zone-specific health for the current zone
+    const zoneHealth = s.zoneDomainHealth?.[currentZone];
+    const health = zoneHealth ?? s.domainHealth;
     const activeConsequences = s.activeConsequences ?? [];
     if (health) {
       this._domainSection.style.display = '';
-      for (const key of ['air', 'water', 'hvac', 'drainage']) {
+      // Update zone label if present
+      if (this._zoneHealthLabel) {
+        const zoneLabels = { field: 'FIELD', concourse: 'CONCOURSE', mechanical: 'MECHANICAL', underground: 'UNDERGROUND', luxury: 'LUXURY', pressbox: 'PRESS BOX' };
+        this._zoneHealthLabel.textContent = zoneLabels[currentZone] ?? currentZone.toUpperCase();
+      }
+      for (const key of ['air', 'water', 'hvac', 'drainage', 'electrical', 'pest']) {
         const d = this._domainEls[key];
-        const score = health[key] ?? 100;
+        if (!d) continue;
+        const rawScore = health[key] ?? 100;
+        const score = Number.isFinite(rawScore) ? rawScore : 100;
         const barColor = score > 80 ? '#00e436' : score >= 50 ? '#ffec27' : score >= 25 ? '#ffa300' : '#ff004d';
         const fillW = Math.floor(40 * (score / 100));
         d.barFill.style.width = `${fillW}px`;
@@ -1130,7 +1140,8 @@ export class HUD {
     };
     const _severityColors = { 0: '#e0e0e0', 1: '#ffec27', 2: '#ffa300', 3: '#ff004d' };
     if (Array.isArray(forecastData)) {
-      for (let fi = 0; fi < 3; fi++) {
+      const dayLabels = ['Today', 'Tomorrow', 'Day 3', 'Day 4'];
+      for (let fi = 0; fi < this._forecastIcons.length; fi++) {
         const fc = forecastData[fi];
         const iconEl = this._forecastIcons[fi];
         if (!iconEl) continue;
@@ -1138,7 +1149,7 @@ export class HUD {
           const emoji = _forecastWeatherIcons[fc.name] ?? '\u2601';
           iconEl.textContent = emoji;
           iconEl.style.color = _severityColors[fc.severity ?? 0] ?? '#888';
-          const dayLabel = fi === 0 ? 'Today' : fi === 1 ? 'Tomorrow' : 'Day 3';
+          const dayLabel = dayLabels[fi] ?? `Day ${fi + 1}`;
           const domainsList = (fc.domainsAffected ?? []).join(', ') || 'none';
           const confStars = '\u2605'.repeat(fc.confidence ?? 0) + '\u2606'.repeat(5 - (fc.confidence ?? 0));
           iconEl.title = `${dayLabel}: ${fc.name} (sev ${fc.severity ?? 0}) \u2014 Domains: ${domainsList} | Confidence: ${confStars} ${fc.confidenceLabel ?? ''}`;
@@ -1157,11 +1168,11 @@ export class HUD {
     if (alertCount > 0) {
       this._alertBadge.textContent = `\u26a0 ${alertCount}`;
       this._alertBadge.style.color = '#ff004d';
-      this._alertBadge.style.fontSize = '9px';
+      this._alertBadge.style.fontSize = '11px';
     } else {
       this._alertBadge.textContent = '\u2713 OK';
       this._alertBadge.style.color = '#2d8e2d';
-      this._alertBadge.style.fontSize = '8px';
+      this._alertBadge.style.fontSize = '10px';
     }
   }
 
