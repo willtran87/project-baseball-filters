@@ -79,11 +79,22 @@ const SPECIALIZATIONS = {
   general:     { name: 'General Maintenance', domains: ['air', 'water', 'hvac', 'drainage'] },
 };
 
+// Random positive morale events (triggered daily with 8% chance)
+const MORALE_EVENTS = [
+  { text: 'Had a great lunch', delta: 3, allStaff: false },
+  { text: 'Got compliment from fan', delta: 4, allStaff: false },
+  { text: 'Found favorite parking spot', delta: 2, allStaff: false },
+  { text: 'Team celebrated a birthday', delta: 3, allStaff: true },
+];
+
 const MORALE_QUIT_THRESHOLD = 30;
 const MORALE_QUIT_CHANCE = 0.10; // 10% per day
 const OVERWORK_THRESHOLD = 3;    // repairs per day
 const MIN_WAGE_THRESHOLD = 100;  // $/day
 const GOOD_WAGE_THRESHOLD = 150; // $/day
+const TEAM_BUILDING_COST = 500;
+const TEAM_BUILDING_COOLDOWN = 14; // game days
+const WEEKLY_MORALE_RECOVERY = 2;  // every 7 days
 
 export class StaffSystem {
   constructor(state, eventBus) {
@@ -161,6 +172,7 @@ export class StaffSystem {
     this.eventBus.on('staff:refreshCandidates', () => this.refreshCandidates());
     this.eventBus.on('staff:train', (data) => this.trainStaff(data.staffId));
     this.eventBus.on('staff:praise', (data) => this.praiseStaff(data.staffId));
+    this.eventBus.on('staff:initiateTeamBuilding', () => this.initiateTeamBuilding());
   }
 
   /**
@@ -343,6 +355,68 @@ export class StaffSystem {
     this._refreshRepairMultipliers();
     this.eventBus.emit('staff:unassigned', { staff: member });
     return true;
+  }
+
+  // ── Team Building ──────────────────────────────────────────────────────
+
+  /**
+   * Initiate a team building activity.
+   * Costs $500, gives +5 morale to all staff, 14-day cooldown.
+   */
+  initiateTeamBuilding() {
+    const gameDay = this.state.gameDay ?? 1;
+    const lastTB = this.state.lastTeamBuilding ?? 0;
+    const daysSince = gameDay - lastTB;
+
+    if (daysSince < TEAM_BUILDING_COOLDOWN) {
+      const remaining = TEAM_BUILDING_COOLDOWN - daysSince;
+      this.eventBus.emit('ui:message', {
+        text: `Team building on cooldown (${remaining} day${remaining !== 1 ? 's' : ''} remaining)`,
+        type: 'info',
+      });
+      return false;
+    }
+
+    if (this.state.money < TEAM_BUILDING_COST) {
+      this.eventBus.emit('ui:message', {
+        text: `Not enough money for team building ($${TEAM_BUILDING_COST})!`,
+        type: 'warning',
+      });
+      return false;
+    }
+
+    if (this.staff.length === 0) {
+      this.eventBus.emit('ui:message', { text: 'No staff to build a team with!', type: 'info' });
+      return false;
+    }
+
+    this.state.set('money', this.state.money - TEAM_BUILDING_COST);
+    this.state.lastTeamBuilding = gameDay;
+
+    for (const member of this.staff) {
+      member.morale = Math.min(100, member.morale + 5);
+    }
+
+    this._syncToState();
+    this.eventBus.emit('staff:teamBuilding', {});
+    this.eventBus.emit('ui:message', {
+      text: `Team building day! (+5 morale to all staff, $${TEAM_BUILDING_COST})`,
+      type: 'success',
+    });
+    return true;
+  }
+
+  /**
+   * Get team building cooldown info.
+   * Returns { available, daysRemaining, cost }.
+   */
+  getTeamBuildingInfo() {
+    const gameDay = this.state.gameDay ?? 1;
+    const lastTB = this.state.lastTeamBuilding ?? 0;
+    const daysSince = gameDay - lastTB;
+    const available = daysSince >= TEAM_BUILDING_COOLDOWN;
+    const daysRemaining = available ? 0 : TEAM_BUILDING_COOLDOWN - daysSince;
+    return { available, daysRemaining, cost: TEAM_BUILDING_COST };
   }
 
   // ── Morale Tier System ────────────────────────────────────────────────
@@ -540,6 +614,41 @@ export class StaffSystem {
     this._dailyPraise.clear();
     const quitters = [];
 
+    // Weekly morale recovery: every 7 game days, all staff get +2 morale
+    const gameDay = this.state.gameDay ?? 1;
+    if (gameDay > 0 && gameDay % 7 === 0) {
+      for (const member of this.staff) {
+        if (!this.isTraining(member)) {
+          member.morale = Math.min(100, member.morale + WEEKLY_MORALE_RECOVERY);
+        }
+      }
+    }
+
+    // Random morale event: 8% chance per day
+    if (this.staff.length > 0 && Math.random() < 0.08) {
+      const event = MORALE_EVENTS[Math.floor(Math.random() * MORALE_EVENTS.length)];
+      if (event.allStaff) {
+        // Team event: applies to all staff
+        for (const member of this.staff) {
+          member.morale = Math.min(100, member.morale + event.delta);
+        }
+        this.eventBus.emit('staff:moraleEvent', { memberId: null, event: event.text, delta: event.delta });
+        this.eventBus.emit('ui:message', {
+          text: `${event.text}! (+${event.delta} morale to all staff)`,
+          type: 'success',
+        });
+      } else {
+        // Individual event: random staff member
+        const member = this.staff[Math.floor(Math.random() * this.staff.length)];
+        member.morale = Math.min(100, member.morale + event.delta);
+        this.eventBus.emit('staff:moraleEvent', { memberId: member.id, event: event.text, delta: event.delta });
+        this.eventBus.emit('ui:message', {
+          text: `${member.name}: ${event.text} (+${event.delta} morale)`,
+          type: 'success',
+        });
+      }
+    }
+
     // Calculate average domain health for "good day" morale bonus
     const domainHealth = this.state.domainHealth ?? {};
     const healthValues = Object.values(domainHealth);
@@ -596,15 +705,18 @@ export class StaffSystem {
         member.morale = Math.min(100, member.morale + 3);
       }
       if (member.wagePerDay < MIN_WAGE_THRESHOLD) {
-        member.morale = Math.max(0, member.morale - 2);
+        const wagePenalty = member.morale < 30 ? 1 : 2;
+        member.morale = Math.max(0, member.morale - wagePenalty);
       }
 
       // Overwork penalty (Early Bird gets 1 free repair before overwork)
+      // Morale decay softening: halve decay when morale already below 30
       const repairs = this._dailyRepairs.get(member.id) ?? 0;
       const earlyBirdEffect = traitEffects['Early Bird'];
       const freeRepairs = (member.trait === 'Early Bird' && earlyBirdEffect) ? (earlyBirdEffect.freeRepairsPerDay ?? 1) : 0;
       if (repairs > OVERWORK_THRESHOLD + freeRepairs) {
-        member.morale = Math.max(0, member.morale - 5);
+        const overworkPenalty = member.morale < 30 ? 2 : 5;
+        member.morale = Math.max(0, member.morale - overworkPenalty);
       }
 
       // Crisis morale loss is handled via event:crisis listener if needed
@@ -757,12 +869,38 @@ export class StaffSystem {
   }
 
   /**
-   * Calculate total daily wage cost.
+   * Get the effective daily wage for a staff member after morale/specialization modifiers.
+   * Returns { baseWage, moraleMult, specMult, effectiveWage }.
+   */
+  getEffectiveWage(member) {
+    const baseWage = member.wagePerDay;
+
+    // Morale modifier: >80 = 1.1x (premium pay for happy workers), <30 = 0.9x (discounted but turnover risk)
+    let moraleMult = 1.0;
+    if (member.morale > 80) moraleMult = 1.1;
+    else if (member.morale < 30) moraleMult = 0.9;
+
+    // Specialization modifier: general = 1.0x, specialist (named spec) = 1.15x, expert (level 5+) = 1.25x
+    let specMult = 1.0;
+    if (member.specialization) {
+      if (member.level >= 5) {
+        specMult = 1.25; // expert
+      } else {
+        specMult = 1.15; // specialist
+      }
+    }
+
+    const effectiveWage = Math.floor(baseWage * moraleMult * specMult);
+    return { baseWage, moraleMult, specMult, effectiveWage };
+  }
+
+  /**
+   * Calculate total daily wage cost (with morale/specialization modifiers).
    */
   getTotalDailyWages() {
     let total = 0;
     for (const member of this.staff) {
-      total += member.wagePerDay;
+      total += this.getEffectiveWage(member).effectiveWage;
     }
     return total;
   }
@@ -775,6 +913,7 @@ export class StaffSystem {
       staff: this.staff.map(s => ({ ...s })),
       nextStaffId: this.nextStaffId,
       candidates: this.candidates.map(c => ({ ...c })),
+      lastTeamBuilding: this.state.lastTeamBuilding ?? 0,
     };
   }
 
@@ -786,6 +925,7 @@ export class StaffSystem {
     this.staff = Array.isArray(data.staff) ? data.staff : [];
     this.nextStaffId = data.nextStaffId ?? 1;
     this.candidates = Array.isArray(data.candidates) ? data.candidates : [];
+    this.state.lastTeamBuilding = data.lastTeamBuilding ?? 0;
     this._dailyRepairs.clear();
     for (const member of this.staff) {
       this._dailyRepairs.set(member.id, 0);

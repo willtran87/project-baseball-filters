@@ -79,11 +79,31 @@ export class ContractPanel {
     // Active contracts: { contractId, gamesRemaining, gamesPlayed, breachCount, perfectDays, chainLevel }
     if (!this.state.activeContracts) this.state.activeContracts = [];
 
+    // Contract renewal tracking: { contractId: renewCount } — max 2 renewals per contract
+    if (!this.state.contractRenewals) this.state.contractRenewals = {};
+
     // Loyalty follow-up contracts waiting in the available pool
     if (!this.state._followUpContracts) this.state._followUpContracts = [];
 
     // Declined contracts: [{ contractId, declinedOnDay }]
     if (!this.state._declinedContracts) this.state._declinedContracts = [];
+
+    // Build a contract definitions cache on state so other systems (ConsequenceSystem) can look up defs
+    this.state._contractDefsCache = {};
+    for (const c of CONTRACT_POOL) {
+      this.state._contractDefsCache[c.id] = c;
+    }
+    // Include Fiona's exclusive contract
+    this.state._contractDefsCache['fiona_exclusive'] = {
+      id: 'fiona_exclusive', name: "Fiona's VIP Contact", tier: 'premium',
+      category: 'exclusive', payPerGame: 3000, durationGames: 20,
+      qualityReq: 0.80, repRequired: 0,
+      description: 'Exclusive deal from Fiona\'s network. Premium terms, limited time.',
+    };
+    // Also re-add any existing follow-up contracts from saved state
+    for (const followUp of (this.state._followUpContracts ?? [])) {
+      this.state._contractDefsCache[followUp.id] = followUp;
+    }
 
     // Track quality for breach detection
     this._lastQuality = 0.5;
@@ -125,16 +145,18 @@ export class ContractPanel {
       active.gamesPlayed++;
 
       // Check quality requirement (attendance-based contracts use attendance instead)
+      // Renegotiated contracts use the higher quality requirement stored on the active entry
+      const effectiveQualityReq = active.renegotiatedQualityReq ?? def.qualityReq;
       let meetsRequirement = false;
       if (def.contractType === 'attendance') {
         meetsRequirement = (this.state.attendancePercent / 100) >= (def.attendanceReq ?? 0.70);
       } else if (def.contractType === 'multiDomain') {
         const health = this.state.domainHealth ?? {};
-        const threshold = def.qualityReq * 100;
+        const threshold = effectiveQualityReq * 100;
         const domainsAbove = ['air', 'water', 'hvac', 'drainage'].filter(d => (health[d] ?? 0) >= threshold).length;
         meetsRequirement = domainsAbove >= (def.domainsRequired ?? 2);
       } else {
-        meetsRequirement = this._lastQuality >= def.qualityReq;
+        meetsRequirement = this._lastQuality >= effectiveQualityReq;
       }
 
       if (!meetsRequirement) {
@@ -244,6 +266,11 @@ export class ContractPanel {
 
     if (!this.state._followUpContracts) this.state._followUpContracts = [];
     this.state._followUpContracts.push(followUp);
+
+    // Add to contract defs cache for ConsequenceSystem breach checks
+    if (this.state._contractDefsCache) {
+      this.state._contractDefsCache[followUp.id] = followUp;
+    }
 
     this.eventBus.emit('ui:message', {
       text: `${originalDef.name} is impressed! Loyalty follow-up offer available (Chain ${chainLevel}/3, $${followUpPay}/game).`,
@@ -365,6 +392,151 @@ export class ContractPanel {
     return null;
   }
 
+  // -- Renewal & Renegotiation -------------------------------------------
+
+  _getDaysRemaining(active) {
+    const def = this._findContractDef(active.contractId);
+    if (!def) return Infinity;
+    const effectiveDuration = active.shorterDuration ?? def.durationGames;
+    return effectiveDuration - active.gamesPlayed;
+  }
+
+  _isExpiring(active) {
+    return this._getDaysRemaining(active) <= 5;
+  }
+
+  _canRenew(contractId) {
+    const renewals = this.state.contractRenewals ?? {};
+    return (renewals[contractId] ?? 0) < 2;
+  }
+
+  _renewContract(contractId) {
+    const active = (this.state.activeContracts ?? []).find(c => c.contractId === contractId);
+    if (!active) return;
+    const def = this._findContractDef(contractId);
+    if (!def) return;
+    if (!this._canRenew(contractId)) {
+      this.eventBus.emit('ui:message', {
+        text: `${def.name} has already been renewed the maximum number of times.`,
+        type: 'warning',
+      });
+      return;
+    }
+
+    const effectiveDuration = active.shorterDuration ?? def.durationGames;
+    const effectivePay = active.boostedPay ?? def.payPerGame;
+    const totalValue = effectivePay * effectiveDuration;
+    const renewalFee = Math.floor(totalValue * 0.10);
+
+    if (this.state.money < renewalFee) {
+      this.eventBus.emit('ui:message', {
+        text: `Not enough money to renew! Need $${renewalFee.toLocaleString()}.`,
+        type: 'warning',
+      });
+      return;
+    }
+
+    this.state.set('money', this.state.money - renewalFee);
+
+    // Extend the contract by its original duration
+    if (active.shorterDuration != null) {
+      active.shorterDuration += effectiveDuration;
+    } else {
+      active.shorterDuration = effectiveDuration + def.durationGames;
+    }
+
+    // Track renewal count
+    if (!this.state.contractRenewals) this.state.contractRenewals = {};
+    this.state.contractRenewals[contractId] = (this.state.contractRenewals[contractId] ?? 0) + 1;
+
+    const newEndDay = (this.state.gameDay ?? 0) + this._getDaysRemaining(active);
+    this.eventBus.emit('contract:renewed', {
+      contractId,
+      sponsorName: def.name,
+      newEndDay,
+    });
+    this.eventBus.emit('ui:message', {
+      text: `${def.name} contract renewed! ($${renewalFee.toLocaleString()} fee)`,
+      type: 'success',
+    });
+  }
+
+  _renegotiateContract(contractId, container) {
+    const active = (this.state.activeContracts ?? []).find(c => c.contractId === contractId);
+    if (!active) return;
+    const def = this._findContractDef(contractId);
+    if (!def) return;
+    if (!this._canRenew(contractId)) {
+      this.eventBus.emit('ui:message', {
+        text: `${def.name} has already been renewed the maximum number of times.`,
+        type: 'warning',
+      });
+      return;
+    }
+
+    const effectivePay = active.boostedPay ?? def.payPerGame;
+    const newPay = Math.floor(effectivePay * 1.15);
+    const currentQualityReq = def.qualityReq;
+    const newQualityReq = Math.min(0.99, currentQualityReq * 1.10);
+
+    showConfirmDialog(
+      container,
+      `<strong style="color:#29adff">${def.name}</strong> offers renegotiated terms:<br><br>` +
+      `<span style="color:#00e436">+15% payout:</span> $${effectivePay}/game -> $${newPay}/game<br>` +
+      `<span style="color:#ff8800">+10% quality req:</span> ${Math.floor(currentQualityReq * 100)}% -> ${Math.floor(newQualityReq * 100)}%<br><br>` +
+      `Accept new terms or decline to keep original terms?`,
+      () => {
+        // Accept renegotiation: apply new terms and renew
+        active.boostedPay = newPay;
+
+        const effectiveDuration = active.shorterDuration ?? def.durationGames;
+        const totalValue = newPay * effectiveDuration;
+        const renewalFee = Math.floor(totalValue * 0.10);
+
+        if (this.state.money < renewalFee) {
+          this.eventBus.emit('ui:message', {
+            text: `Not enough money for renegotiation fee! Need $${renewalFee.toLocaleString()}.`,
+            type: 'warning',
+          });
+          return;
+        }
+
+        this.state.set('money', this.state.money - renewalFee);
+
+        // Extend the contract by its original duration
+        if (active.shorterDuration != null) {
+          active.shorterDuration += effectiveDuration;
+        } else {
+          active.shorterDuration = effectiveDuration + def.durationGames;
+        }
+
+        // Store the renegotiated quality requirement on the active entry
+        active.renegotiatedQualityReq = newQualityReq;
+
+        // Track renewal count
+        if (!this.state.contractRenewals) this.state.contractRenewals = {};
+        this.state.contractRenewals[contractId] = (this.state.contractRenewals[contractId] ?? 0) + 1;
+
+        const newEndDay = (this.state.gameDay ?? 0) + this._getDaysRemaining(active);
+        this.eventBus.emit('contract:renegotiated', {
+          contractId,
+          sponsorName: def.name,
+          newPay,
+          newQualityReq,
+          newEndDay,
+        });
+        this.eventBus.emit('ui:message', {
+          text: `${def.name} contract renegotiated! $${newPay}/game at ${Math.floor(newQualityReq * 100)}% quality. ($${renewalFee.toLocaleString()} fee)`,
+          type: 'success',
+        });
+
+        // Re-render
+        this.eventBus.emit('ui:openPanel', { name: 'contracts' });
+      },
+      'ACCEPT'
+    );
+  }
+
   // -- Rendering --------------------------------------------------------
 
   _render(el, state, eventBus) {
@@ -449,10 +621,24 @@ export class ContractPanel {
         const isBreach = active.breachCount >= 3;
         const chainLevel = active.chainLevel ?? 0;
         const perfectDays = active.perfectDays ?? 0;
+        const daysRemaining = this._getDaysRemaining(active);
+        const isExpiring = daysRemaining <= 5 && daysRemaining > 0;
+        const canRenew = isExpiring && this._canRenew(active.contractId);
 
         // Chain level badge
         const chainBadge = chainLevel > 0
           ? `<span style="color: ${CHAIN_COLORS[chainLevel]}; font-size: 9px; border: 1px solid ${CHAIN_COLORS[chainLevel]}; padding: 0 4px; border-radius: 2px; margin-left: 4px;">${CHAIN_LABELS[chainLevel]}</span>`
+          : '';
+
+        // Expiring soon badge
+        const expiringBadge = isExpiring
+          ? `<span style="color: #ffec27; font-size: 9px; border: 1px solid #ffec27; padding: 0 4px; border-radius: 2px; margin-left: 4px; background: rgba(255,236,39,0.1);">Expiring Soon</span>`
+          : '';
+
+        // Renewal count indicator
+        const renewCount = (state.contractRenewals ?? {})[active.contractId] ?? 0;
+        const renewBadge = renewCount > 0
+          ? `<span style="color: #888; font-size: 9px; margin-left: 4px;">Renewed ${renewCount}/2</span>`
           : '';
 
         // Perfect day progress (only show if at least 1 perfect day)
@@ -464,20 +650,40 @@ export class ContractPanel {
           <div style="
             padding: 4px 8px; margin-bottom: 4px;
             background: rgba(255,255,255,0.03);
-            border-left: 3px solid ${isBreach ? '#ff004d' : TIER_COLORS[def.tier]};
+            border-left: 3px solid ${isBreach ? '#ff004d' : isExpiring ? '#ffec27' : TIER_COLORS[def.tier]};
           ">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="color: ${TIER_COLORS[def.tier]}">${def.name}${chainBadge}</span>
+              <span style="color: ${TIER_COLORS[def.tier]}">${def.name}${chainBadge}${expiringBadge}${renewBadge}</span>
               <span style="color: #00e436; font-size: 10px">$${effectivePay}/game</span>
             </div>
             <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
               <div style="flex: 1; background: #222; height: 4px; border-radius: 2px;">
                 <div style="background: ${TIER_COLORS[def.tier]}; height: 100%; width: ${progressPct}%; border-radius: 2px;"></div>
               </div>
-              <span style="color: #888; font-size: 9px">${active.gamesPlayed}/${effectiveDuration}</span>
+              <span style="color: #888; font-size: 9px">${active.gamesPlayed}/${effectiveDuration} (${daysRemaining} left)</span>
             </div>
             ${isBreach ? `<div style="color: #ff004d; font-size: 9px; margin-top: 2px;">BREACH WARNING (${active.breachCount}/5)</div>` : ''}
+            ${(() => {
+              const breachDays = state.contractBreachDays ?? {};
+              const daysAtRisk = breachDays[active.contractId] ?? 0;
+              if (daysAtRisk >= 2 && !isBreach) {
+                return `<div style="color: #ff8800; font-size: 9px; margin-top: 2px; background: rgba(255,136,0,0.1); padding: 2px 4px; border-radius: 2px;">&#9888; Quality dip -- breach risk if not fixed soon (${daysAtRisk} days at risk)</div>`;
+              }
+              return '';
+            })()}
             ${perfectBadge ? `<div style="margin-top: 2px;">${perfectBadge}</div>` : ''}
+            ${canRenew ? `
+              <div style="display: flex; gap: 6px; margin-top: 4px;">
+                <button data-action="renew" data-contract="${active.contractId}" style="
+                  background: #1a2a3a; color: #29adff; border: 1px solid #3a5a6a;
+                  padding: 2px 8px; font-family: monospace; cursor: pointer; font-size: 9px;
+                ">RENEW</button>
+                <button data-action="renegotiate" data-contract="${active.contractId}" style="
+                  background: #2a2a1a; color: #ffec27; border: 1px solid #5a5a3a;
+                  padding: 2px 8px; font-family: monospace; cursor: pointer; font-size: 9px;
+                ">RENEGOTIATE</button>
+              </div>
+            ` : ''}
           </div>
         `;
       }
@@ -561,6 +767,11 @@ export class ContractPanel {
 
       if (action === 'close-contracts') {
         eventBus.emit('ui:closePanel');
+      } else if (action === 'renew' && contractId) {
+        this._renewContract(contractId);
+        eventBus.emit('ui:openPanel', { name: 'contracts' });
+      } else if (action === 'renegotiate' && contractId) {
+        this._renegotiateContract(contractId, el);
       } else if (action === 'accept' && contractId) {
         this._acceptContract(contractId);
         // Re-render

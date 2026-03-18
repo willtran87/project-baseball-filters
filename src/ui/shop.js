@@ -73,7 +73,7 @@ export class Shop {
     if (!this._el) return;
 
     const systems = this.state.config.filtrationSystems ?? {};
-    const tabs = [...Object.keys(systems), 'upgrades'];
+    const tabs = [...Object.keys(systems), 'upgrades', 'emergency', 'sell'];
 
     // Header — baseball dugout theme
     const header = `
@@ -109,6 +109,28 @@ export class Shop {
               background:${active ? 'rgba(255,255,255,0.05)' : 'transparent'};
             ">UPGRADES${badge}</span>`;
           }
+          if (key === 'emergency') {
+            const active = key === this._activeTab;
+            const stockCount = this.state.emergencyFilters ?? 0;
+            const stockBadge = stockCount > 0 ? ` <span style="color:#ff004d;font-size:10px">${stockCount}</span>` : '';
+            return `<span data-tab="emergency" style="
+              padding:6px 12px;cursor:pointer;
+              color:${active ? '#ff004d' : '#888'};
+              border-bottom:${active ? '2px solid #ff004d' : '2px solid transparent'};
+              background:${active ? 'rgba(255,255,255,0.05)' : 'transparent'};
+            ">EMERGENCY${stockBadge}</span>`;
+          }
+          if (key === 'sell') {
+            const active = key === this._activeTab;
+            const invCount = (this.state.filterInventory ?? []).length;
+            const invBadge = invCount > 0 ? ` <span style="color:#00e436;font-size:10px">${invCount}</span>` : '';
+            return `<span data-tab="sell" style="
+              padding:6px 12px;cursor:pointer;
+              color:${active ? '#00e436' : '#888'};
+              border-bottom:${active ? '2px solid #00e436' : '2px solid transparent'};
+              background:${active ? 'rgba(255,255,255,0.05)' : 'transparent'};
+            ">SELL${invBadge}</span>`;
+          }
           const sys = systems[key];
           const active = key === this._activeTab;
           const domainH = health[key] ?? 100;
@@ -133,6 +155,10 @@ export class Shop {
 
     if (this._activeTab === 'upgrades') {
       contentHtml = this._renderUpgradesTab();
+    } else if (this._activeTab === 'emergency') {
+      contentHtml = this._renderEmergencyTab();
+    } else if (this._activeTab === 'sell') {
+      contentHtml = this._renderSellTab();
     } else if (activeSys) {
       // Show which zones accept this domain
       const zoneSlotInfo = this._getZoneSlotsForDomain(this._activeTab);
@@ -251,12 +277,18 @@ export class Shop {
               }
             </div>
             ${tier.description && isUnlocked ? `<div style="padding:1px 8px 3px 35px;color:#888;font-size:9px;font-style:italic;line-height:1.3">${tier.description}</div>` : ''}
-            ${tier.passive && isUnlocked ? `<div style="padding:0 8px 4px 35px;color:${archetypeColor};font-size:8px">\u2728 ${passiveDescs[tier.passive] ?? tier.passive}</div>` : ''}
+            ${tier.passive && isUnlocked ? `<div style="padding:0 8px 4px 35px;display:flex;align-items:center;gap:4px">
+              <span style="color:#1a1a2a;background:#a78bfa;font-size:7px;font-weight:bold;padding:1px 4px;border-radius:2px;letter-spacing:0.5px">PASSIVE</span>
+              <span style="color:#a78bfa;font-size:9px">${passiveDescs[tier.passive] ?? tier.passive}</span>
+            </div>` : ''}
           `;
         }
 
         contentHtml += '</div>';
       }
+
+      // Passives Guide — collapsible section at the bottom of each domain tab
+      contentHtml += this._renderPassivesGuide();
     }
 
     this._el.innerHTML = `
@@ -301,6 +333,36 @@ export class Shop {
         const filterId = parseInt(upgradeBtn.dataset.filterId, 10);
         const nextTier = parseInt(upgradeBtn.dataset.nextTier, 10);
         this.eventBus.emit('filter:upgrade', { id: filterId, newTier: nextTier });
+        this._render();
+        return;
+      }
+
+      const buyEmergencyBtn = e.target.closest('[data-action="buy-emergency"]');
+      if (buyEmergencyBtn) {
+        this.eventBus.emit('ui:click');
+        this._handleBuyEmergency();
+        return;
+      }
+
+      const sellBtn = e.target.closest('[data-action="sell-filter"]');
+      if (sellBtn) {
+        this.eventBus.emit('ui:click');
+        const idx = parseInt(sellBtn.dataset.idx, 10);
+        this._handleSellFilter(idx);
+        return;
+      }
+
+      const sellAllBtn = e.target.closest('[data-action="sell-all"]');
+      if (sellAllBtn) {
+        this.eventBus.emit('ui:click');
+        this._handleSellAll();
+        return;
+      }
+
+      const passivesToggle = e.target.closest('[data-action="toggle-passives-guide"]');
+      if (passivesToggle) {
+        this.eventBus.emit('ui:click');
+        this._passivesGuideOpen = !this._passivesGuideOpen;
         this._render();
       }
     });
@@ -578,5 +640,211 @@ export class Shop {
         type: 'info',
       });
     }
+  }
+
+  /**
+   * Render a collapsible Passives Guide listing all passive abilities in the game.
+   */
+  /**
+   * Render the EMERGENCY tab content with emergency filter kit purchase.
+   */
+  _renderEmergencyTab() {
+    const stock = this.state.emergencyFilters ?? 0;
+    const cost = 600;
+    const canAfford = this.state.money >= cost;
+
+    return `
+      <div style="color:#aaa;font-size:9px;margin-bottom:8px;padding:4px 6px;background:rgba(255,255,255,0.03);border-left:2px solid #ff004d">
+        Emergency filters are universal temporary filters that work in any domain slot. They expire after 1 game day.
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;
+        background:rgba(255,255,255,0.03);border-left:3px solid #ff004d">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:2px">
+            <span style="color:#ff004d;font-size:12px;font-weight:bold">Emergency Filter Pack</span>
+            <span style="color:#888;font-size:9px">Universal</span>
+          </div>
+          <div style="color:#888;font-size:9px;line-height:1.4">
+            Universal temporary filter. <span style="color:#ffa300">30% efficiency</span>. Expires after <span style="color:#ffec27">1 game day</span>. Works in any domain.
+          </div>
+          <div style="color:#ff004d;font-size:9px;margin-top:2px">
+            In stock: <span style="color:#e0e0e0;font-weight:bold">${stock}</span>
+          </div>
+        </div>
+        <span style="color:${canAfford ? '#00e436' : '#555'};width:75px;text-align:right;font-size:11px;font-weight:bold">$${cost.toLocaleString()}</span>
+        <button data-action="buy-emergency"
+          style="background:${canAfford ? '#3a1a1a' : '#2a2a2a'};color:${canAfford ? '#ff004d' : '#555'};
+          border:1px solid ${canAfford ? '#6a3a3a' : '#333'};padding:4px 12px;font-family:monospace;
+          cursor:${canAfford ? 'pointer' : 'not-allowed'};font-size:10px;font-weight:bold">
+          BUY
+        </button>
+      </div>
+      <div style="color:#555;font-size:9px;font-style:italic;margin-top:8px;padding:4px 6px">
+        Tip: Click an empty vent slot to install emergency filters from your stock.
+      </div>
+    `;
+  }
+
+  /**
+   * Handle emergency filter kit purchase.
+   */
+  _handleBuyEmergency() {
+    const cost = 600;
+    if (this.state.money < cost) {
+      this.eventBus.emit('ui:message', { text: 'Not enough money!', type: 'warning' });
+      return;
+    }
+    this.state.set('money', this.state.money - cost);
+    this.state.emergencyFilters = (this.state.emergencyFilters ?? 0) + 1;
+    this.eventBus.emit('ui:message', {
+      text: `Purchased Emergency Filter Pack ($${cost}). Stock: ${this.state.emergencyFilters}`,
+      type: 'success',
+    });
+    this._render();
+  }
+
+  /**
+   * Render the SELL tab content showing used filters in inventory.
+   */
+  _renderSellTab() {
+    const inventory = this.state.filterInventory ?? [];
+    const domainColors = { air: '#ccc', water: '#4488ff', hvac: '#ff8844', drainage: '#44bb44' };
+    const domainNames = { air: 'Air', water: 'Water', hvac: 'HVAC', drainage: 'Drainage' };
+    const marketCondLabel = this.state.marketCondition ?? 'normal';
+    const marketMult = this.state.marketMultiplier ?? 1.0;
+    const marketColor = marketMult > 1 ? '#00e436' : marketMult < 1 ? '#ff004d' : '#888';
+
+    if (inventory.length === 0) {
+      return `
+        <div style="color:#888;text-align:center;padding:20px 12px;line-height:1.6">
+          No used filters in inventory.<br>
+          <span style="font-size:10px;color:#666">Remove non-broken filters to add them to your inventory for resale.</span>
+        </div>
+        <div style="color:#555;font-size:9px;padding:4px 6px;border-top:1px solid #2a2a3a;margin-top:8px">
+          Market: <span style="color:${marketColor}">${marketCondLabel.toUpperCase()}</span>
+          (${Math.round(marketMult * 100)}% resale modifier)
+        </div>
+      `;
+    }
+
+    let totalValue = 0;
+    let itemsHtml = '';
+
+    for (let i = 0; i < inventory.length; i++) {
+      const item = inventory[i];
+      const dColor = domainColors[item.domain] ?? '#888';
+      const dName = domainNames[item.domain] ?? item.domain;
+      const condColor = item.conditionPercent > 75 ? '#00e436' : item.conditionPercent > 40 ? '#ffa300' : '#ff004d';
+      totalValue += item.resaleValue;
+
+      itemsHtml += `
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 8px;margin-bottom:2px;
+          background:rgba(255,255,255,0.03);border-left:3px solid ${dColor}">
+          <span style="color:${dColor};width:50px;font-size:9px">[${dName}]</span>
+          <span style="flex:1;color:#e0e0e0">${item.name} <span style="color:#ffec27;font-size:9px">T${item.tier}</span></span>
+          <span style="color:${condColor};width:45px;text-align:right;font-size:9px">${item.conditionPercent}% HP</span>
+          <span style="color:#00e436;width:65px;text-align:right;font-size:10px">$${item.resaleValue.toLocaleString()}</span>
+          <button data-action="sell-filter" data-idx="${i}"
+            style="background:#1a3a2a;color:#00e436;border:1px solid #3a6a4a;
+            padding:2px 8px;font-family:monospace;cursor:pointer;font-size:9px;width:45px">
+            SELL
+          </button>
+        </div>
+      `;
+    }
+
+    return `
+      <div style="color:#aaa;font-size:9px;margin-bottom:8px;padding:4px 6px;background:rgba(255,255,255,0.03);border-left:2px solid #00e436">
+        Sell removed filters for cash. Resale value: 20% of cost x condition x market.
+      </div>
+      <div style="color:#555;font-size:9px;margin-bottom:6px;padding:4px 6px;border-bottom:1px solid #2a2a3a">
+        Market: <span style="color:${marketColor}">${marketCondLabel.toUpperCase()}</span>
+        (${Math.round(marketMult * 100)}% modifier)
+        &nbsp;|&nbsp; Inventory: ${inventory.length} filter${inventory.length !== 1 ? 's' : ''}
+        &nbsp;|&nbsp; Total value: <span style="color:#00e436">$${totalValue.toLocaleString()}</span>
+      </div>
+      ${itemsHtml}
+      ${inventory.length > 1 ? `
+        <div style="margin-top:8px;text-align:right">
+          <button data-action="sell-all"
+            style="background:#1a3a2a;color:#00e436;border:1px solid #3a6a4a;
+            padding:4px 12px;font-family:monospace;cursor:pointer;font-size:10px;font-weight:bold">
+            SELL ALL ($${totalValue.toLocaleString()})
+          </button>
+        </div>
+      ` : ''}
+    `;
+  }
+
+  /**
+   * Handle selling a single filter from inventory.
+   */
+  _handleSellFilter(idx) {
+    const inventory = this.state.filterInventory ?? [];
+    if (idx < 0 || idx >= inventory.length) return;
+    const item = inventory[idx];
+    this.state.set('money', this.state.money + item.resaleValue);
+    inventory.splice(idx, 1);
+    this.state.filterInventory = inventory;
+    this.eventBus.emit('ui:message', {
+      text: `Sold ${item.name} for $${item.resaleValue.toLocaleString()}`,
+      type: 'success',
+    });
+    this._render();
+  }
+
+  /**
+   * Handle selling all filters from inventory.
+   */
+  _handleSellAll() {
+    const inventory = this.state.filterInventory ?? [];
+    if (inventory.length === 0) return;
+    let total = 0;
+    for (const item of inventory) {
+      total += item.resaleValue;
+    }
+    this.state.set('money', this.state.money + total);
+    this.state.filterInventory = [];
+    this.eventBus.emit('ui:message', {
+      text: `Sold ${inventory.length} filter${inventory.length !== 1 ? 's' : ''} for $${total.toLocaleString()}`,
+      type: 'success',
+    });
+    this._render();
+  }
+
+  _renderPassivesGuide() {
+    const isOpen = this._passivesGuideOpen ?? false;
+    const arrow = isOpen ? '\u25BC' : '\u25B6';
+
+    const passives = [
+      { key: 'weatherShield', name: 'Weather Shield', desc: 'Reduces weather degradation by 30% for all same-domain filters. Active above 50% condition.', color: '#4488ff', component: 'Air Scrubber' },
+      { key: 'crossDomain', name: 'Cross Domain', desc: 'Boosts HVAC domain health by adding half its health bonus to HVAC. Active above 50% condition.', color: '#ff8844', component: 'Cooling System' },
+      { key: 'maintenanceSaver', name: 'Maintenance Saver', desc: '25% reduced maintenance degradation for the assigned domain. Active above 50% condition.', color: '#44bb44', component: 'Ductwork' },
+      { key: 'crisisArmor', name: 'Crisis Armor', desc: '50% less reputation penalty when a domain enters crisis. Active above 50% condition.', color: '#ff6b6b', component: 'Sewage Processing' },
+    ];
+
+    let guideContent = '';
+    if (isOpen) {
+      for (const p of passives) {
+        guideContent += `
+          <div style="display:flex;gap:6px;align-items:flex-start;padding:3px 0">
+            <span style="color:#1a1a2a;background:#a78bfa;font-size:7px;font-weight:bold;padding:1px 4px;border-radius:2px;letter-spacing:0.5px;white-space:nowrap;margin-top:1px">PASSIVE</span>
+            <div>
+              <span style="color:${p.color};font-size:10px;font-weight:bold">${p.name}</span>
+              <span style="color:#666;font-size:8px;margin-left:4px">(${p.component})</span>
+              <div style="color:#aaa;font-size:9px;line-height:1.3">${p.desc}</div>
+            </div>
+          </div>`;
+      }
+    }
+
+    return `
+      <div style="margin-top:12px;border-top:1px solid #2a2a3a;padding-top:8px">
+        <div data-action="toggle-passives-guide" style="cursor:pointer;color:#a78bfa;font-size:10px;margin-bottom:${isOpen ? '6' : '0'}px;user-select:none">
+          ${arrow} <strong>Passives Guide</strong> <span style="color:#666;font-size:9px">\u2014 Special abilities on specialist filters</span>
+        </div>
+        ${guideContent}
+      </div>
+    `;
   }
 }

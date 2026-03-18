@@ -41,6 +41,9 @@ export class ConsequenceSystem {
       }
     });
 
+    // Daily contract breach risk check
+    this.eventBus.on('game:newDay', () => this._checkContractBreachRisk());
+
     // Listen for cross-system cascade events from FiltrationSystem
     this.eventBus.on('system:cascade', (data) => {
       const health = this.state.domainHealth ?? {};
@@ -452,6 +455,100 @@ export class ConsequenceSystem {
     if (!text) return;
 
     this.eventBus.emit('ui:message', { text, type: 'warning' });
+  }
+
+  /**
+   * Daily check for contracts nearing breach threshold.
+   * If domain quality is within 5% of the breach threshold for 2+ consecutive days,
+   * emit contract:breachWarning event.
+   */
+  _checkContractBreachRisk() {
+    const activeContracts = this.state.activeContracts ?? [];
+    if (activeContracts.length === 0) return;
+
+    if (!this.state.contractBreachDays) this.state.contractBreachDays = {};
+    const breachDays = this.state.contractBreachDays;
+    const health = this.state.domainHealth ?? {};
+
+    // Get average quality (0-1) for standard quality contracts
+    const avgHealth = Object.values(health);
+    const avgQuality = avgHealth.length > 0
+      ? (avgHealth.reduce((a, b) => a + b, 0) / avgHealth.length) / 100
+      : 0.5;
+
+    for (const active of activeContracts) {
+      const def = this._findContractDefForBreach(active.contractId);
+      if (!def) continue;
+
+      let currentQuality = 0;
+      let requiredQuality = def.qualityReq ?? 0.50;
+      let isNearBreach = false;
+
+      if (def.contractType === 'attendance') {
+        // Attendance-based: check attendance % vs requirement
+        currentQuality = (this.state.attendancePercent ?? 0) / 100;
+        requiredQuality = def.attendanceReq ?? 0.70;
+        isNearBreach = currentQuality < requiredQuality + 0.05 && currentQuality >= requiredQuality - 0.05;
+      } else if (def.contractType === 'multiDomain') {
+        // Multi-domain: check how many domains are above threshold
+        const threshold = (def.qualityReq ?? 0.75) * 100;
+        const domainsAbove = ['air', 'water', 'hvac', 'drainage'].filter(d => (health[d] ?? 0) >= threshold).length;
+        const domainsRequired = def.domainsRequired ?? 2;
+        // Near breach: exactly at or 1 above the requirement with some domains borderline
+        const borderlineDomains = ['air', 'water', 'hvac', 'drainage'].filter(d => {
+          const h = health[d] ?? 0;
+          return h >= threshold && h < threshold + 5;
+        }).length;
+        isNearBreach = domainsAbove <= domainsRequired && borderlineDomains > 0;
+        currentQuality = domainsAbove / 4;
+      } else {
+        // Standard quality-based contract
+        currentQuality = avgQuality;
+        isNearBreach = currentQuality < requiredQuality + 0.05 && currentQuality >= requiredQuality - 0.05;
+      }
+
+      if (isNearBreach) {
+        breachDays[active.contractId] = (breachDays[active.contractId] ?? 0) + 1;
+      } else if (currentQuality >= requiredQuality + 0.05) {
+        // Quality safely above threshold — reset counter
+        breachDays[active.contractId] = 0;
+      }
+
+      // Emit warning if at risk for 2+ consecutive days
+      if ((breachDays[active.contractId] ?? 0) >= 2) {
+        this.eventBus.emit('contract:breachWarning', {
+          contractId: active.contractId,
+          sponsorName: def.name,
+          domain: def.contractType === 'multiDomain' ? 'multi' : (def.contractType === 'attendance' ? 'attendance' : 'quality'),
+          currentQuality: Math.round(currentQuality * 100),
+          requiredQuality: Math.round(requiredQuality * 100),
+          daysAtRisk: breachDays[active.contractId],
+        });
+      }
+    }
+
+    // Clean up breach day entries for contracts that no longer exist
+    const activeIds = new Set(activeContracts.map(c => c.contractId));
+    for (const key of Object.keys(breachDays)) {
+      if (!activeIds.has(key)) delete breachDays[key];
+    }
+  }
+
+  /**
+   * Look up a contract definition by ID from the contract pool.
+   * Minimal version that checks state for follow-up contracts and the known pool.
+   */
+  _findContractDefForBreach(contractId) {
+    // Check follow-up contracts in state first
+    const followUp = (this.state._followUpContracts ?? []).find(c => c.id === contractId);
+    if (followUp) return followUp;
+    // Check base contracts via a simple lookup — we read the definitions from state.activeContracts
+    // but need the definition with qualityReq. The contract pool is defined in ContractPanel,
+    // so we look for a _contractDefs cache on state (set by ContractPanel at init).
+    if (this.state._contractDefsCache) {
+      return this.state._contractDefsCache[contractId] ?? null;
+    }
+    return null;
   }
 
   /** Get score for a specific domain (used by visual layers). */

@@ -78,6 +78,9 @@ export class StorySystem {
     // Player-initiated casual NPC conversations
     this.eventBus.on('npc:startChat', ({ npcId }) => this._startCasualChat(npcId));
 
+    // Gift shop purchases — deduct money, apply relationship bonus
+    this.eventBus.on('gift:purchase', (data) => this._onGiftPurchase(data));
+
     // Reset story system state after save/load
     this.eventBus.on('state:loaded', () => {
       this._storyEventQueue = [];
@@ -1149,6 +1152,35 @@ export class StorySystem {
   /**
    * Start a player-initiated casual conversation with an NPC.
    */
+  /**
+   * Handle a gift:purchase event — deduct money, apply relationship bonus,
+   * and show feedback. Premium gifts (bonus >= 10) trigger a special reaction.
+   */
+  _onGiftPurchase({ giftId, npcId, cost, bonus }) {
+    // Deduct money
+    this.state.money -= cost;
+
+    // Apply relationship bonus
+    this.adjustRelationship(npcId, bonus);
+
+    // Toast notification
+    const npc = NPC_DATA[npcId];
+    const npcName = npc ? npc.name : npcId;
+    this.eventBus.emit('ui:message', {
+      text: `${npcName} appreciated your gift! +${bonus} relationship`,
+      type: 'success',
+    });
+
+    // Premium gifts trigger a special gratitude reaction
+    if (bonus >= 10) {
+      this.eventBus.emit('story:npcReaction', {
+        npcId,
+        reaction: 'gratitude',
+        text: `${npcName} is deeply moved by your generosity!`,
+      });
+    }
+  }
+
   _startCasualChat(npcId) {
     // Don't interrupt active dialogue or cutscene
     if (this._dialogueActive || this._cutsceneActive) return;

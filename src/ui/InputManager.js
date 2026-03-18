@@ -431,6 +431,12 @@ export class InputManager {
         case 'g':
           this.eventBus.emit('ui:toggleSystems');
           break;
+        case 'G':
+          if (e.shiftKey) {
+            e.preventDefault();
+            this.eventBus.emit('ui:toggleGiftShop');
+          }
+          break;
         case 'o':
           this.eventBus.emit('ui:toggleObjectives');
           break;
@@ -445,6 +451,9 @@ export class InputManager {
           break;
         case 'y':
           this.eventBus.emit('ui:toggleStats');
+          break;
+        case 'a':
+          this.eventBus.emit('ui:toggleFilterAnalytics');
           break;
         case 'E':
           if (e.shiftKey) {

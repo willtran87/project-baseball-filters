@@ -776,12 +776,123 @@ export class ProgressionSystem {
         // Discount carries into new season — tracked separately
       }
 
+      // Apply follow-up consequences from off-season choices
+      this._applyOffSeasonFollowUps(newSeason);
+
       this.eventBus.emit('season:started', { season: newSeason });
       this.eventBus.emit('ui:message', {
         text: `Season ${newSeason} begins! Play ball!`,
         type: 'success',
       });
     }
+  }
+
+  /**
+   * Apply follow-up consequences from off-season choices at the start of the new season.
+   * Each choice type maps to a specific follow-up effect that makes the choice
+   * feel impactful in the opening days of the new season.
+   */
+  _applyOffSeasonFollowUps(newSeason) {
+    const followUps = this.state.offSeasonFollowUps;
+    if (!Array.isArray(followUps) || followUps.length === 0) return;
+
+    for (const entry of followUps) {
+      switch (entry.effect) {
+        case 'scout': {
+          // Scout found a promising candidate — add tagged hire to pool for 5 days
+          const specializations = ['airTech', 'plumber', 'electrician'];
+          const spec = specializations[Math.floor(Math.random() * specializations.length)];
+          this.eventBus.emit('staff:scoutResult', {
+            candidate: {
+              name: `Scout Prospect (S${newSeason})`,
+              specialization: spec,
+              wagePerDay: 100 + Math.floor(Math.random() * 50),
+              experience: 'veteran',
+              level: 2,
+              morale: 85,
+              scoutedCandidate: true,
+              availableForDays: 5,
+              addedOnDay: this.state.gameDay,
+            },
+          });
+          this.eventBus.emit('ui:message', {
+            text: 'Your scout found a promising candidate!',
+            type: 'success',
+          });
+          break;
+        }
+
+        case 'equipment_discount': {
+          // Warehouse shipment — 15% shop discount for 7 days
+          this.eventBus.emit('economy:marketDiscount', {
+            percent: 15,
+            durationDays: 7,
+            reason: 'Off-season warehouse shipment',
+          });
+          // Also set a story flag for Shop to check
+          this.state.storyFlags = this.state.storyFlags ?? {};
+          this.state.storyFlags.offSeasonMarketDiscount = 15;
+          if (!this.state.offSeasonChoices) this.state.offSeasonChoices = {};
+          this.state.offSeasonChoices.marketDiscountDaysLeft = 7;
+          this.eventBus.emit('ui:message', {
+            text: 'Warehouse shipment arrived -- discounted equipment available!',
+            type: 'success',
+          });
+          break;
+        }
+
+        case 'community_small':
+        case 'community_large': {
+          // Training program follow-up — morale boost to all staff
+          this.eventBus.emit('staff:trainingComplete', {
+            moraleBoost: 10,
+          });
+          // Apply morale boost directly to all staff
+          const staffList = this.state.staffList ?? [];
+          for (const staff of staffList) {
+            staff.morale = Math.min(100, (staff.morale ?? 50) + 10);
+          }
+          this.eventBus.emit('ui:message', {
+            text: 'Staff training program completed -- morale boosted!',
+            type: 'success',
+          });
+          break;
+        }
+
+        case 'renovation': {
+          // Renovation completed — confirmation notification
+          this.eventBus.emit('ui:message', {
+            text: 'Off-season renovation work is holding strong. Systems ready for the new season!',
+            type: 'info',
+          });
+          break;
+        }
+
+        case 'preseason_inspection': {
+          // Inspection results carry forward — confirmation
+          this.eventBus.emit('ui:message', {
+            text: 'Preseason inspection results noted — inspectors will remember your track record.',
+            type: 'info',
+          });
+          break;
+        }
+
+        case 'none':
+          break;
+
+        default: {
+          // Generic confirmation for any other off-season choice
+          this.eventBus.emit('ui:message', {
+            text: 'Off-season preparations complete. Ready for the new season!',
+            type: 'info',
+          });
+          break;
+        }
+      }
+    }
+
+    // Clear the follow-ups array after processing (they've been applied)
+    this.state.offSeasonFollowUps = [];
   }
 
   /**
@@ -831,6 +942,17 @@ export class ProgressionSystem {
       choiceLabel: choice.label,
       effect: choice.effect,
     };
+
+    // Also record in the follow-up tracking array for season-start consequences
+    if (!Array.isArray(this.state.offSeasonFollowUps)) {
+      this.state.offSeasonFollowUps = [];
+    }
+    this.state.offSeasonFollowUps.push({
+      eventId: event.day,
+      choiceIndex,
+      effect: choice.effect,
+      season: this.state.season ?? 1,
+    });
 
     // Deduct cost
     if (choice.cost > 0) {

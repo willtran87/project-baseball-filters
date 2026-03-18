@@ -27,6 +27,54 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
       ? Math.floor((filter.condition / filter.maxCondition) * 100) : 0;
     const effPct = Math.floor(filter.efficiency * 100);
 
+    // 3-stage degradation warning system
+    const condRatio = filter.maxCondition > 0 ? filter.condition / filter.maxCondition : 0;
+    let degradeStage = 'healthy'; // >75%
+    let degradeBarColor = '#00e436';
+    let degradeLabel = '';
+    if (condRatio <= 0) {
+      degradeStage = 'broken';
+      degradeBarColor = '#ff004d';
+      degradeLabel = '';
+    } else if (condRatio < 0.50) {
+      degradeStage = 'critical';
+      degradeBarColor = '#ff004d';
+      degradeLabel = '\u26d4 Critical \u2014 Repair Soon!';
+    } else if (condRatio < 0.75) {
+      degradeStage = 'worn';
+      degradeBarColor = '#ffec27';
+      degradeLabel = '\u26a0 Wearing Down';
+    }
+
+    // Estimate days until filter breaks based on degradation rate
+    let degradeEstimate = '';
+    if (filter.installedDay != null && filter.condition > 0) {
+      const daysActive = Math.max(1, (state.gameDay ?? 1) - filter.installedDay);
+      const conditionUsed = filter.maxCondition - filter.condition;
+      if (conditionUsed > 0) {
+        const wearPerDay = conditionUsed / daysActive;
+        const daysLeft = Math.ceil(filter.condition / wearPerDay);
+        degradeEstimate = `~${daysLeft} day${daysLeft !== 1 ? 's' : ''} until failure`;
+      } else {
+        degradeEstimate = 'No measurable wear yet';
+      }
+    }
+
+    // One-time critical warning toast (per session) when filter first drops below 50%
+    if (degradeStage === 'critical' && !filter._criticalWarningShown) {
+      filter._criticalWarningShown = true;
+      const tierName = (() => {
+        const sys = state.config.filtrationSystems?.[filter.domain];
+        const comp = sys?.components?.[filter.componentType];
+        const td = comp?.tiers?.find(t => t.tier === filter.tier);
+        return td?.name ?? filter.type ?? 'Filter';
+      })();
+      eventBus.emit('ui:message', {
+        text: `Filter ${tierName} in ${filter.domain} is critically worn!`,
+        type: 'warning',
+      });
+    }
+
     // Get tier definition from new config structure
     const systemDef = state.config.filtrationSystems?.[filter.domain];
     const compDef = systemDef?.components?.[filter.componentType];
@@ -73,6 +121,19 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
 
     container.innerHTML = '';
 
+    // Inject critical pulse animation if not already present
+    if (!document.getElementById('filter-degrade-styles')) {
+      const style = document.createElement('style');
+      style.id = 'filter-degrade-styles';
+      style.textContent = `
+        @keyframes condPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
     // Close button
     const closeSpan = document.createElement('span');
     closeSpan.textContent = '\u2715';
@@ -93,9 +154,11 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
         <div>
           <div style="color:#777; font-size:9px;">CONDITION</div>
           <div style="background:#1a1a2a; height:8px; border-radius:2px; margin-top:2px; overflow:hidden;">
-            <div style="width:${condPct}%; height:100%; background:${statusColor}; transition:width 0.3s;"></div>
+            <div style="width:${condPct}%; height:100%; background:${degradeBarColor}; transition:width 0.3s;${degradeStage === 'critical' ? ' animation: condPulse 1s ease-in-out infinite;' : ''}"></div>
           </div>
-          <div style="color:${statusColor}; font-size:10px; margin-top:1px;">${condPct}%</div>
+          <div style="color:${degradeBarColor}; font-size:10px; margin-top:1px;">${condPct}%</div>
+          ${degradeLabel ? `<div style="color:${degradeBarColor}; font-size:9px; margin-top:1px; font-weight:bold;">${degradeLabel}</div>` : ''}
+          ${degradeEstimate ? `<div style="color:#888; font-size:9px; margin-top:1px;">${degradeEstimate}</div>` : ''}
         </div>
         <div>
           <div style="color:#777; font-size:9px;">EFFICIENCY</div>
@@ -112,7 +175,36 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
         ${tierDef ? ` | ${tierDef.lifespanGames} game lifespan` : ''}
       </div>
       ${tierDef?.domainHealthBonus ? `<div style="color:#4fc; font-size:9px; margin-bottom:2px;">+${tierDef.domainHealthBonus} Domain Health Bonus${(filter.maxCondition > 0 && filter.condition / filter.maxCondition <= 0.5) ? ' <span style="color:#ff004d">(inactive — below 50%)</span>' : ''}</div>` : ''}
-      ${tierDef?.passive ? `<div style="color:#a78bfa; font-size:9px; margin-bottom:2px;">\u2728 ${{weatherShield:'Weather Shield — 20% less weather degradation for this domain',crossDomain:'Cross Domain — boosts HVAC domain health',maintenanceSaver:'Maintenance Saver — 25% reduced maintenance for this domain',crisisArmor:'Crisis Armor — 50% less reputation penalty from domain crises'}[tierDef.passive] ?? tierDef.passive}</div>` : ''}
+      ${(() => {
+        if (!tierDef?.passive) return '';
+        const passiveNames = { weatherShield: 'Weather Shield', crossDomain: 'Cross Domain', maintenanceSaver: 'Maintenance Saver', crisisArmor: 'Crisis Armor' };
+        const passiveDescs = { weatherShield: 'Reduces weather damage by 30%', crossDomain: 'Boosts HVAC domain health', maintenanceSaver: '25% reduced maintenance for this domain', crisisArmor: '50% less reputation penalty from domain crises' };
+        const passiveName = passiveNames[tierDef.passive] ?? tierDef.passive;
+        const passiveDesc = passiveDescs[tierDef.passive] ?? '';
+        const passiveCondThreshold = 0.5;
+        const isPassiveActive = condRatio > passiveCondThreshold;
+        if (isPassiveActive) {
+          return `<div style="color:#00e436; font-size:9px; margin-bottom:2px;">\u2713 ${passiveName} ACTIVE \u2014 ${passiveDesc}</div>`;
+        } else {
+          return `<div style="color:#666; font-size:9px; margin-bottom:2px;">\u2717 <span style="color:#ff004d">${passiveName} INACTIVE</span> \u2014 Requires &gt;50% condition to activate</div>`;
+        }
+      })()}
+      ${(() => {
+        const synergy = state.filterSynergies?.[filter.id];
+        if (!synergy) return '<div style="color:#555; font-size:9px; margin-bottom:2px;">No synergies \u2014 add more filters to this zone</div>';
+        let html = '';
+        const zoneFilters = state.filters.filter(f => (f.zone ?? 'mechanical') === (filter.zone ?? 'mechanical'));
+        const sameDomainCount = zoneFilters.filter(f => f.domain === filter.domain).length;
+        if (synergy.sameDomainBonus > 0) {
+          html += `<div style="color:#00e436; font-size:9px; margin-bottom:2px;">Zone Bonus: +${Math.round(synergy.sameDomainBonus * 100)}% (${sameDomainCount} ${filter.domain} filters in this zone)</div>`;
+        }
+        if (synergy.crossDomainBonus > 0) {
+          const pairMap = { air: 'hvac', hvac: 'air', water: 'drainage', drainage: 'water' };
+          const partner = pairMap[filter.domain] ?? '?';
+          html += `<div style="color:#29adff; font-size:9px; margin-bottom:2px;">Cross-Domain: +${Math.round(synergy.crossDomainBonus * 100)}% (${filter.domain} + ${partner} pairing)</div>`;
+        }
+        return html;
+      })()}
       <div style="color:#555; font-size:9px; font-style:italic; margin-bottom:8px;">${description}</div>
     `;
 
@@ -195,6 +287,27 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
     });
     actions.appendChild(repairBtn);
 
+    // Preventive Maintenance — only when filter condition >= 80% and not at max
+    if (condPct >= 80 && filter.condition < filter.maxCondition) {
+      const prevCost = Math.floor(repairCostBase * 0.5);
+      const canPreventive = state.money >= prevCost;
+      const prevBtn = document.createElement('button');
+      prevBtn.textContent = `Tune-Up: $${prevCost}`;
+      prevBtn.title = 'Preventive maintenance — restore to 100% at half repair cost';
+      prevBtn.disabled = !canPreventive;
+      prevBtn.style.cssText = `
+        background:${canPreventive ? '#1a2a3a' : '#1a1a1a'}; color:${canPreventive ? '#4fc' : '#444'};
+        border:1px solid ${canPreventive ? '#3a6a7a' : '#2a2a2a'}; font-family:monospace; font-size:10px;
+        padding:4px 10px; cursor:${canPreventive ? 'pointer' : 'not-allowed'};
+      `;
+      prevBtn.addEventListener('click', () => {
+        if (!canPreventive) return;
+        eventBus.emit('filter:preventiveRepair', { id: filter.id });
+        setTimeout(() => eventBus.emit('ui:openPanel', { name: 'filterInspector', data: { filterId: filter.id } }), 50);
+      });
+      actions.appendChild(prevBtn);
+    }
+
     // Upgrade
     if (nextTier) {
       const upgradeBtn = document.createElement('button');
@@ -224,17 +337,29 @@ export function registerFilterInspectorPanel(panelManager, state, eventBus) {
       actions.appendChild(upgradeBtn);
     }
 
-    // Remove
+    // Remove — show salvage value if filter is salvageable
     const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Remove';
+    let salvageValue = 0;
+    if (!isBroken && !filter.isEmergency) {
+      const salvageBaseCost = filter.purchaseCost ?? tierDef?.cost ?? 0;
+      if (salvageBaseCost > 0) {
+        const salvageCondRatio = filter.maxCondition > 0 ? filter.condition / filter.maxCondition : 0;
+        const salvageMarketMult = state.marketMultiplier ?? 1.0;
+        salvageValue = Math.floor(salvageBaseCost * 0.20 * salvageCondRatio * salvageMarketMult);
+      }
+    }
+    removeBtn.textContent = salvageValue > 0 ? `Remove (salvage: $${salvageValue})` : 'Remove';
     removeBtn.style.cssText = `
       background:#3a1a1a; color:#ff004d; border:1px solid #6a3a3a;
       font-family:monospace; font-size:10px; padding:4px 10px; cursor:pointer;
     `;
     removeBtn.addEventListener('click', () => {
+      const confirmMsg = salvageValue > 0
+        ? `Remove <strong style="color:#ff8800">${name}</strong>? Salvage value: <span style="color:#00e436">$${salvageValue}</span> (added to sell inventory).`
+        : `Remove <strong style="color:#ff8800">${name}</strong>? You will need to buy a new filter.`;
       showConfirmDialog(
         container,
-        `Remove <strong style="color:#ff8800">${name}</strong>? You will need to buy a new filter.`,
+        confirmMsg,
         () => {
           eventBus.emit('filter:remove', { id: filter.id });
           eventBus.emit('ui:closePanel');

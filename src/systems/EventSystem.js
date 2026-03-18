@@ -263,7 +263,11 @@ export class EventSystem {
     // Real incident tracking: map of incident ID → last day triggered
     this._realIncidentLastDay = {};
 
-    this.eventBus.on('game:newDay', (data) => this._onNewDay(data));
+    this.eventBus.on('game:newDay', (data) => {
+      this._onNewDay(data);
+      this._tickFilterEventCounters();
+      this._checkFilterEvents();
+    });
     this.eventBus.on('filtration:quality', (data) => {
       this._lastQuality = data.avgEfficiency;
     });
@@ -1216,6 +1220,25 @@ export class EventSystem {
       }
     }
 
+    // Forecast confidence: derive star rating (1-5) from accuracy per entry.
+    // Bea relationship >= 40 grants +1 star (she provides better weather intel).
+    const beaRelationship = this.state.npcRelationships?.bea ?? 0;
+    const beaBonus = beaRelationship >= 40 ? 1 : 0;
+    const confidenceLabels = ['', 'Low', 'Low', 'Moderate', 'High', 'Very High'];
+    for (let i = 0; i < this._forecast.length; i++) {
+      const fc = this._forecast[i];
+      // Map accuracy (0.0-1.0) to 1-5 stars: <=0.3 → 1, 0.3-0.45 → 2, 0.45-0.6 → 3, 0.6-0.75 → 4, >0.75 → 5
+      let stars;
+      if (fc.accuracy > 0.75) stars = 5;
+      else if (fc.accuracy > 0.6) stars = 4;
+      else if (fc.accuracy > 0.45) stars = 3;
+      else if (fc.accuracy > 0.3) stars = 2;
+      else stars = 1;
+      stars = Math.min(5, stars + beaBonus);
+      fc.confidence = stars;
+      fc.confidenceLabel = confidenceLabels[stars] ?? 'Low';
+    }
+
     // Sync forecast to state so HUD and other systems can read it
     this.state.weatherForecast = this._forecast;
     this.eventBus.emit('weather:forecastUpdated', { forecast: this._forecast });
@@ -1297,6 +1320,146 @@ export class EventSystem {
    * During an active weather event with specialRisk === 'pipeFreezeChance',
    * 20% chance per game day of a pipe freeze. Only triggers once per event.
    */
+  // ── Filter Degradation Events ─────────────────────────────────────
+
+  /**
+   * Tick down contamination and efficiency boost counters each new day.
+   */
+  _tickFilterEventCounters() {
+    if (this.state.contaminationDaysLeft > 0) {
+      this.state.contaminationDaysLeft--;
+      if (this.state.contaminationDaysLeft === 0) {
+        this.eventBus.emit('ui:message', {
+          text: 'Contamination spike has passed. Water/drainage filters returning to normal.',
+          type: 'info',
+        });
+      }
+    }
+    if (this.state.efficiencyBoostDaysLeft > 0) {
+      this.state.efficiencyBoostDaysLeft--;
+      if (this.state.efficiencyBoostDaysLeft === 0) {
+        this.eventBus.emit('ui:message', {
+          text: 'Optimal conditions have ended. Filters returning to normal degradation.',
+          type: 'info',
+        });
+      }
+    }
+  }
+
+  /**
+   * Check for random filter degradation events. Fires every 15-25 game days
+   * with ~15% chance each check. 4 possible events.
+   */
+  _checkFilterEvents() {
+    const day = this.state.gameDay ?? 1;
+    const lastEventDay = this.state.lastFilterEventDay ?? 0;
+
+    // Enforce 15-day minimum gap between filter events
+    if (day - lastEventDay < 15) return;
+
+    // Only check every 15-25 days — use a sliding window check
+    // After 25 days, force a check; between 15-25, check each day
+    if (day - lastEventDay < 15 + Math.floor(Math.random() * 11)) return;
+
+    // 15% chance on each eligible day
+    if (Math.random() > 0.15) return;
+
+    // Must have at least one filter installed for events to matter
+    if (!this.state.filters || this.state.filters.length === 0) return;
+
+    // Pick a random event (equal weight)
+    const roll = Math.random();
+    if (roll < 0.25) {
+      this._filterEvent_powerSurge(day);
+    } else if (roll < 0.50) {
+      this._filterEvent_contamination(day);
+    } else if (roll < 0.75) {
+      this._filterEvent_efficiencyBoost(day);
+    } else {
+      this._filterEvent_dustStorm(day);
+    }
+  }
+
+  /**
+   * Power Surge: one random installed filter takes 20% condition damage.
+   */
+  _filterEvent_powerSurge(day) {
+    const filters = this.state.filters.filter(f => f.condition > 0);
+    if (filters.length === 0) return;
+
+    const target = filters[Math.floor(Math.random() * filters.length)];
+    const damage = Math.floor(target.maxCondition * 0.20);
+    target.condition = Math.max(0, target.condition - damage);
+    if (target.maxCondition > 0) {
+      target.efficiency = Math.max(0, target.condition / target.maxCondition);
+    }
+
+    this.state.lastFilterEventDay = day;
+    const tierDef = this.state.config?.filtrationSystems?.[target.domain]
+      ?.components?.[target.componentType]?.tiers?.find(t => t.tier === target.tier);
+    const filterName = tierDef?.name ?? `${target.domain} filter`;
+
+    this.eventBus.emit('ui:message', {
+      text: `\u26a1 Power surge! ${filterName} in ${target.zone ?? 'unknown zone'} took damage!`,
+      type: 'danger',
+    });
+    this.eventBus.emit('filter:powerSurge', { filterId: target.id, domain: target.domain, damage });
+  }
+
+  /**
+   * Contamination Spike: water/drainage filters degrade at 2x for 2 days.
+   */
+  _filterEvent_contamination(day) {
+    this.state.lastFilterEventDay = day;
+    this.state.contaminationDaysLeft = 2;
+
+    this.eventBus.emit('ui:message', {
+      text: '\u2623 Contamination spike! Water/drainage filters under stress for 2 days',
+      type: 'danger',
+    });
+    this.eventBus.emit('filter:contamination', { daysLeft: 2 });
+  }
+
+  /**
+   * Bonus Efficiency Window: all filters degrade 30% slower for 1 day.
+   */
+  _filterEvent_efficiencyBoost(day) {
+    this.state.lastFilterEventDay = day;
+    this.state.efficiencyBoostDaysLeft = 1;
+
+    this.eventBus.emit('ui:message', {
+      text: '\u2728 Optimal conditions! All filters running efficiently today',
+      type: 'success',
+    });
+    this.eventBus.emit('filter:efficiencyBoost', { daysLeft: 1 });
+  }
+
+  /**
+   * Dust Storm: all air and hvac domain filters take 10% condition damage.
+   */
+  _filterEvent_dustStorm(day) {
+    const affected = this.state.filters.filter(
+      f => (f.domain === 'air' || f.domain === 'hvac') && f.condition > 0
+    );
+    for (const filter of affected) {
+      const damage = Math.floor(filter.maxCondition * 0.10);
+      filter.condition = Math.max(0, filter.condition - damage);
+      if (filter.maxCondition > 0) {
+        filter.efficiency = Math.max(0, filter.condition / filter.maxCondition);
+      }
+    }
+
+    this.state.lastFilterEventDay = day;
+
+    this.eventBus.emit('ui:message', {
+      text: '\ud83c\udf2a Dust storm! Air and HVAC filters taking extra wear',
+      type: 'warning',
+    });
+    this.eventBus.emit('filter:dustStorm', { affectedCount: affected.length });
+  }
+
+  // ── Pipe Freeze ──────────────────────────────────────────────────
+
   _checkPipeFreeze() {
     const activeEvent = this.state.activeEvent;
     if (!activeEvent) return;

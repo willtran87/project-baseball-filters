@@ -118,9 +118,19 @@ export class NPCContactsPanel {
     `;
     header.innerHTML = `
       <span style="color:#ffec27;font-size:12px;letter-spacing:2px">\u{1f4fb} STADIUM RADIO</span>
-      <span data-action="close" style="cursor:pointer;color:#888;font-size:12px;padding:0 2px" title="Close">\u2715</span>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span data-action="giftshop" style="cursor:pointer;color:#c8a84e;font-size:10px;padding:0 2px;border:1px solid #8b4513;border-radius:2px;padding:2px 5px" title="Gift Shop">\u{1f381} Gifts</span>
+        <span data-action="close" style="cursor:pointer;color:#888;font-size:12px;padding:0 2px" title="Close">\u2715</span>
+      </div>
     `;
     this._el.appendChild(header);
+
+    // Gift Shop button
+    header.querySelector('[data-action="giftshop"]').addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      this.eventBus.emit('ui:click');
+      this.eventBus.emit('ui:toggleGiftShop');
+    });
 
     // Close button via mousedown (prevents event orphaning)
     header.querySelector('[data-action="close"]').addEventListener('mousedown', (e) => {

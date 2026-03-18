@@ -42,6 +42,7 @@ export class StateManager {
     // Progression / unlocks
     this.unlockedFeatures = [];
     this.achievements = [];
+    this.achievementNotified = {}; // { achievementId: true } — tracks proximity toast notifications
 
     // Game day / event tracking
     this.currentGameDayType = 'weekdayRegular';
@@ -65,6 +66,7 @@ export class StateManager {
 
     // Staff RPG state
     this.staffList = [];
+    this.lastTeamBuilding = 0;
 
     // Raptors roster (persisted for crowd identity)
     this.raptorsRoster = [];
@@ -93,6 +95,12 @@ export class StateManager {
     // Sponsor contracts
     this.activeContracts = [];
 
+    // Contract breach risk tracking: { contractId: consecutiveDaysNearBreach }
+    this.contractBreachDays = {};
+
+    // Contract renewal tracking: { contractId: renewCount } — max 2 renewals per contract
+    this.contractRenewals = {};
+
     // Repair tracking (for story triggers)
     this.repairsCompleted = 0;
 
@@ -116,6 +124,9 @@ export class StateManager {
     // NPC casual chat cooldowns (NPC ID → last game day chatted)
     this.npcLastChat = {};
 
+    // Gift shop cooldowns (key: "npcId_giftId" → game day given)
+    this.giftCooldowns = {};
+
     // Progression streaks (persisted for ObjectivesPanel)
     this.goodDayStreak = 0;
     this.bestStreak = 0;
@@ -136,6 +147,7 @@ export class StateManager {
     this.offSeason = false;
     this.offSeasonDaysLeft = 0;
     this.offSeasonChoices = {}; // tracks event decisions and flags per off-season
+    this.offSeasonFollowUps = []; // array of { eventId, choiceIndex, effect, season } for season-start consequences
 
     // Stadium of the Year tracking (consecutive qualifying days)
     this.stadiumOfTheYearDays = 0;
@@ -156,6 +168,15 @@ export class StateManager {
     // Reputation change budgeting (not serialized — resets each day)
     this._repChangesToday = { positive: 0, negative: 0 };
 
+    // Emergency filter kits (universal temporary filters)
+    this.emergencyFilters = 0;
+
+    // Used filter inventory (removed filters awaiting resale)
+    this.filterInventory = [];
+
+    // Filter zone synergy bonuses cache
+    this.filterSynergies = {};
+
     // Dynamic market state
     this.market = {
       domainMultipliers: { air: 1.0, water: 1.0, hvac: 1.0, drainage: 1.0 },
@@ -169,6 +190,11 @@ export class StateManager {
 
     // Inspection scheduling
     this.nextInspectionDay = 20 + Math.floor(Math.random() * 7) - 3; // ~20 days ± 3
+
+    // Filter event tracking (random degradation events)
+    this.lastFilterEventDay = 0;
+    this.contaminationDaysLeft = 0;
+    this.efficiencyBoostDaysLeft = 0;
 
     // Multi-day event chain state
     // { chainId, currentDay, flags: {}, startedOnGameDay }
@@ -314,6 +340,7 @@ export class StateManager {
       speed: this.speed,
       unlockedFeatures: [...this.unlockedFeatures],
       achievements: [...this.achievements],
+      achievementNotified: { ...(this.achievementNotified ?? {}) },
       currentGameDayType: this.currentGameDayType,
       lastInspectionGrade: this.lastInspectionGrade,
       difficulty: this.difficulty,
@@ -330,6 +357,7 @@ export class StateManager {
       storyEventsCompleted: [...this.storyEventsCompleted],
       // Staff RPG
       staffList: this.staffList.map(s => ({ ...s })),
+      lastTeamBuilding: this.lastTeamBuilding ?? 0,
       // Raptors roster
       raptorsRoster: (this.raptorsRoster ?? []).map(p => ({ ...p })),
       // Research
@@ -352,6 +380,8 @@ export class StateManager {
       mediaHeadlines: this.mediaHeadlines.map(h => ({ ...h })),
       // Contracts
       activeContracts: this.activeContracts.map(c => ({ ...c })),
+      contractBreachDays: { ...(this.contractBreachDays ?? {}) },
+      contractRenewals: { ...(this.contractRenewals ?? {}) },
       // Tutorial
       tutorialSeen: [...this.tutorialSeen],
       // Guided onboarding
@@ -369,6 +399,8 @@ export class StateManager {
       teamPerformanceModifier: this.teamPerformanceModifier,
       // NPC chat cooldowns
       npcLastChat: { ...this.npcLastChat },
+      // Gift shop cooldowns
+      giftCooldowns: { ...(this.giftCooldowns ?? {}) },
       // Progression streaks
       goodDayStreak: this.goodDayStreak,
       bestStreak: this.bestStreak,
@@ -384,6 +416,7 @@ export class StateManager {
       offSeason: this.offSeason,
       offSeasonDaysLeft: this.offSeasonDaysLeft,
       offSeasonChoices: this.offSeasonChoices ? { ...this.offSeasonChoices } : {},
+      offSeasonFollowUps: Array.isArray(this.offSeasonFollowUps) ? this.offSeasonFollowUps.map(f => ({ ...f })) : [],
       // Stadium of the Year
       stadiumOfTheYearDays: this.stadiumOfTheYearDays,
       // Attendance
@@ -402,8 +435,18 @@ export class StateManager {
       _sandboxHealthyDays: this._sandboxHealthyDays ?? 0,
       // Inspection scheduling
       nextInspectionDay: this.nextInspectionDay,
+      // Filter event tracking
+      lastFilterEventDay: this.lastFilterEventDay ?? 0,
+      contaminationDaysLeft: this.contaminationDaysLeft ?? 0,
+      efficiencyBoostDaysLeft: this.efficiencyBoostDaysLeft ?? 0,
       // Multi-day event chains
       activeEventChain: this.activeEventChain ? { ...this.activeEventChain, flags: { ...(this.activeEventChain.flags ?? {}) } } : null,
+      // Emergency filter kits
+      emergencyFilters: this.emergencyFilters ?? 0,
+      // Used filter inventory
+      filterInventory: (this.filterInventory ?? []).map(f => ({ ...f })),
+      // Filter synergies cache
+      filterSynergies: { ...(this.filterSynergies ?? {}) },
       // Dynamic market
       market: {
         domainMultipliers: { ...(this.market?.domainMultipliers ?? {}) },
@@ -441,6 +484,7 @@ export class StateManager {
     this.speed = data.speed ?? 1;
     this.unlockedFeatures = Array.isArray(data.unlockedFeatures) ? data.unlockedFeatures : [];
     this.achievements = Array.isArray(data.achievements) ? data.achievements : [];
+    this.achievementNotified = data.achievementNotified ?? {};
     this.currentGameDayType = data.currentGameDayType ?? 'weekdayRegular';
     this.lastInspectionGrade = data.lastInspectionGrade ?? null;
     this.difficulty = data.difficulty ?? this.config.defaultDifficulty ?? 'veteran';
@@ -460,6 +504,7 @@ export class StateManager {
     this.storyEventsCompleted = Array.isArray(data.storyEventsCompleted) ? data.storyEventsCompleted : [];
     // Staff RPG
     this.staffList = Array.isArray(data.staffList) ? data.staffList : [];
+    this.lastTeamBuilding = data.lastTeamBuilding ?? 0;
     // Raptors roster
     this.raptorsRoster = Array.isArray(data.raptorsRoster) ? data.raptorsRoster : [];
     // Research (ensure nested structure is restored)
@@ -485,6 +530,8 @@ export class StateManager {
     this.mediaHeadlines = Array.isArray(data.mediaHeadlines) ? data.mediaHeadlines : [];
     // Contracts
     this.activeContracts = Array.isArray(data.activeContracts) ? data.activeContracts : [];
+    this.contractBreachDays = data.contractBreachDays ?? {};
+    this.contractRenewals = data.contractRenewals ?? {};
     // Tutorial
     this.tutorialSeen = Array.isArray(data.tutorialSeen) ? data.tutorialSeen : [];
     // Guided onboarding
@@ -502,6 +549,7 @@ export class StateManager {
     this.teamPerformanceModifier = data.teamPerformanceModifier ?? 1.0;
     // Progression streaks
     this.npcLastChat = data.npcLastChat ?? {};
+    this.giftCooldowns = data.giftCooldowns ?? {};
     this.goodDayStreak = data.goodDayStreak ?? 0;
     this.bestStreak = data.bestStreak ?? 0;
     // Mini-game streaks
@@ -516,6 +564,7 @@ export class StateManager {
     this.offSeason = data.offSeason ?? false;
     this.offSeasonDaysLeft = data.offSeasonDaysLeft ?? 0;
     this.offSeasonChoices = data.offSeasonChoices ?? {};
+    this.offSeasonFollowUps = Array.isArray(data.offSeasonFollowUps) ? data.offSeasonFollowUps : [];
     // Stadium of the Year
     this.stadiumOfTheYearDays = data.stadiumOfTheYearDays ?? 0;
     // Attendance
@@ -541,8 +590,18 @@ export class StateManager {
     this._sandboxHealthyDays = data._sandboxHealthyDays ?? 0;
     // Inspection scheduling
     this.nextInspectionDay = data.nextInspectionDay ?? (this.gameDay + 20 + Math.floor(Math.random() * 7) - 3);
+    // Filter event tracking
+    this.lastFilterEventDay = data.lastFilterEventDay ?? 0;
+    this.contaminationDaysLeft = data.contaminationDaysLeft ?? 0;
+    this.efficiencyBoostDaysLeft = data.efficiencyBoostDaysLeft ?? 0;
     // Multi-day event chains
     this.activeEventChain = data.activeEventChain ? { ...data.activeEventChain, flags: { ...(data.activeEventChain.flags ?? {}) } } : null;
+    // Emergency filter kits
+    this.emergencyFilters = data.emergencyFilters ?? 0;
+    // Used filter inventory
+    this.filterInventory = Array.isArray(data.filterInventory) ? data.filterInventory : [];
+    // Filter synergies cache
+    this.filterSynergies = data.filterSynergies ?? {};
     // Dynamic market
     const dm = data.market ?? {};
     this.market = {

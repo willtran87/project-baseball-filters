@@ -345,6 +345,11 @@ export class MenuManager {
           padding:5px 24px;font-family:monospace;font-size:11px;cursor:pointer;
           width:190px;border-radius:2px;
         ">\u2699 SETTINGS</button>
+        ${this._prestige && this._prestige.isVisible() ? `<button data-action="prestige" style="
+          background:linear-gradient(180deg,#2a2a1a,#1a1a0d);color:#ffec27;border:1px solid #5a5a3a;
+          padding:5px 24px;font-family:monospace;font-size:11px;cursor:pointer;
+          width:190px;border-radius:2px;
+        ">\u2605 LEGACY HALL</button>` : ''}
         <button data-action="help" style="
           background:linear-gradient(180deg,#2a2a2a,#1a1a1a);color:#c0c0d0;border:1px solid #4a4a4a;
           padding:5px 24px;font-family:monospace;font-size:11px;cursor:pointer;
@@ -379,6 +384,10 @@ export class MenuManager {
         this.hide();
         this.eventBus.emit('game:resume');
         this.eventBus.emit('ui:toggleSettings');
+      } else if (action === 'prestige') {
+        this.hide();
+        this.eventBus.emit('game:resume');
+        this.eventBus.emit('ui:togglePrestige');
       } else if (action === 'help') {
         this.hide();
         this.eventBus.emit('game:resume');

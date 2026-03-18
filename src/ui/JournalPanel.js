@@ -10,6 +10,30 @@
 
 import { NPC_DATA, HANK_NOTES, STORY_MILESTONES } from '../data/storyData.js';
 
+/** Human-readable bonus descriptions for tier roadmap */
+const BONUS_DESCRIPTIONS = {
+  budgetVisibility:    'See full budget breakdown',
+  emergencyFunds:      'Emergency $2k bailout/season',
+  investmentPartner:   '+5% contract revenue',
+  repairHints:         'Warns about failing filters',
+  repairSpeedBoost:    '+10% repair speed',
+  failureWarnings:     'Alerts for critical filters',
+  moraleBoost:         'Game-day morale boost',
+  vipIntros:           '+1 staff hire candidate',
+  attendanceBoost:     '+5% base attendance',
+  favorableHeadlines:  'Positive press coverage',
+  victorTips:          'Intel on Victor\'s plans',
+  crisisSpinControl:   'Halves negative headlines',
+  inspectionHints:     '2-day inspection warning',
+  oneDayWarning:       '1-day inspection warning',
+  victorSchemeReveal:  'Reveals Victor\'s schemes',
+  betterTerms:         '+10% sponsor payouts',
+  exclusiveContracts:  'Unlocks premium contracts',
+  emergencySponsorship:'Emergency $3k bailout/season',
+  rivalInsight:        'Weekly rival intel reports',
+  reducedSabotage:     '-30% sabotage damage',
+};
+
 export function registerJournalPanel(panelManager, state, eventBus, sprites) {
   panelManager.register('journal', (el, st, bus, data) => {
     renderJournal(el, st, bus, sprites, data);
@@ -179,7 +203,7 @@ function renderCharactersTab(container, state, sprites) {
     return;
   }
 
-  // Relationship tier names
+  // Relationship tier names (for the progress bar label)
   const tierNames = [
     { min: 0, label: 'Stranger', color: '#555' },
     { min: 20, label: 'Acquaintance', color: '#888' },
@@ -198,7 +222,7 @@ function renderCharactersTab(container, state, sprites) {
   }
 
   // Determine current relationship tier index for each NPC
-  function getCurrentTier(npc, relValue) {
+  function getCurrentTierIndex(npc, relValue) {
     const tiers = npc.relationshipTiers ?? [];
     let current = 0;
     for (let i = 0; i < tiers.length; i++) {
@@ -207,8 +231,9 @@ function renderCharactersTab(container, state, sprites) {
     return current;
   }
 
-  // Format bonus ID into readable label
+  // Format bonus ID into readable label (fallback if not in BONUS_DESCRIPTIONS)
   function formatBonus(bonusId) {
+    if (BONUS_DESCRIPTIONS[bonusId]) return BONUS_DESCRIPTIONS[bonusId];
     return bonusId
       .replace(/([A-Z])/g, ' $1')
       .replace(/^./, c => c.toUpperCase())
@@ -221,7 +246,8 @@ function renderCharactersTab(container, state, sprites) {
     const npc = npcDefs[npcId];
     const rel = relationships[npcId] ?? 0;
     const tier = getTierName(rel);
-    const currentTier = getCurrentTier(npc, rel);
+    const currentTierIdx = getCurrentTierIndex(npc, rel);
+    const allTiers = npc.relationshipTiers ?? [];
     const name = npc.name ?? npcId;
     const role = npc.role ?? '';
     const themeColor = npc.themeColor ?? '#888';
@@ -233,7 +259,7 @@ function renderCharactersTab(container, state, sprites) {
     let detailsHtml = '';
 
     // Tier 1+: Show bio
-    if (currentTier >= 1 && npc.bio) {
+    if (currentTierIdx >= 1 && npc.bio) {
       detailsHtml += `
         <div style="font-size:9px;color:#aaa;margin-top:3px;line-height:1.4;font-style:italic">
           ${npc.bio}
@@ -241,29 +267,73 @@ function renderCharactersTab(container, state, sprites) {
       `;
     }
 
-    // Tier 2+: Show active bonuses
-    const currentBonuses = npc.relationshipTiers?.[currentTier]?.bonuses ?? [];
-    if (currentTier >= 2 && currentBonuses.length > 0) {
-      detailsHtml += `
-        <div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:3px">
-          ${currentBonuses.map(b => `
-            <span style="font-size:8px;padding:1px 5px;background:rgba(255,255,255,0.06);
-              border:1px solid ${themeColor}44;color:${themeColor};border-radius:2px">
-              ${formatBonus(b)}
-            </span>
-          `).join('')}
-        </div>
-      `;
-    }
-
     // Max tier: Show lore
-    const maxTier = (npc.relationshipTiers?.length ?? 1) - 1;
-    if (currentTier >= maxTier && npc.lore) {
+    const maxTierIdx = allTiers.length - 1;
+    if (currentTierIdx >= maxTierIdx && maxTierIdx >= 0 && npc.lore) {
       detailsHtml += `
         <div style="font-size:9px;color:#d4aa40;margin-top:4px;padding:3px 6px;
           background:rgba(212,170,64,0.06);border-left:2px solid #d4aa4044;line-height:1.4">
           ${npc.lore}
         </div>
+      `;
+    }
+
+    // ── Tier Roadmap ──
+    // Show all tiers as a compact vertical list
+    let tierRoadmapHtml = '';
+    if (allTiers.length > 0) {
+      tierRoadmapHtml += '<div style="margin-top:4px;display:flex;flex-direction:column;gap:1px">';
+      for (let i = 0; i < allTiers.length; i++) {
+        const t = allTiers[i];
+        const isUnlocked = i <= currentTierIdx;
+        const isCurrent = i === currentTierIdx;
+        const tierBonuses = t.bonuses ?? [];
+        // Deduplicate: only show bonuses new at this tier (not carried from previous)
+        const prevBonuses = i > 0 ? (allTiers[i - 1].bonuses ?? []) : [];
+        const newBonuses = tierBonuses.filter(b => !prevBonuses.includes(b));
+
+        const tierColor = isUnlocked ? themeColor : '#555';
+        const textColor = isUnlocked ? '#ccc' : '#555';
+        const bonusColor = isUnlocked ? themeColor : '#555';
+        const bgColor = isCurrent ? 'rgba(255,255,255,0.04)' : 'transparent';
+        const borderColor = isCurrent ? themeColor : (isUnlocked ? `${themeColor}44` : '#2a2a2a');
+
+        tierRoadmapHtml += `
+          <div style="display:flex;align-items:flex-start;gap:4px;padding:2px 4px;
+            background:${bgColor};border-left:2px solid ${borderColor}">
+            <span style="color:${tierColor};font-size:8px;min-width:8px;margin-top:1px">${isUnlocked ? '\u2713' : '\u25cb'}</span>
+            <div style="flex:1;min-width:0">
+              <span style="color:${textColor};font-size:8px;font-weight:${isCurrent ? 'bold' : 'normal'}">
+                ${t.name ?? `Tier ${i}`}${t.threshold > 0 ? ` (${t.threshold} pts)` : ''}${isCurrent ? ' \u25c4' : ''}
+              </span>
+              ${newBonuses.length > 0 ? `
+                <span style="font-size:8px;color:${bonusColor};margin-left:4px">
+                  ${newBonuses.map(b => formatBonus(b)).join(', ')}
+                </span>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }
+      tierRoadmapHtml += '</div>';
+    }
+
+    // ── Next Unlock Preview ──
+    let nextUnlockHtml = '';
+    const nextTierIdx = currentTierIdx + 1;
+    if (nextTierIdx < allTiers.length) {
+      const nextT = allTiers[nextTierIdx];
+      const pointsNeeded = (nextT.threshold ?? 0) - rel;
+      nextUnlockHtml = `
+        <div style="font-size:8px;color:#888;margin-top:3px">
+          Next: <span style="color:${themeColor}">${nextT.name ?? `Tier ${nextTierIdx}`}</span>
+          at ${nextT.threshold ?? '?'} pts
+          <span style="color:#666">(+${Math.max(0, pointsNeeded)} more)</span>
+        </div>
+      `;
+    } else if (allTiers.length > 0) {
+      nextUnlockHtml = `
+        <div style="font-size:8px;color:#00e436;margin-top:3px">Max relationship tier reached!</div>
       `;
     }
 
@@ -280,14 +350,16 @@ function renderCharactersTab(container, state, sprites) {
           <div style="font-size:9px;color:${tier.color};margin:2px 0">${tier.label}
             <span style="color:#5f574f;margin-left:4px">(${rel}/100)</span>${
             lastChat[npcId] != null
-              ? `<span style="color:#5f574f;margin-left:6px">· Last spoke: Day ${lastChat[npcId]}</span>`
+              ? `<span style="color:#5f574f;margin-left:6px">\u00b7 Last spoke: Day ${lastChat[npcId]}</span>`
               : ''
           }</div>
           <div style="background:#222;height:4px;border-radius:2px;width:120px">
             <div style="background:${tier.color};height:100%;width:${Math.min(rel, 100)}%;border-radius:2px;
               transition:width 0.3s"></div>
           </div>
+          ${nextUnlockHtml}
           ${detailsHtml}
+          ${tierRoadmapHtml}
         </div>
       </div>
     `;

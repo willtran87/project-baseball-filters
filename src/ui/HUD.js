@@ -293,7 +293,36 @@ export class HUD {
       borderRadius: '2px', border: '1px solid #333', background: 'rgba(0,0,0,0.3)'
     });
     this._eiRival.title = 'Rival threat status';
-    this._eventIconsSection.append(this._eiWeather, this._eiInspection, this._eiRival);
+    // Slot 4: Rival momentum badge (only visible chapter 2+)
+    this._rivalMomentumBadge = this._makeSpan({
+      display: 'none', fontSize: '7px', fontWeight: 'bold',
+      padding: '0 3px', borderRadius: '2px', border: '1px solid #333',
+      background: 'rgba(0,0,0,0.3)', whiteSpace: 'nowrap', cursor: 'pointer'
+    });
+    this._rivalMomentumBadge.title = 'Victor threat level';
+    this._lastRivalMomentum = null;
+    this._rivalMomentumBadge.addEventListener('click', (e) => {
+      e.preventDefault();
+      const detail = this._rivalMomentumBadge._eventDetail;
+      if (detail) {
+        this.eventBus.emit('ui:click');
+        this.eventBus.emit('ui:message', { text: detail, type: 'info' });
+      }
+    });
+    this._eventIconsSection.append(this._eiWeather, this._eiInspection, this._eiRival, this._rivalMomentumBadge);
+
+    // -- Weather ticker (compact, in top bar) --
+    this._weatherTickerSection = this._makeSpan({
+      display: 'flex', alignItems: 'center', gap: '3px',
+      padding: '0 4px', borderLeft: '1px solid #333', borderRight: '1px solid #333',
+      maxWidth: '150px', overflow: 'hidden', whiteSpace: 'nowrap'
+    });
+    this._wtCurrent = this._makeSpan({ fontSize: '8px', fontWeight: 'bold' });
+    this._wtForecast = this._makeSpan({ fontSize: '7px', color: '#888' });
+    this._wtWarning = this._makeSpan({
+      fontSize: '7px', fontWeight: 'bold', color: '#ff004d', display: 'none'
+    });
+    this._weatherTickerSection.append(this._wtCurrent, this._wtForecast, this._wtWarning);
 
     // -- Speed controls --
     this._speedSection = this._makeSpan({ display: 'flex', alignItems: 'center', gap: '2px' });
@@ -316,6 +345,7 @@ export class HUD {
     this.el.append(
       budgetSection, shopSection, this._attSection,
       this._gameSection, this._sandboxBadge, this._eventIconsSection,
+      this._weatherTickerSection,
       this._zoneSection, this._repSection,
       this._speedSection
     );
@@ -513,6 +543,80 @@ export class HUD {
   //  HELPERS
   // ─────────────────────────────────────────────
 
+  /**
+   * Update the compact weather ticker in the top bar.
+   * Shows current weather + 2-day forecast inline, color-coded by domain impact.
+   */
+  _updateWeatherTicker(s) {
+    const forecast = s.weatherForecast;
+    if (!Array.isArray(forecast) || forecast.length === 0) {
+      this._weatherTickerSection.style.display = 'none';
+      return;
+    }
+    this._weatherTickerSection.style.display = '';
+
+    const weatherIcons = {
+      'Heavy Rain': '\u26c8', 'Light Rain': '\ud83c\udf27', 'Heatwave': '\u2600\ufe0f',
+      'Cold Snap': '\u2744', 'Humidity Spike': '\ud83d\udca7', 'Wind Storm': '\ud83c\udf2c',
+      'Snow/Ice': '\u2744', 'Fog': '\ud83c\udf2b', 'Ice Storm': '\u2744',
+      'Dust Storm': '\ud83c\udf2a', 'Flash Flood': '\ud83c\udf0a', 'Clear': '\u2600',
+    };
+
+    // Domain impact color: which domain is most affected
+    const _domainImpactColor = (domainsAffected) => {
+      if (!domainsAffected || domainsAffected.length === 0) return '#00e436'; // clear/green
+      if (domainsAffected.includes('water') || domainsAffected.includes('drainage')) return '#4488ff'; // blue
+      if (domainsAffected.includes('hvac')) return '#ff8844'; // red/orange
+      if (domainsAffected.includes('air')) return '#aaaaaa'; // gray
+      return '#00e436';
+    };
+
+    // Current weather (forecast[0] = today)
+    const today = forecast[0];
+    const todayIcon = weatherIcons[today.name] ?? '\u2601';
+    const todayColor = _domainImpactColor(today.domainsAffected);
+    this._wtCurrent.textContent = `${todayIcon} ${today.name}`;
+    this._wtCurrent.style.color = todayColor;
+    this._wtCurrent.title = `Today: ${today.name}${today.domainsAffected?.length ? ' — affects ' + today.domainsAffected.join(', ') : ''}`;
+
+    // 2-day forecast inline
+    const parts = [];
+    for (let i = 1; i < Math.min(3, forecast.length); i++) {
+      const fc = forecast[i];
+      const icon = weatherIcons[fc.name] ?? '\u2601';
+      const dayLabel = i === 1 ? 'Tmrw' : 'D+2';
+      parts.push(`${dayLabel}:${icon}`);
+    }
+    if (parts.length > 0) {
+      this._wtForecast.textContent = parts.join(' ');
+      this._wtForecast.style.display = '';
+    } else {
+      this._wtForecast.style.display = 'none';
+    }
+
+    // Advance warning: check if a severe event (severity >= 2) is forecast in next 2 days
+    let warningText = '';
+    const domainLabels = { water: 'water', drainage: 'drainage', hvac: 'HVAC', air: 'air' };
+    for (let i = 1; i < Math.min(3, forecast.length); i++) {
+      const fc = forecast[i];
+      if (fc.severity >= 2 && fc.name !== 'Clear') {
+        const daysAway = i;
+        const affectedDomain = fc.domainsAffected?.[0];
+        const domainHint = affectedDomain ? ` -- check ${domainLabels[affectedDomain] ?? affectedDomain}!` : '';
+        warningText = `\u26a0 ${fc.name} in ${daysAway}d${domainHint}`;
+        break;
+      }
+    }
+    if (warningText) {
+      this._wtWarning.textContent = warningText;
+      this._wtWarning.style.display = '';
+      this._wtWarning.style.animation = 'hud-pulse 1.5s infinite';
+    } else {
+      this._wtWarning.style.display = 'none';
+      this._wtWarning.style.animation = '';
+    }
+  }
+
   _makeSpan(styles) {
     const el = document.createElement('span');
     for (const [k, v] of Object.entries(styles)) {
@@ -679,8 +783,9 @@ export class HUD {
           'Dust Storm': '\ud83c\udf2a', 'Flash Flood': '\ud83c\udf0a',
         };
         const icon = weatherIcons[forecast[0].name] ?? '\u26c5';
-        this._forecastBadge.textContent = `${icon} Next: ${forecast[0].name}`;
-        this._forecastBadge.title = `Weather forecast: ${forecast[0].name} — ${forecast[0].description ?? 'Prepare your systems!'}`;
+        const confStars = '\u2605'.repeat(forecast[0].confidence ?? 0) + '\u2606'.repeat(5 - (forecast[0].confidence ?? 0));
+        this._forecastBadge.textContent = `${icon} Next: ${forecast[0].name} (${confStars})`;
+        this._forecastBadge.title = `Weather forecast: ${forecast[0].name} — ${forecast[0].description ?? 'Prepare your systems!'} | Confidence: ${forecast[0].confidenceLabel ?? '?'} (${confStars})`;
         this._forecastBadge.style.display = '';
       } else {
         this._forecastBadge.style.display = 'none';
@@ -844,6 +949,54 @@ export class HUD {
       this._eiRival._eventDetail = null;
     }
 
+    // Slot 4: Rival momentum badge (chapter 2+ only)
+    const chapter = s.storyChapter ?? 1;
+    if (chapter >= 2) {
+      const momentum = s.rivalMomentum ?? 0;
+      let mLabel, mColor, mArrow;
+      if (momentum <= -2) {
+        mLabel = 'LOW'; mColor = '#00e436';
+      } else if (momentum <= 0) {
+        mLabel = 'MOD'; mColor = '#888';
+      } else if (momentum === 1) {
+        mLabel = 'HIGH'; mColor = '#ffec27';
+      } else {
+        mLabel = 'CRIT'; mColor = '#ff004d';
+      }
+      // Trend arrow based on change from last known momentum
+      if (this._lastRivalMomentum !== null) {
+        if (momentum > this._lastRivalMomentum) mArrow = '\u25b2'; // ▲ rising
+        else if (momentum < this._lastRivalMomentum) mArrow = '\u25bc'; // ▼ falling
+        else mArrow = '\u25b8'; // ▸ stable
+      } else {
+        mArrow = '\u25b8';
+      }
+      this._lastRivalMomentum = momentum;
+      this._rivalMomentumBadge.textContent = `Victor: ${mArrow} ${mLabel}`;
+      this._rivalMomentumBadge.style.color = mColor;
+      this._rivalMomentumBadge.style.borderColor = `${mColor}66`;
+      this._rivalMomentumBadge.style.background = `${mColor}18`;
+      this._rivalMomentumBadge.style.display = '';
+      const mDescriptions = {
+        LOW: 'Victor is retreating. Keep the pressure on!',
+        MOD: 'Normal rivalry. Victor is watching but not making big moves.',
+        HIGH: 'Victor is gaining ground. Watch for sabotage attempts.',
+        CRIT: 'Sabotage imminent! Victor is at peak threat level.',
+      };
+      this._rivalMomentumBadge.title = `Victor threat: ${mLabel} (momentum ${momentum})`;
+      this._rivalMomentumBadge._eventDetail = `Victor threat: ${mLabel}. ${mDescriptions[mLabel]} (Momentum: ${momentum})`;
+      if (mLabel === 'CRIT') {
+        this._rivalMomentumBadge.style.animation = 'hud-pulse 1.2s infinite';
+      } else {
+        this._rivalMomentumBadge.style.animation = '';
+      }
+    } else {
+      this._rivalMomentumBadge.style.display = 'none';
+    }
+
+    // ── Weather Ticker (top bar) ──
+    this._updateWeatherTicker(s);
+
     // ── BOTTOM BAR UPDATES ──
 
     // Filter status
@@ -987,7 +1140,8 @@ export class HUD {
           iconEl.style.color = _severityColors[fc.severity ?? 0] ?? '#888';
           const dayLabel = fi === 0 ? 'Today' : fi === 1 ? 'Tomorrow' : 'Day 3';
           const domainsList = (fc.domainsAffected ?? []).join(', ') || 'none';
-          iconEl.title = `${dayLabel}: ${fc.name} (sev ${fc.severity ?? 0}) \u2014 Domains: ${domainsList}`;
+          const confStars = '\u2605'.repeat(fc.confidence ?? 0) + '\u2606'.repeat(5 - (fc.confidence ?? 0));
+          iconEl.title = `${dayLabel}: ${fc.name} (sev ${fc.severity ?? 0}) \u2014 Domains: ${domainsList} | Confidence: ${confStars} ${fc.confidenceLabel ?? ''}`;
           iconEl.style.display = '';
         } else {
           iconEl.style.display = 'none';

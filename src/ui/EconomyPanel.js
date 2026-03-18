@@ -327,6 +327,13 @@ export class EconomyPanel {
       html += `</div>`;
     }
 
+    // --- Budget Forecast section (collapsible) ---
+    html += this._renderForecast({
+      adjustedGameRevenue, contractIncome, adjustedExpenses,
+      staffWages, totalEnergyCost, maintenanceCost,
+      day, totalGameDays,
+    });
+
     html += `</div>`; // end scrollable area
 
     el.innerHTML = html;
@@ -335,6 +342,15 @@ export class EconomyPanel {
     el.addEventListener('click', (e) => {
       if (e.target.closest('[data-action="close-economy"]')) {
         this.eventBus.emit('ui:closePanel');
+      }
+      if (e.target.closest('[data-action="toggle-forecast"]')) {
+        const body = el.querySelector('[data-forecast-body]');
+        if (body) {
+          const visible = body.style.display !== 'none';
+          body.style.display = visible ? 'none' : 'block';
+          const hint = e.target.closest('[data-action="toggle-forecast"]').querySelector('span:last-child');
+          if (hint) hint.textContent = visible ? 'click to expand' : 'click to collapse';
+        }
       }
     });
   }
@@ -349,6 +365,61 @@ export class EconomyPanel {
         </span>
       </div>
     `;
+  }
+
+  _renderForecast({ adjustedGameRevenue, contractIncome, adjustedExpenses, staffWages, totalEnergyCost, maintenanceCost, day, totalGameDays }) {
+    const s = this.state;
+    const forecastDays = 10;
+
+    // Use current-day revenue as the daily baseline, projected forward
+    const dailyIncome = adjustedGameRevenue + contractIncome;
+    const projectedRevenue = dailyIncome * forecastDays;
+    const dailyCosts = adjustedExpenses;
+    const dailyNet = dailyIncome - dailyCosts;
+
+    // Color coding for net and runway
+    let netColor, netLabel;
+    if (dailyNet >= 0) {
+      netColor = '#00e436';
+      netLabel = 'Growing';
+    } else {
+      const runway = Math.floor(s.money / Math.abs(dailyNet));
+      if (runway < 10) {
+        netColor = '#ff004d';
+      } else {
+        netColor = '#ffec27';
+      }
+      netLabel = `Runway: ${runway} days`;
+    }
+
+    const netSign = dailyNet >= 0 ? '+' : '-';
+
+    let html = `
+      <div style="margin-top:8px;border-top:1px solid #3a3a5a;">
+        <div data-action="toggle-forecast" style="cursor:pointer;padding:6px 0;display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:#29adff;font-weight:bold;font-size:9px;letter-spacing:1px;">BUDGET FORECAST</span>
+          <span style="color:#555;font-size:8px;">click to expand</span>
+        </div>
+        <div data-forecast-body style="display:none;padding-bottom:6px;">
+    `;
+
+    // Projected 10-day income
+    html += this._row(`Projected ${forecastDays}-Day Income`, `$${projectedRevenue.toLocaleString()}`, '#29adff', `~$${dailyIncome.toLocaleString()}/day`);
+
+    // Recurring cost breakdown
+    html += `<div style="margin-top:4px;padding-top:4px;border-top:1px solid #222;color:#888;font-size:9px;">Daily Cost Breakdown</div>`;
+    html += this._row('Staff Wages', `-$${staffWages.toLocaleString()}/day`, '#aaa');
+    html += this._row('Energy', `-$${totalEnergyCost.toLocaleString()}/day`, '#aaa');
+    html += this._row('Maintenance', `-$${maintenanceCost.toLocaleString()}/day`, '#aaa');
+    html += this._row('Total Burn Rate', `-$${dailyCosts.toLocaleString()}/day`, '#ff004d');
+
+    // Break-even & runway
+    html += `<div style="margin-top:4px;padding-top:4px;border-top:1px solid #222;">`;
+    html += this._row('Daily Net', `${netSign}$${Math.abs(dailyNet).toLocaleString()}/day`, netColor, netLabel);
+    html += `</div>`;
+
+    html += `</div></div>`;
+    return html;
   }
 
   _getAvgFilterQuality() {

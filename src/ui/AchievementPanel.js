@@ -55,6 +55,43 @@ function _getHintText(milestone) {
   }
 }
 
+/**
+ * Get measurable progress for a milestone. Returns { current, target, pct } or null
+ * if the milestone is not numerically trackable.
+ */
+function _getMilestoneProgress(milestone, state) {
+  let current = 0;
+  const target = milestone.value;
+  switch (milestone.condition) {
+    case 'filters_gte':
+      current = state.filters?.length ?? 0;
+      return { current, target, pct: target > 0 ? Math.min(100, Math.floor((current / target) * 100)) : 0 };
+    case 'day_gte':
+      current = state.gameDay ?? 1;
+      return { current, target, pct: target > 0 ? Math.min(100, Math.floor((current / target) * 100)) : 0 };
+    case 'reputation_gte':
+      current = Math.floor(state.reputation ?? 0);
+      return { current, target, pct: target > 0 ? Math.min(100, Math.floor((current / target) * 100)) : 0 };
+    case 'events_survived_gte':
+      current = state.eventsSurvived ?? 0;
+      return { current, target, pct: target > 0 ? Math.min(100, Math.floor((current / target) * 100)) : 0 };
+    case 'season_gte':
+      current = state.season ?? 1;
+      return { current, target, pct: target > 0 ? Math.min(100, Math.floor((current / target) * 100)) : 0 };
+    case 'expansions_gte':
+      current = state.purchasedExpansions?.length ?? 0;
+      return { current, target, pct: target > 0 ? Math.min(100, Math.floor((current / target) * 100)) : 0 };
+    case 'notes_found_gte':
+      current = state.hanksNotes?.length ?? 0;
+      return { current, target, pct: target > 0 ? Math.min(100, Math.floor((current / target) * 100)) : 0 };
+    case 'relationship_gte':
+      current = state.npcRelationships?.[milestone.npcId] ?? 0;
+      return { current, target, pct: target > 0 ? Math.min(100, Math.floor((current / target) * 100)) : 0 };
+    default:
+      return null;
+  }
+}
+
 export class AchievementPanel {
   constructor(container, state, eventBus) {
     this.container = container;
@@ -74,7 +111,10 @@ export class AchievementPanel {
 
     // Auto-refresh on achievement unlock
     this.eventBus.on('progression:achievement', () => { if (this._visible) this._render(); });
-    this.eventBus.on('game:newDay', () => { if (this._visible) this._render(); });
+    this.eventBus.on('game:newDay', () => {
+      this._checkProximityNotifications();
+      if (this._visible) this._render();
+    });
   }
 
   toggle() {
@@ -108,6 +148,26 @@ export class AchievementPanel {
       this._el = null;
     }
     this._visible = false;
+  }
+
+  /** Check all locked achievements for proximity and emit one-time toast notifications. */
+  _checkProximityNotifications() {
+    const s = this.state;
+    const unlocked = s.achievements ?? [];
+    for (const m of STORY_MILESTONES) {
+      if (unlocked.includes(m.id)) continue;
+      const progress = _getMilestoneProgress(m, s);
+      if (!progress || progress.pct < 80 || progress.pct >= 100) continue;
+      const notified = s.achievementNotified ?? {};
+      if (notified[m.id]) continue;
+      if (!s.achievementNotified) s.achievementNotified = {};
+      s.achievementNotified[m.id] = true;
+      const remaining = progress.target - progress.current;
+      this.eventBus.emit('ui:message', {
+        text: `Almost there! ${m.name} -- ${remaining} more to go`,
+        type: 'info',
+      });
+    }
   }
 
   _render() {
@@ -171,10 +231,25 @@ export class AchievementPanel {
           `;
         } else {
           const hint = _getHintText(m);
+          const progress = _getMilestoneProgress(m, s);
+          let progressHtml = '';
+          if (progress) {
+            const progColor = progress.pct >= 80 ? '#00e436' : progress.pct >= 50 ? '#ffec27' : '#29adff';
+            progressHtml = `
+              <div style="display:flex;align-items:center;gap:6px;margin-top:3px">
+                <span style="flex:1;height:4px;background:#1a1a1a;border:1px solid #333;border-radius:2px;overflow:hidden">
+                  <span style="display:block;width:${progress.pct}%;height:100%;background:${progColor};transition:width 0.3s"></span>
+                </span>
+                <span style="color:${progColor};font-size:8px;min-width:60px;text-align:right">${progress.current} / ${progress.target} (${progress.pct}%)</span>
+              </div>
+            `;
+
+            // Proximity notification handled by _checkProximityNotifications() on game:newDay
+          }
           html += `
-            <div style="padding:4px 8px;margin-bottom:3px;background:rgba(255,255,255,0.02);border-left:3px solid #333;border-radius:2px;opacity:0.6">
-              <div style="color:#666;font-size:10px">???</div>
-              <div style="color:#555;font-size:9px;margin-top:2px">${hint}</div>
+            <div style="padding:4px 8px;margin-bottom:3px;background:rgba(255,255,255,0.02);border-left:3px solid #333;border-radius:2px;opacity:0.7">
+              <div style="color:#777;font-size:10px">${hint}</div>
+              ${progressHtml}
             </div>
           `;
         }

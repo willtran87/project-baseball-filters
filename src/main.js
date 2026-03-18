@@ -43,15 +43,18 @@ import { ExpansionPanel } from './ui/ExpansionPanel.js';
 import { EconomyPanel } from './ui/EconomyPanel.js';
 import { ObjectivesPanel } from './ui/ObjectivesPanel.js';
 import { NPCContactsPanel } from './ui/NPCContactsPanel.js';
+import { GiftShopPanel } from './ui/GiftShopPanel.js';
 import { MiniGame } from './ui/MiniGame.js';
 import { SettingsPanel } from './ui/SettingsPanel.js';
 import { HelpPanel } from './ui/HelpPanel.js';
 import { StatsPanel } from './ui/StatsPanel.js';
 import { AchievementPanel } from './ui/AchievementPanel.js';
 import { SeasonSummaryPanel } from './ui/SeasonSummaryPanel.js';
+import { FilterAnalyticsPanel } from './ui/FilterAnalyticsPanel.js';
 import { StatsTracker } from './systems/StatsTracker.js';
 import { GuidedTutorial } from './systems/GuidedTutorial.js';
 import { PrestigeSystem } from './systems/PrestigeSystem.js';
+import { PrestigeMenu } from './ui/PrestigeMenu.js';
 import { ZoneNavigator } from './ui/ZoneNavigator.js';
 import { AudioManager } from './audio/audioManager.js';
 import { MusicGenerator } from './audio/musicGenerator.js';
@@ -184,11 +187,14 @@ function init() {
   const systemsPanel = new SystemsPanel(panels, state, eventBus, zoneManager);
   const expansionPanel = new ExpansionPanel(panels, state, eventBus);
   const economyPanel = new EconomyPanel(panels, state, eventBus);
+  const filterAnalyticsPanel = new FilterAnalyticsPanel(panels, state, eventBus, zoneManager);
   const objectivesPanel = new ObjectivesPanel(uiOverlay, state, eventBus);
   const contactsPanel = new NPCContactsPanel(uiOverlay, state, eventBus);
+  const giftShopPanel = new GiftShopPanel(uiOverlay, state, eventBus);
   const statsPanel = new StatsPanel(uiOverlay, state, eventBus);
   const achievementPanel = new AchievementPanel(uiOverlay, state, eventBus);
   const seasonSummaryPanel = new SeasonSummaryPanel(uiOverlay, state, eventBus);
+  const prestigeMenu = new PrestigeMenu(uiOverlay, state, eventBus, prestige);
 
   // Statistics tracker (listens to events, updates state.stats)
   const statsTracker = new StatsTracker(state, eventBus);
@@ -250,6 +256,32 @@ function init() {
       particles.emit('success', f.x + 8, f.y + 4);
       floatingText.add('UPGRADED!', f.x + 8, f.y, '#ffec27', 1.5);
     }
+  });
+
+  // Filter events — visual feedback for random filter events
+  eventBus.on('filter:powerSurge', ({ filterId, zone }) => {
+    const f = state.getFilter(filterId);
+    if (f && f.x != null) {
+      particles.emit('sparks', f.x + 8, f.y + 8);
+      floatingText.add('SURGE!', f.x + 8, f.y, '#ffcc00', 1.5);
+    }
+  });
+  eventBus.on('filter:contamination', () => {
+    floatingText.add('CONTAMINATION!', CANVAS_WIDTH / 2, 30, '#00b7ff', 2.0);
+  });
+  eventBus.on('filter:efficiencyBoost', () => {
+    floatingText.add('EFFICIENCY BOOST!', CANVAS_WIDTH / 2, 30, '#00e436', 2.0);
+  });
+  eventBus.on('filter:dustStorm', () => {
+    floatingText.add('DUST STORM!', CANVAS_WIDTH / 2, 30, '#ff8800', 2.0);
+  });
+
+  // Contract renewal/renegotiation — floating feedback
+  eventBus.on('contract:renewed', ({ sponsorName }) => {
+    floatingText.add('RENEWED!', CANVAS_WIDTH / 2, 30, '#00e436', 1.5);
+  });
+  eventBus.on('contract:renegotiated', ({ sponsorName }) => {
+    floatingText.add('RENEGOTIATED!', CANVAS_WIDTH / 2, 30, '#ffec27', 1.5);
   });
 
   // Money changes — floating +/- dollar amounts
@@ -434,8 +466,8 @@ function init() {
       renderer.restore();
     }
 
-    // Render filters via sprite system (pixel sprites + condition bars)
-    sprites.render(renderer, state);
+    // Render filters via sprite system (pixel sprites + condition bars + empty slot indicators)
+    sprites.render(renderer, state, tileMap);
 
     // Render particles
     particles.render(renderer);

@@ -35,6 +35,7 @@ export class HelpPanel {
       ['R', 'Research lab'],
       ['X', 'Stadium expansions'],
       ['G', 'Systems overview'],
+      ['A', 'Filter analytics'],
       ['O', 'Objectives'],
       ['N', 'Newspaper'],
       ['J', 'Journal'],

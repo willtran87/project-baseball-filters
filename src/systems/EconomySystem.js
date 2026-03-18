@@ -159,6 +159,7 @@ export class EconomySystem {
       income: offSeasonRevenue,
       expenses: totalExpenses,
       staffCost: totalDailyWages,
+      staffWageBreakdown: this._lastWageBreakdown ?? null,
       energyCost,
       maintenance,
       attendance: 0,
@@ -320,6 +321,7 @@ export class EconomySystem {
       income: inningIncome,
       expenses: totalExpenses,
       staffCost,
+      staffWageBreakdown: this._lastWageBreakdown ?? null,
       energyCost,
       maintenance,
       attendance,
@@ -345,13 +347,39 @@ export class EconomySystem {
     const staffList = this.state.staffList ?? [];
     if (staffList.length > 0) {
       let total = 0;
+      let baseTotal = 0;
+      let modifierTotal = 0;
       for (const staff of staffList) {
-        total += staff.wagePerDay ?? (econ.staffWagePerDay ?? 100);
+        const baseWage = staff.wagePerDay ?? (econ.staffWagePerDay ?? 100);
+
+        // Morale modifier: >80 = 1.1x, <30 = 0.9x
+        let moraleMult = 1.0;
+        if (staff.morale > 80) moraleMult = 1.1;
+        else if (staff.morale < 30) moraleMult = 0.9;
+
+        // Specialization modifier: general = 1.0x, specialist = 1.15x, expert (level 5+) = 1.25x
+        let specMult = 1.0;
+        if (staff.specialization) {
+          if (staff.level >= 5) {
+            specMult = 1.25;
+          } else {
+            specMult = 1.15;
+          }
+        }
+
+        const effectiveWage = Math.floor(baseWage * moraleMult * specMult);
+        baseTotal += baseWage;
+        modifierTotal += effectiveWage - baseWage;
+        total += effectiveWage;
       }
+      // Store breakdown for UI display
+      this._lastWageBreakdown = { baseTotal, modifierTotal, total };
       return total;
     }
     // Fallback for legacy state: use staffCount * default wage
-    return (this.state.staffCount ?? 1) * (econ.staffWagePerDay ?? 100);
+    const fallback = (this.state.staffCount ?? 1) * (econ.staffWagePerDay ?? 100);
+    this._lastWageBreakdown = { baseTotal: fallback, modifierTotal: 0, total: fallback };
+    return fallback;
   }
 
   _calculateMaintenance() {

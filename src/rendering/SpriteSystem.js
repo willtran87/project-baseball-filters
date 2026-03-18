@@ -232,13 +232,49 @@ export class SpriteSystem {
   }
 
   /**
+   * Get the 4-tier health indicator color for a condition ratio.
+   * Green (#00e436) >75%, Yellow (#ffa300) 50-75%, Orange (#ff8800) 25-50%, Red (#ff004d) <25%
+   */
+  static _healthColor(ratio) {
+    if (ratio > 0.75) return '#00e436';
+    if (ratio > 0.50) return '#ffa300';
+    if (ratio > 0.25) return '#ff8800';
+    return '#ff004d';
+  }
+
+  /**
    * Render all visible game entities from state.
    * Called each frame by the game loop.
+   * @param {object} renderer - CanvasRenderer instance
+   * @param {object} state - Game state
+   * @param {object} [tileMap] - TileMap instance (for rendering empty vent slot indicators)
    */
-  render(renderer, state) {
+  render(renderer, state, tileMap) {
     const filters = state.filters;
     const currentZone = state.currentZone ?? 'field';
     const now = Date.now() * 0.001; // seconds for animation
+
+    // Render empty vent slot indicators (dim gray dots for unoccupied slots)
+    if (tileMap) {
+      const ventSlots = tileMap.getVentSlots();
+      for (let s = 0; s < ventSlots.length; s++) {
+        const slot = ventSlots[s];
+        const slotPx = slot.col * 16;
+        const slotPy = slot.row * 16;
+        // Check if any filter occupies this slot in the current zone
+        const occupied = filters.some(f => {
+          if (f.zone && f.zone !== currentZone) return false;
+          if (!f.zone && currentZone !== 'mechanical') return false;
+          return f.x === slotPx && f.y === slotPy;
+        });
+        if (!occupied) {
+          // Draw dim gray dot centered in the vent slot tile
+          const sx = Math.floor(slotPx + 6 - renderer.cameraX);
+          const sy = Math.floor(slotPy + 18 - renderer.cameraY);
+          renderer.drawRectScreen(sx, sy, 4, 2, '#444444');
+        }
+      }
+    }
 
     for (let i = 0; i < filters.length; i++) {
       const filter = filters[i];
@@ -320,9 +356,9 @@ export class SpriteSystem {
 
       this.draw(renderer, spriteName, filter.x, filter.y);
 
-      // Draw condition indicator bar below filter (3px tall with border)
+      // Draw condition indicator bar below filter (4x2 pixel bar with border)
       const ratio = filter.maxCondition > 0 ? filter.condition / filter.maxCondition : 0;
-      const barColor = ratio > 0.6 ? '#00e436' : ratio > 0.3 ? '#ffa300' : '#ff004d';
+      const barColor = SpriteSystem._healthColor(ratio);
       const barWidth = Math.min(spriteSize.w - 2, 30);
       const barX = screenX + 1;
       const barY = screenY + spriteSize.h + 1;
@@ -349,14 +385,14 @@ export class SpriteSystem {
         renderer.drawRectScreen(cx, barY - 4, 1, 1, '#ff004d');
       }
 
-      // Condition dot: 3x3 colored circle below the condition bar for at-a-glance status
+      // Condition dot: 3x3 colored dot below the condition bar for at-a-glance status
       const dotX = screenX + Math.floor(spriteSize.w / 2) - 1;
       const dotY = barY + barH + 3;
       let dotColor;
       if (ratio <= 0) {
         // Broken: gray dot
         dotColor = '#555555';
-      } else if (ratio < 0.3) {
+      } else if (ratio < 0.25) {
         // Critical: pulsing red dot
         const redPulse = Math.sin(now * 5 + i * 2) * 0.3 + 0.7;
         renderer.save();
@@ -364,8 +400,10 @@ export class SpriteSystem {
         renderer.drawRectScreen(dotX, dotY, 3, 3, '#ff004d');
         renderer.restore();
         dotColor = null; // already drawn with pulse
-      } else if (ratio < 0.6) {
-        dotColor = '#ffa300'; // yellow/amber
+      } else if (ratio < 0.50) {
+        dotColor = '#ff8800'; // orange
+      } else if (ratio < 0.75) {
+        dotColor = '#ffa300'; // yellow
       } else {
         dotColor = '#00e436'; // green
       }

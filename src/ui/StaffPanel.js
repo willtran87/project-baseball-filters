@@ -36,6 +36,8 @@ export class StaffPanel {
     this.eventBus.on('staff:trainingStarted', () => this._rerender());
     this.eventBus.on('staff:praised', () => this._rerender());
     this.eventBus.on('staff:trainingComplete', () => this._rerender());
+    this.eventBus.on('staff:teamBuilding', () => this._rerender());
+    this.eventBus.on('staff:moraleEvent', () => this._rerender());
   }
 
   toggle() {
@@ -190,7 +192,26 @@ export class StaffPanel {
       return '<div style="color:#888">No staff hired yet. Visit the Hire tab to recruit workers.</div>';
     }
 
-    let html = '<div style="color:#aaa;margin-bottom:8px">Your Staff</div>';
+    // Team Building button in roster header
+    const tbInfo = this.staffSystem.getTeamBuildingInfo();
+    const canAffordTB = this.state.money >= tbInfo.cost;
+    const tbAvailable = tbInfo.available && canAffordTB && staff.length > 0;
+    const tbLabel = tbInfo.available
+      ? `Team Building ($${tbInfo.cost})`
+      : `Team Building (${tbInfo.daysRemaining}d cooldown)`;
+    const tbStyle = tbAvailable
+      ? 'background:#1a2a3a;color:#29adff;border:1px solid #3a5a8a;cursor:pointer'
+      : 'background:#2a2a2a;color:#555;border:1px solid #333;cursor:not-allowed';
+
+    let html = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="color:#aaa">Your Staff</span>
+        <button data-action="team-building" style="${tbStyle};padding:3px 10px;font-family:monospace;font-size:10px"
+          title="${tbInfo.available ? 'Host a team building day: +5 morale to all staff' : `Available in ${tbInfo.daysRemaining} day${tbInfo.daysRemaining !== 1 ? 's' : ''}`}">
+          ${tbLabel}
+        </button>
+      </div>
+    `;
 
     for (const s of staff) {
       const specName = s.specialization ? SPECIALIZATIONS[s.specialization]?.name ?? '' : '';
@@ -366,7 +387,7 @@ export class StaffPanel {
         </div>
         <div>
           <div style="color:#888;font-size:9px">WAGE</div>
-          <div style="color:#c2c3c7;font-size:14px">$${member.wagePerDay}/d</div>
+          <div style="color:#c2c3c7;font-size:14px">$${this.staffSystem.getEffectiveWage(member).effectiveWage}/d</div>
         </div>
       </div>
 
@@ -411,6 +432,22 @@ export class StaffPanel {
       html += '<div style="margin-bottom:8px;padding:4px 8px;background:rgba(0,228,54,0.06);border-left:2px solid #00e436;border-radius:2px;color:#00e436;font-size:10px">High Morale: +10% repair speed, +3 domain health</div>';
     } else if (moraleTier === 'low') {
       html += '<div style="margin-bottom:8px;padding:4px 8px;background:rgba(255,0,77,0.06);border-left:2px solid #ff004d;border-radius:2px;color:#ff004d;font-size:10px">Low Morale: -15% repair speed, -3 domain health, quit risk</div>';
+    }
+
+    // Wage modifier breakdown
+    const wageInfo = this.staffSystem.getEffectiveWage(member);
+    if (wageInfo.moraleMult !== 1.0 || wageInfo.specMult !== 1.0) {
+      const parts = [];
+      if (wageInfo.moraleMult !== 1.0) {
+        const pct = Math.round((wageInfo.moraleMult - 1) * 100);
+        parts.push(`Morale ${pct > 0 ? '+' : ''}${pct}%`);
+      }
+      if (wageInfo.specMult !== 1.0) {
+        const label = wageInfo.specMult >= 1.25 ? 'Expert' : 'Specialist';
+        const pct = Math.round((wageInfo.specMult - 1) * 100);
+        parts.push(`${label} +${pct}%`);
+      }
+      html += `<div style="margin-bottom:8px;padding:4px 8px;background:rgba(255,163,0,0.06);border-left:2px solid #ffa300;border-radius:2px;color:#ffa300;font-size:10px">Wage: $${wageInfo.baseWage} base x ${parts.join(', ')} = $${wageInfo.effectiveWage}/day</div>`;
     }
 
     // Training status / Train button
@@ -565,7 +602,12 @@ export class StaffPanel {
   _attachEvents() {
     if (!this._el) return;
 
-    this._el.addEventListener('click', (e) => {
+    // Remove previous listener to prevent stacking on re-render
+    if (this._clickHandler) {
+      this._el.removeEventListener('click', this._clickHandler);
+    }
+
+    this._clickHandler = (e) => {
       const target = e.target.closest('[data-action]');
       if (!target) {
         // Check for tab clicks
@@ -662,6 +704,11 @@ export class StaffPanel {
           break;
         }
 
+        case 'team-building': {
+          this.eventBus.emit('staff:initiateTeamBuilding');
+          break;
+        }
+
         case 'fire-staff': {
           const staffId = parseInt(target.dataset.staffId, 10);
           const member = this.staffSystem.getStaff(staffId);
@@ -679,6 +726,8 @@ export class StaffPanel {
           break;
         }
       }
-    });
+    };
+
+    this._el.addEventListener('click', this._clickHandler);
   }
 }

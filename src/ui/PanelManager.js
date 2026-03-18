@@ -336,6 +336,22 @@ export class PanelManager {
         ? `Install ${slotDomainName} Filter`
         : `Install Filter (Slot ${col},${row})`;
 
+      // Emergency filter option
+      const emergencyStock = state.emergencyFilters ?? 0;
+      const emergencyHtml = emergencyStock > 0 ? `
+        <button data-action="install-emergency"
+          style="background:#3a1a1a;color:#ff004d;border:1px solid #6a3a3a;
+            padding:4px 8px;font-family:monospace;cursor:pointer;
+            font-size:10px;min-width:120px;text-align:left">
+          <div><strong>Emergency Filter</strong></div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:#ff004d;font-size:9px">Universal</span>
+            <span style="color:#ffa300;font-size:8px">30% eff</span>
+          </div>
+          <div style="color:#aaa;font-size:9px">Stock: ${emergencyStock} | 1 day</div>
+        </button>
+      ` : '';
+
       el.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
           <strong>${headerLabel}</strong>
@@ -345,6 +361,7 @@ export class PanelManager {
           ${slotDomainName ? `This slot accepts ${slotDomainName} equipment only.` : 'Choose a filter to install at this vent slot.'}
         </div>
         <div id="filter-options" style="display:flex;flex-wrap:wrap;gap:6px">
+          ${emergencyHtml}
           ${options.map((opt, i) => {
             const canAfford = state.money >= opt.cost;
             const archetype = opt.passive ? 'SPECIALIST' : (opt.domainHealthBonus >= 5 ? 'BOOSTER' : 'WORKHORSE');
@@ -374,6 +391,15 @@ export class PanelManager {
       el.addEventListener('click', (e) => {
         const action = e.target.closest('[data-action]')?.dataset.action;
         if (action === 'close') {
+          eventBus.emit('ui:closePanel');
+        } else if (action === 'install-emergency') {
+          const px = col * 16;
+          const py = row * 16;
+          eventBus.emit('filter:installEmergency', {
+            domain: slotDomain ?? 'air',
+            x: px,
+            y: py,
+          });
           eventBus.emit('ui:closePanel');
         } else if (action === 'install') {
           const idx = parseInt(e.target.closest('[data-idx]')?.dataset.idx, 10);
