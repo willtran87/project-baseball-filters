@@ -5,7 +5,7 @@ A pixel-art management simulation where you play as the Filtration Manager of a 
 ## Gameplay
 
 - **4 Filtration Domains**: Air, Water, HVAC, and Drainage — each with independent health systems
-- **6 Stadium Zones**: Field, Concourse, Mechanical, Underground, Luxury Boxes, and Press Box
+- **6 Stadium Zones**: Raptors Field, The Concourse, Mechanical Room, The Tunnels, Luxury Suites, and The Press Box
 - **Staff Management**: Hire, assign, and specialize crew members across domains
 - **Sponsor Contracts**: Reputation-gated deals with quality requirements and breach penalties
 - **Story Progression**: 6-chapter narrative with rival stadiums, media coverage, and milestone unlocks

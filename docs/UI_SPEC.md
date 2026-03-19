@@ -157,7 +157,7 @@ Each zone has a subtle background tint indicating its worst-condition filter:
 
 ## 3. HUD
 
-The HUD is always rendered on top of the game view. It uses the clipboard/control-panel visual theme: slightly off-white background with a subtle paper texture, dark brown border, pixel-font text.
+The HUD is always rendered on top of the game view. It uses the clipboard/control-panel visual theme: slightly off-white background with a subtle paper texture, **Raptors red** (`#cc2244`) border, pixel-font text.
 
 ### 3.1 Top Bar
 
@@ -680,7 +680,7 @@ Used for tier badges in the shop, upgrade indicators, and filter sprite accent.
 | Element | Hex | Usage |
 |---------|-----|-------|
 | Panel background | `#F5F0E8` | Off-white paper texture base |
-| Panel border | `#5D4037` | Dark brown frame |
+| Panel border | `#1a2a4a` | Raptors navy frame |
 | Text primary | `#212121` | Main text, labels |
 | Text secondary | `#757575` | Descriptions, hints |
 | Text accent | `#1565C0` | Clickable links, interactive labels |
@@ -950,7 +950,7 @@ The tutorial is integrated into the first 5-6 game days. Callouts are speech-bub
 ```
 
 - Rounded-rectangle speech bubble with a pixel-art arrow pointing to the target element
-- Light yellow background (`#FFF8E1`) with dark brown border
+- Light yellow background (`#FFF8E1`) with Raptors navy border (`#1a2a4a`)
 - Question mark icon in the header
 - Target element highlighted with a pulsing white border; rest of screen dimmed at 50% opacity
 - "Got it" button in bottom-right (or action instruction if player must do something)
