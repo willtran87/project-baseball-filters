@@ -1,0 +1,780 @@
+/**
+ * StateManager — Central game state container.
+ *
+ * Holds all mutable game state and emits change events through the EventBus.
+ * Systems read/write state here; the renderer reads it for display.
+ */
+
+import { ALL_ZONES } from '../data/domainZoneMap.js';
+
+const SAVE_VERSION = 3;
+
+export class StateManager {
+  constructor(eventBus, config) {
+    this.eventBus = eventBus;
+    this.config = config;
+
+    this._initDefaults(config);
+  }
+
+  _initDefaults(config) {
+    // Economy
+    this.money = config.startingMoney ?? 5000;
+    this.income = 0;
+    this.expenses = 0;
+
+    // Stadium
+    this.stadiumLevel = 1;
+    this.reputation = config.startingReputation ?? 50; // 0-100
+
+    // Filters — array of installed filter objects
+    // Each: { id, type, x, y, condition, maxCondition, efficiency }
+    this.filters = [];
+    this.nextFilterId = 1;
+
+    // Current game event (rain, heatwave, etc.)
+    this.activeEvent = null;
+
+    // Time tracking
+    this.gameDay = 1;
+    this.inning = 1;
+    this.paused = false;
+    this.speed = 1; // 1x, 2x, 3x
+
+    // Progression / unlocks
+    this.unlockedFeatures = [];
+    this.achievements = [];
+    this.achievementNotified = {}; // { achievementId: true } — tracks proximity toast notifications
+
+    // Game day / event tracking
+    this.currentGameDayType = 'weekdayRegular';
+    this.lastInspectionGrade = null;
+    this.difficulty = config.defaultDifficulty ?? 'veteran';
+    this.staffCount = config.startingStaff ?? config.economy?.startingStaff ?? 1;
+    this.attendance = 0;
+    this.season = 1;
+    this.eventsSurvived = 0;
+    this.championshipHosted = false;
+
+    // Story / narrative state
+    this.storyChapter = 1;
+    this.npcRelationships = {
+      maggie: 20, rusty: -5, victor: 0, priya: 0,
+      bea: 0, diego: 0, fiona: 0, sully: 0,
+    };
+    this.hanksNotes = [];
+    this.storyFlags = {};
+    this.storyEventsCompleted = [];
+
+    // Sully's Schemes state
+    this.schemeState = {
+      activeScheme: null,          // { schemeId, launchedDay } or null
+      globalCooldownUntil: 0,      // game day when global cooldown expires
+      schemeCooldowns: {},         // { schemeId: lastUsedDay }
+      sullyCaughtUntil: 0,         // game day when Sully becomes available again
+      schemesThisSeason: 0,        // count of schemes launched this season
+      lastSeason: 1,               // season tracker for resetting cap
+      schemeHistory: [],           // last N outcomes: [{ schemeId, day, success }]
+      sabotageImmunityUntil: 0,    // game day until sabotage immunity expires
+      sabotageChanceMultiplier: 1.0, // multiplier on Victor's sabotage chance
+      sabotageMultiplierUntil: 0,  // game day when multiplier expires
+      blockNextSabotage: false,    // one-time sabotage block flag
+      defensesDisabledUntil: 0,    // game day until defenses are re-enabled
+    };
+
+    // Staff RPG state
+    this.staffList = [];
+    this.lastTeamBuilding = 0;
+
+    // Raptors roster (persisted for crowd identity)
+    this.raptorsRoster = [];
+
+    // Research / tech tree state
+    this.researchProgress = {};
+
+    // Rival stadium state
+    this.rivalRep = 60;
+    this.victorEncounters = 0;
+
+    // Rival sabotage / defense state
+    this._rivalDefenses = {
+      securityUpgrade: { active: false, daysLeft: 0 },
+      counterIntel: { active: false, revealedType: null },
+      mediaResponse: { active: false, daysLeft: 0 },
+    };
+    this._smearCampaignDays = 0;
+    this._supplyCostDays = 0;
+    this._supplyCostMultiplier = 1.0;
+    this._nextInspectionPenalty = 1.0;
+    this._infraStressDays = 0;
+    this._infraStressDomain = null;
+    this._hotdogFloodDays = 0;
+    this._hotdogDegradeMultiplier = 1.0;
+    this._cursedBobbleDays = 0;
+    this._sprinklerPrankDays = 0;
+    this._organSwapDays = 0;
+    this._gremlinDays = 0;
+    this._sabotageRevenueMod = 1.0;
+    this._sabotageAttendanceMod = 1.0;
+    this._sabotageTeamPerfMod = 1.0;
+
+    // Media headlines
+    this.mediaHeadlines = [];
+
+    // Sponsor contracts
+    this.activeContracts = [];
+
+    // Contract breach risk tracking: { contractId: consecutiveDaysNearBreach }
+    this.contractBreachDays = {};
+
+    // Contract renewal tracking: { contractId: renewCount } — max 2 renewals per contract
+    this.contractRenewals = {};
+
+    // Repair tracking (for story triggers)
+    this.repairsCompleted = 0;
+
+    // Daily event log for Hank's Journal (array of { day, entries: [{ text, type }] })
+    this.dailyLog = [];
+
+    // Tutorial hints already seen
+    this.tutorialSeen = [];
+
+    // Guided onboarding (first-game experience)
+    this.isFirstGame = true;
+    this.tutorialStep = 0;
+
+    // Current zone
+    this.currentZone = 'field';
+
+    // Consequence system state
+    this.domainHealth = { air: 100, water: 100, hvac: 100, drainage: 100, electrical: 100, pest: 100 };
+    // Zone-specific domain health (source of truth; domainHealth above is computed aggregate)
+    this.zoneDomainHealth = this._buildDefaultZoneDomainHealth();
+    this.zoneConsequences = {};
+    this.activeConsequences = [];
+    this.consequenceRevenueModifier = 1.0;
+    this.consequenceAttendanceModifier = 1.0;
+    this.teamPerformanceModifier = 1.0;
+
+    // NPC casual chat cooldowns (NPC ID → last game day chatted)
+    this.npcLastChat = {};
+
+    // Gift shop cooldowns (key: "npcId_giftId" → game day given)
+    this.giftCooldowns = {};
+
+    // Progression streaks (persisted for ObjectivesPanel)
+    this.goodDayStreak = 0;
+    this.bestStreak = 0;
+
+    // Mini-game streaks
+    this.miniGameStreak = 0;
+    this.bestMiniGameStreak = 0;
+
+    // Stadium expansions
+    this.purchasedExpansions = []; // { key: string, purchasedDay: number }
+    this.unlockedExpansions = []; // expansion IDs unlocked by reputation
+
+    // Loans
+    // Each: { amount, interestRate, totalOwed, paidSoFar, dayTaken }
+    this.activeLoans = [];
+
+    // Off-season state
+    this.offSeason = false;
+    this.offSeasonDaysLeft = 0;
+    this.offSeasonChoices = {}; // tracks event decisions and flags per off-season
+    this.offSeasonFollowUps = []; // array of { eventId, choiceIndex, effect, season } for season-start consequences
+
+    // Stadium of the Year tracking (consecutive qualifying days)
+    this.stadiumOfTheYearDays = 0;
+
+    // Attendance (set each inning by EconomySystem)
+    this.attendancePercent = 0;
+    this.attendanceTrend = 'stable';
+
+    // Research effects accumulator (rebuilt by ResearchSystem on load)
+    this.researchEffects = {};
+
+    // Declined contracts (ContractPanel tracking)
+    this._declinedContracts = [];
+
+    // Loyalty follow-up contracts (generated by ContractPanel on successful completion)
+    this._followUpContracts = [];
+
+    // Reputation change budgeting (not serialized — resets each day)
+    this._repChangesToday = { positive: 0, negative: 0 };
+
+    // Emergency filter kits (universal temporary filters)
+    this.emergencyFilters = 0;
+
+    // Used filter inventory (removed filters awaiting resale)
+    this.filterInventory = [];
+
+    // Filter zone synergy bonuses cache
+    this.filterSynergies = {};
+
+    // Synergy discovery hint (one-time toast)
+    this.synergiesDiscovered = false;
+
+    // Dynamic market state
+    this.market = {
+      domainMultipliers: { air: 1.0, water: 1.0, hvac: 1.0, drainage: 1.0, electrical: 1.0, pest: 1.0 },
+      activeEvent: null,  // { id, name, description, domain, multiplier, daysLeft, tierFilter }
+      trend: { air: 0, water: 0, hvac: 0, drainage: 0, electrical: 0, pest: 0 },
+    };
+
+    // Sandbox goals (post-win challenges, null until win)
+    this.sandboxGoals = null;
+    this._sandboxHealthyDays = 0;
+
+    // Inspection scheduling
+    this.nextInspectionDay = 20 + Math.floor(Math.random() * 7) - 3; // ~20 days ± 3
+
+    // Filter event tracking (random degradation events)
+    this.lastFilterEventDay = 0;
+    this.contaminationDaysLeft = 0;
+    this.efficiencyBoostDaysLeft = 0;
+
+    // Multi-day event chain state
+    // { chainId, currentDay, flags: {}, startedOnGameDay }
+    this.activeEventChain = null;
+
+    // Market conditions (EconomySystem — Stream 1)
+    this.marketCondition = 'normal';   // 'boom' | 'normal' | 'recession'
+    this.marketMultiplier = 1.0;
+
+    // Domain health history for HUD trend display (Stream 2)
+    this.domainHealthHistory = {};
+
+    // Rival momentum tracking (Stream 2)
+    this.rivalMomentum = 0;
+
+    // Media headline streak (Stream 3)
+    this.headlineStreak = 0;
+
+    // Lifetime + seasonal statistics (tracked by StatsTracker)
+    this.stats = {
+      totalGamesPlayed: 0,
+      totalMoneyEarned: 0,
+      totalMoneySpent: 0,
+      filtersInstalled: 0,
+      filtersRepaired: 0,
+      filtersUpgraded: 0,
+      filtersBroken: 0,
+      highestReputation: 0,
+      bestAttendancePercent: 0,
+      weatherEventsEndured: 0,
+      loansRequested: 0,
+      expansionsPurchased: 0,
+      npcChats: 0,
+      seasonsCompleted: 0,
+      seasonFiltersInstalled: 0,
+      seasonFiltersBroken: 0,
+      seasonFiltersRepaired: 0,
+    };
+  }
+
+  /**
+   * Build default zoneDomainHealth with all zones at 100 for each domain.
+   */
+  _buildDefaultZoneDomainHealth() {
+    const domainKeys = Object.keys(this.config?.filtrationSystems ?? { air: 1, water: 1, hvac: 1, drainage: 1, electrical: 1, pest: 1 });
+    const zdh = {};
+    for (const zone of ALL_ZONES) {
+      zdh[zone] = {};
+      for (const d of domainKeys) zdh[zone][d] = 100;
+    }
+    return zdh;
+  }
+
+  /**
+   * Update a top-level state property and emit a change event.
+   */
+  /**
+   * Append an entry to the daily event log for Hank's Journal.
+   * Keeps max 60 days of history; max 20 entries per day.
+   */
+  logEvent(text, type = 'info') {
+    const day = this.gameDay ?? 1;
+    let dayEntry = this.dailyLog.find(d => d.day === day);
+    if (!dayEntry) {
+      dayEntry = { day, season: this.season ?? 1, entries: [] };
+      this.dailyLog.push(dayEntry);
+      // Trim old days
+      if (this.dailyLog.length > 60) this.dailyLog.shift();
+    }
+    if (dayEntry.entries.length < 20) {
+      dayEntry.entries.push({ text, type });
+    }
+  }
+
+  set(key, value) {
+    // Guard against NaN corrupting numeric state
+    if ((key === 'money' || key === 'reputation') && !Number.isFinite(value)) {
+      console.warn(`StateManager: blocked NaN assignment to ${key}, keeping ${this[key]}`);
+      return;
+    }
+    const old = this[key];
+    this[key] = value;
+    this.eventBus.emit(`state:${key}`, { key, value, old });
+  }
+
+  /**
+   * Update reputation with clamping to 0-100.
+   * Subject to daily budgeting: max +3 positive and -5 negative per day.
+   */
+  adjustReputation(delta) {
+    // Apply daily reputation budgeting caps
+    const budgeted = this._budgetRepChange(delta);
+    if (budgeted === 0) return;
+
+    const old = this.reputation;
+    this.reputation = Math.max(0, Math.min(100, this.reputation + budgeted));
+    if (this.reputation !== old) {
+      this.eventBus.emit('state:reputation', { key: 'reputation', value: this.reputation, old });
+    }
+  }
+
+  /**
+   * Apply daily reputation change budgeting.
+   * Caps cumulative positive changes at +3 and negative changes at -5 per day.
+   * Excess is silently discarded.
+   */
+  _budgetRepChange(delta) {
+    const budget = this._repChangesToday;
+    if (delta > 0) {
+      const cap = 3;
+      const remaining = cap - budget.positive;
+      if (remaining <= 0) return 0;
+      const allowed = Math.min(delta, remaining);
+      budget.positive += allowed;
+      return allowed;
+    } else if (delta < 0) {
+      const cap = 5;
+      const remaining = cap - Math.abs(budget.negative);
+      if (remaining <= 0) return 0;
+      const allowed = Math.max(delta, -remaining);
+      budget.negative += allowed;
+      return allowed;
+    }
+    return 0;
+  }
+
+  /**
+   * Reset the daily reputation change budget. Called at start of each new day.
+   */
+  resetDailyRepBudget() {
+    this._repChangesToday = { positive: 0, negative: 0 };
+  }
+
+  /**
+   * Add a filter to the stadium grid.
+   */
+  addFilter(filterData) {
+    const filter = { ...filterData, id: this.nextFilterId++ };
+    this.filters.push(filter);
+    this.eventBus.emit('filter:added', filter);
+    return filter;
+  }
+
+  /**
+   * Remove a filter by id.
+   */
+  removeFilter(id) {
+    const idx = this.filters.findIndex(f => f.id === id);
+    if (idx === -1) return null;
+    const [removed] = this.filters.splice(idx, 1);
+    this.eventBus.emit('filter:removed', removed);
+    return removed;
+  }
+
+  /**
+   * Get a filter by id.
+   */
+  getFilter(id) {
+    return this.filters.find(f => f.id === id) ?? null;
+  }
+
+  /**
+   * Serialize state for save/load.
+   */
+  serialize() {
+    return {
+      _version: SAVE_VERSION,
+      money: this.money,
+      income: this.income,
+      expenses: this.expenses,
+      stadiumLevel: this.stadiumLevel,
+      reputation: this.reputation,
+      filters: this.filters.map(f => ({ ...f })),
+      nextFilterId: this.nextFilterId,
+      activeEvent: this.activeEvent ? { ...this.activeEvent } : null,
+      gameDay: this.gameDay,
+      inning: this.inning,
+      paused: this.paused,
+      speed: this.speed,
+      unlockedFeatures: [...this.unlockedFeatures],
+      achievements: [...this.achievements],
+      achievementNotified: { ...(this.achievementNotified ?? {}) },
+      currentGameDayType: this.currentGameDayType,
+      lastInspectionGrade: this.lastInspectionGrade,
+      difficulty: this.difficulty,
+      staffCount: this.staffCount,
+      attendance: this.attendance,
+      season: this.season,
+      eventsSurvived: this.eventsSurvived,
+      championshipHosted: this.championshipHosted,
+      // Story state
+      storyChapter: this.storyChapter,
+      npcRelationships: { ...this.npcRelationships },
+      hanksNotes: [...this.hanksNotes],
+      storyFlags: { ...this.storyFlags },
+      storyEventsCompleted: [...this.storyEventsCompleted],
+      // Staff RPG
+      staffList: this.staffList.map(s => ({ ...s })),
+      lastTeamBuilding: this.lastTeamBuilding ?? 0,
+      // Raptors roster
+      raptorsRoster: (this.raptorsRoster ?? []).map(p => ({ ...p })),
+      // Research
+      researchProgress: {
+        completedNodes: [...(this.researchProgress.completedNodes ?? [])],
+        activeResearch: this.researchProgress.activeResearch
+          ? { ...this.researchProgress.activeResearch }
+          : null,
+      },
+      // Sully's Schemes
+      schemeState: {
+        activeScheme: this.schemeState.activeScheme ? { ...this.schemeState.activeScheme } : null,
+        globalCooldownUntil: this.schemeState.globalCooldownUntil,
+        schemeCooldowns: { ...this.schemeState.schemeCooldowns },
+        sullyCaughtUntil: this.schemeState.sullyCaughtUntil,
+        schemesThisSeason: this.schemeState.schemesThisSeason,
+        lastSeason: this.schemeState.lastSeason,
+        schemeHistory: this.schemeState.schemeHistory.slice(-10).map(h => ({ ...h })),
+        sabotageImmunityUntil: this.schemeState.sabotageImmunityUntil,
+        sabotageChanceMultiplier: this.schemeState.sabotageChanceMultiplier,
+        sabotageMultiplierUntil: this.schemeState.sabotageMultiplierUntil,
+        blockNextSabotage: this.schemeState.blockNextSabotage ?? false,
+        defensesDisabledUntil: this.schemeState.defensesDisabledUntil ?? 0,
+      },
+      // Rival
+      rivalRep: this.rivalRep,
+      victorEncounters: this.victorEncounters,
+      // Rival sabotage / defenses
+      _rivalDefenses: this._rivalDefenses ? { ...this._rivalDefenses } : null,
+      _smearCampaignDays: this._smearCampaignDays ?? 0,
+      _supplyCostDays: this._supplyCostDays ?? 0,
+      _supplyCostMultiplier: this._supplyCostMultiplier ?? 1.0,
+      _nextInspectionPenalty: this._nextInspectionPenalty ?? 1.0,
+      _infraStressDays: this._infraStressDays ?? 0,
+      _infraStressDomain: this._infraStressDomain ?? null,
+      _hotdogFloodDays: this._hotdogFloodDays ?? 0,
+      _hotdogDegradeMultiplier: this._hotdogDegradeMultiplier ?? 1.0,
+      _cursedBobbleDays: this._cursedBobbleDays ?? 0,
+      _sprinklerPrankDays: this._sprinklerPrankDays ?? 0,
+      _organSwapDays: this._organSwapDays ?? 0,
+      _gremlinDays: this._gremlinDays ?? 0,
+      _sabotageRevenueMod: this._sabotageRevenueMod ?? 1.0,
+      _sabotageAttendanceMod: this._sabotageAttendanceMod ?? 1.0,
+      _sabotageTeamPerfMod: this._sabotageTeamPerfMod ?? 1.0,
+      // Media
+      mediaHeadlines: this.mediaHeadlines.map(h => ({ ...h })),
+      // Contracts
+      activeContracts: this.activeContracts.map(c => ({ ...c })),
+      contractBreachDays: { ...(this.contractBreachDays ?? {}) },
+      contractRenewals: { ...(this.contractRenewals ?? {}) },
+      // Daily event log
+      dailyLog: this.dailyLog.slice(-60), // keep last 60 days
+      // Tutorial
+      tutorialSeen: [...this.tutorialSeen],
+      // Guided onboarding
+      isFirstGame: this.isFirstGame,
+      tutorialStep: this.tutorialStep,
+      // Repair tracking
+      repairsCompleted: this.repairsCompleted,
+      // Zone
+      currentZone: this.currentZone,
+      // Consequence system
+      domainHealth: { ...this.domainHealth },
+      zoneDomainHealth: JSON.parse(JSON.stringify(this.zoneDomainHealth ?? {})),
+      zoneConsequences: JSON.parse(JSON.stringify(this.zoneConsequences ?? {})),
+      activeConsequences: this.activeConsequences.map(c => ({ ...c })),
+      consequenceRevenueModifier: this.consequenceRevenueModifier,
+      consequenceAttendanceModifier: this.consequenceAttendanceModifier,
+      teamPerformanceModifier: this.teamPerformanceModifier,
+      // NPC chat cooldowns
+      npcLastChat: { ...this.npcLastChat },
+      // Gift shop cooldowns
+      giftCooldowns: { ...(this.giftCooldowns ?? {}) },
+      // Progression streaks
+      goodDayStreak: this.goodDayStreak,
+      bestStreak: this.bestStreak,
+      // Mini-game streaks
+      miniGameStreak: this.miniGameStreak,
+      bestMiniGameStreak: this.bestMiniGameStreak,
+      // Stadium expansions
+      purchasedExpansions: this.purchasedExpansions.map(e => ({ ...e })),
+      unlockedExpansions: [...this.unlockedExpansions],
+      // Loans
+      activeLoans: this.activeLoans.map(l => ({ ...l })),
+      // Off-season
+      offSeason: this.offSeason,
+      offSeasonDaysLeft: this.offSeasonDaysLeft,
+      offSeasonChoices: this.offSeasonChoices ? { ...this.offSeasonChoices } : {},
+      offSeasonFollowUps: Array.isArray(this.offSeasonFollowUps) ? this.offSeasonFollowUps.map(f => ({ ...f })) : [],
+      // Stadium of the Year
+      stadiumOfTheYearDays: this.stadiumOfTheYearDays,
+      // Attendance
+      attendancePercent: this.attendancePercent,
+      attendanceTrend: this.attendanceTrend,
+      // Research effects (rebuilt by ResearchSystem, but serialize for immediate availability)
+      researchEffects: { ...(this.researchEffects ?? {}) },
+      // Declined contracts
+      _declinedContracts: (this._declinedContracts ?? []).map(d => ({ ...d })),
+      // Follow-up contracts
+      _followUpContracts: (this._followUpContracts ?? []).map(c => ({ ...c })),
+      // Statistics
+      stats: { ...(this.stats ?? {}) },
+      // Sandbox goals
+      sandboxGoals: this.sandboxGoals ? this.sandboxGoals.map(g => ({ ...g })) : null,
+      _sandboxHealthyDays: this._sandboxHealthyDays ?? 0,
+      // Inspection scheduling
+      nextInspectionDay: this.nextInspectionDay,
+      // Filter event tracking
+      lastFilterEventDay: this.lastFilterEventDay ?? 0,
+      contaminationDaysLeft: this.contaminationDaysLeft ?? 0,
+      efficiencyBoostDaysLeft: this.efficiencyBoostDaysLeft ?? 0,
+      // Multi-day event chains
+      activeEventChain: this.activeEventChain ? { ...this.activeEventChain, flags: { ...(this.activeEventChain.flags ?? {}) } } : null,
+      // Emergency filter kits
+      emergencyFilters: this.emergencyFilters ?? 0,
+      // Used filter inventory
+      filterInventory: (this.filterInventory ?? []).map(f => ({ ...f })),
+      // Filter synergies cache
+      filterSynergies: { ...(this.filterSynergies ?? {}) },
+      // Synergy discovery hint
+      synergiesDiscovered: this.synergiesDiscovered ?? false,
+      // Dynamic market
+      market: {
+        domainMultipliers: { ...(this.market?.domainMultipliers ?? {}) },
+        activeEvent: this.market?.activeEvent ? { ...this.market.activeEvent } : null,
+        trend: { ...(this.market?.trend ?? {}) },
+      },
+      // Market conditions (Stream 1)
+      marketCondition: this.marketCondition,
+      marketMultiplier: this.marketMultiplier,
+      // Domain health history (Stream 2)
+      domainHealthHistory: this.domainHealthHistory ? { ...this.domainHealthHistory } : {},
+      // Rival momentum (Stream 2)
+      rivalMomentum: this.rivalMomentum,
+      // Media headline streak (Stream 3)
+      headlineStreak: this.headlineStreak,
+    };
+  }
+
+  /**
+   * Restore state from a saved object.
+   */
+  deserialize(data) {
+    if (!data || typeof data !== 'object') return false;
+    this.money = data.money ?? this.config.startingMoney ?? 5000;
+    this.income = data.income ?? 0;
+    this.expenses = data.expenses ?? 0;
+    this.stadiumLevel = data.stadiumLevel ?? 1;
+    this.reputation = data.reputation ?? 50;
+    this.filters = Array.isArray(data.filters) ? data.filters : [];
+    // Migrate: remove any filters incorrectly assigned to 'field' zone (field has no vent slots)
+    this.filters = this.filters.filter(f => f.zone !== 'field');
+    this.nextFilterId = data.nextFilterId ?? 1;
+    this.activeEvent = data.activeEvent ?? null;
+    this.gameDay = data.gameDay ?? 1;
+    this.inning = data.inning ?? 1;
+    this.paused = data.paused ?? false;
+    this.speed = data.speed ?? 1;
+    this.unlockedFeatures = Array.isArray(data.unlockedFeatures) ? data.unlockedFeatures : [];
+    this.achievements = Array.isArray(data.achievements) ? data.achievements : [];
+    this.achievementNotified = data.achievementNotified ?? {};
+    this.currentGameDayType = data.currentGameDayType ?? 'weekdayRegular';
+    this.lastInspectionGrade = data.lastInspectionGrade ?? null;
+    this.difficulty = data.difficulty ?? this.config.defaultDifficulty ?? 'veteran';
+    this.staffCount = data.staffCount ?? this.config.startingStaff ?? 1;
+    this.attendance = data.attendance ?? 0;
+    this.season = data.season ?? 1;
+    this.eventsSurvived = data.eventsSurvived ?? 0;
+    this.championshipHosted = data.championshipHosted ?? false;
+    // Story state
+    this.storyChapter = data.storyChapter ?? 1;
+    this.npcRelationships = data.npcRelationships ?? {
+      maggie: 20, rusty: -5, victor: 0, priya: 0,
+      bea: 0, diego: 0, fiona: 0, sully: 0,
+    };
+    // Ensure sully key exists for old saves
+    if (this.npcRelationships.sully == null) this.npcRelationships.sully = 0;
+    this.hanksNotes = Array.isArray(data.hanksNotes) ? data.hanksNotes : [];
+    this.storyFlags = data.storyFlags ?? {};
+    this.storyEventsCompleted = Array.isArray(data.storyEventsCompleted) ? data.storyEventsCompleted : [];
+    // Sully's Schemes state
+    const ss = data.schemeState ?? {};
+    this.schemeState = {
+      activeScheme: ss.activeScheme ?? null,
+      globalCooldownUntil: ss.globalCooldownUntil ?? 0,
+      schemeCooldowns: ss.schemeCooldowns ?? {},
+      sullyCaughtUntil: ss.sullyCaughtUntil ?? 0,
+      schemesThisSeason: ss.schemesThisSeason ?? 0,
+      lastSeason: ss.lastSeason ?? (this.season ?? 1),
+      schemeHistory: Array.isArray(ss.schemeHistory) ? ss.schemeHistory : [],
+      sabotageImmunityUntil: ss.sabotageImmunityUntil ?? 0,
+      sabotageChanceMultiplier: ss.sabotageChanceMultiplier ?? 1.0,
+      sabotageMultiplierUntil: ss.sabotageMultiplierUntil ?? 0,
+      blockNextSabotage: ss.blockNextSabotage ?? false,
+      defensesDisabledUntil: ss.defensesDisabledUntil ?? 0,
+    };
+    // Staff RPG
+    this.staffList = Array.isArray(data.staffList) ? data.staffList : [];
+    this.lastTeamBuilding = data.lastTeamBuilding ?? 0;
+    // Raptors roster
+    this.raptorsRoster = Array.isArray(data.raptorsRoster) ? data.raptorsRoster : [];
+    // Research (ensure nested structure is restored)
+    const rp = data.researchProgress ?? {};
+    this.researchProgress = {
+      completedNodes: Array.isArray(rp.completedNodes) ? rp.completedNodes : [],
+      activeResearch: rp.activeResearch ? { ...rp.activeResearch } : null,
+    };
+    // Rival
+    this.rivalRep = data.rivalRep ?? 60;
+    this.victorEncounters = data.victorEncounters ?? 0;
+    // Rival sabotage / defenses
+    this._rivalDefenses = data._rivalDefenses ?? {
+      securityUpgrade: { active: false, daysLeft: 0 },
+      counterIntel: { active: false, revealedType: null },
+      mediaResponse: { active: false, daysLeft: 0 },
+    };
+    this._smearCampaignDays = data._smearCampaignDays ?? 0;
+    this._supplyCostDays = data._supplyCostDays ?? 0;
+    this._supplyCostMultiplier = data._supplyCostMultiplier ?? 1.0;
+    this._nextInspectionPenalty = data._nextInspectionPenalty ?? 1.0;
+    this._infraStressDays = data._infraStressDays ?? 0;
+    this._infraStressDomain = data._infraStressDomain ?? null;
+    this._hotdogFloodDays = data._hotdogFloodDays ?? 0;
+    this._hotdogDegradeMultiplier = data._hotdogDegradeMultiplier ?? 1.0;
+    this._cursedBobbleDays = data._cursedBobbleDays ?? 0;
+    this._sprinklerPrankDays = data._sprinklerPrankDays ?? 0;
+    this._organSwapDays = data._organSwapDays ?? 0;
+    this._gremlinDays = data._gremlinDays ?? 0;
+    this._sabotageRevenueMod = data._sabotageRevenueMod ?? 1.0;
+    this._sabotageAttendanceMod = data._sabotageAttendanceMod ?? 1.0;
+    this._sabotageTeamPerfMod = data._sabotageTeamPerfMod ?? 1.0;
+    // Media
+    this.mediaHeadlines = Array.isArray(data.mediaHeadlines) ? data.mediaHeadlines : [];
+    // Contracts
+    this.activeContracts = Array.isArray(data.activeContracts) ? data.activeContracts : [];
+    this.contractBreachDays = data.contractBreachDays ?? {};
+    this.contractRenewals = data.contractRenewals ?? {};
+    // Daily event log
+    this.dailyLog = Array.isArray(data.dailyLog) ? data.dailyLog : [];
+    // Tutorial
+    this.tutorialSeen = Array.isArray(data.tutorialSeen) ? data.tutorialSeen : [];
+    // Guided onboarding
+    this.isFirstGame = data.isFirstGame ?? true;
+    this.tutorialStep = data.tutorialStep ?? 0;
+    // Repair tracking
+    this.repairsCompleted = data.repairsCompleted ?? 0;
+    // Zone
+    this.currentZone = data.currentZone ?? 'field';
+    // Consequence system
+    this.domainHealth = data.domainHealth ?? { air: 100, water: 100, hvac: 100, drainage: 100, electrical: 100, pest: 100 };
+    // Zone-specific domain health — migrate old saves by copying flat health to all zones
+    if (data.zoneDomainHealth && typeof data.zoneDomainHealth === 'object' && Object.keys(data.zoneDomainHealth).length > 0) {
+      this.zoneDomainHealth = data.zoneDomainHealth;
+    } else {
+      // Migration: spread flat domainHealth into every zone
+      this.zoneDomainHealth = {};
+      for (const zone of ALL_ZONES) {
+        this.zoneDomainHealth[zone] = { ...this.domainHealth };
+      }
+    }
+    this.zoneConsequences = data.zoneConsequences ?? {};
+    this.activeConsequences = Array.isArray(data.activeConsequences) ? data.activeConsequences : [];
+    this.consequenceRevenueModifier = data.consequenceRevenueModifier ?? 1.0;
+    this.consequenceAttendanceModifier = data.consequenceAttendanceModifier ?? 1.0;
+    this.teamPerformanceModifier = data.teamPerformanceModifier ?? 1.0;
+    // Progression streaks
+    this.npcLastChat = data.npcLastChat ?? {};
+    this.giftCooldowns = data.giftCooldowns ?? {};
+    this.goodDayStreak = data.goodDayStreak ?? 0;
+    this.bestStreak = data.bestStreak ?? 0;
+    // Mini-game streaks
+    this.miniGameStreak = data.miniGameStreak ?? 0;
+    this.bestMiniGameStreak = data.bestMiniGameStreak ?? 0;
+    // Stadium expansions
+    this.purchasedExpansions = Array.isArray(data.purchasedExpansions) ? data.purchasedExpansions : [];
+    this.unlockedExpansions = Array.isArray(data.unlockedExpansions) ? data.unlockedExpansions : [];
+    // Loans
+    this.activeLoans = Array.isArray(data.activeLoans) ? data.activeLoans : [];
+    // Off-season
+    this.offSeason = data.offSeason ?? false;
+    this.offSeasonDaysLeft = data.offSeasonDaysLeft ?? 0;
+    this.offSeasonChoices = data.offSeasonChoices ?? {};
+    this.offSeasonFollowUps = Array.isArray(data.offSeasonFollowUps) ? data.offSeasonFollowUps : [];
+    // Stadium of the Year
+    this.stadiumOfTheYearDays = data.stadiumOfTheYearDays ?? 0;
+    // Attendance
+    this.attendancePercent = data.attendancePercent ?? 0;
+    this.attendanceTrend = data.attendanceTrend ?? 'stable';
+    // Research effects
+    this.researchEffects = data.researchEffects ?? {};
+    // Declined contracts
+    this._declinedContracts = Array.isArray(data._declinedContracts) ? data._declinedContracts : [];
+    // Follow-up contracts
+    this._followUpContracts = Array.isArray(data._followUpContracts) ? data._followUpContracts : [];
+    // Statistics (merge with defaults for forward-compat)
+    const defaultStats = {
+      totalGamesPlayed: 0, totalMoneyEarned: 0, totalMoneySpent: 0,
+      filtersInstalled: 0, filtersRepaired: 0, filtersUpgraded: 0, filtersBroken: 0,
+      highestReputation: 0, bestAttendancePercent: 0, weatherEventsEndured: 0,
+      loansRequested: 0, expansionsPurchased: 0, npcChats: 0, seasonsCompleted: 0,
+      seasonFiltersInstalled: 0, seasonFiltersBroken: 0, seasonFiltersRepaired: 0,
+    };
+    this.stats = { ...defaultStats, ...(data.stats ?? {}) };
+    // Sandbox goals
+    this.sandboxGoals = Array.isArray(data.sandboxGoals) ? data.sandboxGoals.map(g => ({ ...g })) : null;
+    this._sandboxHealthyDays = data._sandboxHealthyDays ?? 0;
+    // Inspection scheduling
+    this.nextInspectionDay = data.nextInspectionDay ?? (this.gameDay + 20 + Math.floor(Math.random() * 7) - 3);
+    // Filter event tracking
+    this.lastFilterEventDay = data.lastFilterEventDay ?? 0;
+    this.contaminationDaysLeft = data.contaminationDaysLeft ?? 0;
+    this.efficiencyBoostDaysLeft = data.efficiencyBoostDaysLeft ?? 0;
+    // Multi-day event chains
+    this.activeEventChain = data.activeEventChain ? { ...data.activeEventChain, flags: { ...(data.activeEventChain.flags ?? {}) } } : null;
+    // Emergency filter kits
+    this.emergencyFilters = data.emergencyFilters ?? 0;
+    // Used filter inventory
+    this.filterInventory = Array.isArray(data.filterInventory) ? data.filterInventory : [];
+    // Filter synergies cache
+    this.filterSynergies = data.filterSynergies ?? {};
+    // Synergy discovery hint
+    this.synergiesDiscovered = data.synergiesDiscovered ?? false;
+    // Dynamic market
+    const dm = data.market ?? {};
+    this.market = {
+      domainMultipliers: { air: 1.0, water: 1.0, hvac: 1.0, drainage: 1.0, electrical: 1.0, pest: 1.0, ...(dm.domainMultipliers ?? {}) },
+      activeEvent: dm.activeEvent ? { ...dm.activeEvent } : null,
+      trend: { air: 0, water: 0, hvac: 0, drainage: 0, electrical: 0, pest: 0, ...(dm.trend ?? {}) },
+    };
+    // Market conditions (Stream 1)
+    this.marketCondition = data.marketCondition ?? 'normal';
+    this.marketMultiplier = data.marketMultiplier ?? 1.0;
+    // Domain health history (Stream 2)
+    this.domainHealthHistory = data.domainHealthHistory ?? {};
+    // Rival momentum (Stream 2)
+    this.rivalMomentum = data.rivalMomentum ?? 0;
+    // Media headline streak (Stream 3)
+    this.headlineStreak = data.headlineStreak ?? 0;
+
+    // Reset transient per-day state that isn't serialized
+    this._repChangesToday = { positive: 0, negative: 0 };
+
+    this.eventBus.emit('state:loaded', data);
+    return true;
+  }
+}
